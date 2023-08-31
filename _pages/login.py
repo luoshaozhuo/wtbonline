@@ -21,13 +21,11 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc, callback, Input, Output, State, no_update
 from flask_login import login_user
 from werkzeug.security import check_password_hash
-
-from _pages.tools.login_manager import User
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from _database.config import URI
-# from _database.config import get_db_session
 
+from wtbonline._db.config import RSDB_URI
+from wtbonline._db.rsdb.model import User
 
 # =============================================================================
 # constant
@@ -85,9 +83,17 @@ def get_layout():
           prevent_initial_call=True,
           )
 def on_login_button_login(n_clicks, username, password):
-    with sessionmaker(create_engine(URI))() as session:
+    with sessionmaker(create_engine(RSDB_URI))() as session:
         user = session.query(User).filter_by(username=username).first()
     if user and password and check_password_hash(user.password, password):
         login_user(user)
         return '/', True, no_update
     return no_update, False, True
+
+if __name__ == '__main__':
+    import dash
+    app = dash.Dash(__name__, 
+                    external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
+                    suppress_callback_exceptions=True)
+    app.layout = html.Div(get_layout())
+    app.run_server(debug=False)

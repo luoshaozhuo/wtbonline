@@ -1,6 +1,6 @@
 # coding: utf-8
 from flask_sqlalchemy import SQLAlchemy
-
+from flask_login import UserMixin
 
 db = SQLAlchemy()
 
@@ -27,7 +27,6 @@ class AppServer(db.Model):
     user = db.Column(db.String(255, 'utf8mb4_general_ci'))
     password = db.Column(db.String(255, 'utf8mb4_general_ci'))
     database = db.Column(db.String(20, 'utf8mb4_general_ci'))
-
 
 
 class Model(db.Model):
@@ -112,6 +111,7 @@ class StatisticsSample(db.Model):
     var_101_crest = db.Column(db.Float)
     var_101_zc = db.Column(db.Float)
     var_101_cv = db.Column(db.Float)
+    var_101_imp = db.Column(db.Float)
     var_102_mean = db.Column(db.Float)
     var_102_rms = db.Column(db.Float)
     var_102_iqr = db.Column(db.Float)
@@ -122,6 +122,7 @@ class StatisticsSample(db.Model):
     var_102_crest = db.Column(db.Float)
     var_102_zc = db.Column(db.Float)
     var_102_cv = db.Column(db.Float)
+    var_102_imp = db.Column(db.Float)
     var_103_mean = db.Column(db.Float)
     var_103_rms = db.Column(db.Float)
     var_103_iqr = db.Column(db.Float)
@@ -132,6 +133,7 @@ class StatisticsSample(db.Model):
     var_103_crest = db.Column(db.Float)
     var_103_zc = db.Column(db.Float)
     var_103_cv = db.Column(db.Float)
+    var_103_imp = db.Column(db.Float)
     var_226_mean = db.Column(db.Float)
     var_226_rms = db.Column(db.Float)
     var_226_iqr = db.Column(db.Float)
@@ -142,6 +144,7 @@ class StatisticsSample(db.Model):
     var_226_crest = db.Column(db.Float)
     var_226_zc = db.Column(db.Float)
     var_226_cv = db.Column(db.Float)
+    var_226_imp = db.Column(db.Float)
     var_246_mean = db.Column(db.Float)
     var_246_rms = db.Column(db.Float)
     var_246_iqr = db.Column(db.Float)
@@ -152,6 +155,7 @@ class StatisticsSample(db.Model):
     var_246_crest = db.Column(db.Float)
     var_246_zc = db.Column(db.Float)
     var_246_cv = db.Column(db.Float)
+    var_246_imp = db.Column(db.Float)
     var_2709_mean = db.Column(db.Float)
     var_2709_rms = db.Column(db.Float)
     var_2709_iqr = db.Column(db.Float)
@@ -162,6 +166,7 @@ class StatisticsSample(db.Model):
     var_2709_crest = db.Column(db.Float)
     var_2709_zc = db.Column(db.Float)
     var_2709_cv = db.Column(db.Float)
+    var_2709_imp = db.Column(db.Float)
     var_355_mean = db.Column(db.Float)
     var_355_rms = db.Column(db.Float)
     var_355_iqr = db.Column(db.Float)
@@ -172,6 +177,7 @@ class StatisticsSample(db.Model):
     var_355_crest = db.Column(db.Float)
     var_355_zc = db.Column(db.Float)
     var_355_cv = db.Column(db.Float)
+    var_355_imp = db.Column(db.Float)
     var_356_mean = db.Column(db.Float)
     var_356_rms = db.Column(db.Float)
     var_356_iqr = db.Column(db.Float)
@@ -182,6 +188,7 @@ class StatisticsSample(db.Model):
     var_356_crest = db.Column(db.Float)
     var_356_zc = db.Column(db.Float)
     var_356_cv = db.Column(db.Float)
+    var_356_imp = db.Column(db.Float)
     evntemp_mean = db.Column(db.Float)
     evntemp_rms = db.Column(db.Float)
     evntemp_iqr = db.Column(db.Float)
@@ -192,6 +199,7 @@ class StatisticsSample(db.Model):
     evntemp_crest = db.Column(db.Float)
     evntemp_zc = db.Column(db.Float)
     evntemp_cv = db.Column(db.Float)
+    evntemp_imp = db.Column(db.Float)
     var_372_mean = db.Column(db.Float)
     var_372_rms = db.Column(db.Float)
     var_372_iqr = db.Column(db.Float)
@@ -202,6 +210,7 @@ class StatisticsSample(db.Model):
     var_372_crest = db.Column(db.Float)
     var_372_zc = db.Column(db.Float)
     var_372_cv = db.Column(db.Float)
+    var_372_imp = db.Column(db.Float)
     var_382_mean = db.Column(db.Float)
     var_382_rms = db.Column(db.Float)
     var_382_iqr = db.Column(db.Float)
@@ -212,6 +221,7 @@ class StatisticsSample(db.Model):
     var_382_crest = db.Column(db.Float)
     var_382_zc = db.Column(db.Float)
     var_382_cv = db.Column(db.Float)
+    var_382_imp = db.Column(db.Float)
     var_383_mean = db.Column(db.Float)
     var_383_rms = db.Column(db.Float)
     var_383_iqr = db.Column(db.Float)
@@ -222,6 +232,7 @@ class StatisticsSample(db.Model):
     var_383_crest = db.Column(db.Float)
     var_383_zc = db.Column(db.Float)
     var_383_cv = db.Column(db.Float)
+    var_383_imp = db.Column(db.Float)
     var_409_mean = db.Column(db.Float)
     var_409_rms = db.Column(db.Float)
     var_409_iqr = db.Column(db.Float)
@@ -232,6 +243,7 @@ class StatisticsSample(db.Model):
     var_409_crest = db.Column(db.Float)
     var_409_zc = db.Column(db.Float)
     var_409_cv = db.Column(db.Float)
+    var_409_imp = db.Column(db.Float)
     var_94_mean = db.Column(db.Float)
     var_94_rms = db.Column(db.Float)
     var_94_iqr = db.Column(db.Float)
@@ -242,6 +254,7 @@ class StatisticsSample(db.Model):
     var_94_crest = db.Column(db.Float)
     var_94_zc = db.Column(db.Float)
     var_94_cv = db.Column(db.Float)
+    var_94_imp = db.Column(db.Float)
     ongrid_mode = db.Column(db.String(20, 'utf8mb4_general_ci'))
     ongrid_unique = db.Column(db.String(50, 'utf8mb4_general_ci'))
     ongrid_nunique = db.Column(db.Integer)
@@ -262,7 +275,6 @@ class StatisticsSample(db.Model):
     create_time = db.Column(db.DateTime, nullable=False)
 
 
-
 class TimedTaskLog(db.Model):
     __tablename__ = 'timed_task_log'
 
@@ -274,7 +286,6 @@ class TimedTaskLog(db.Model):
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
     pid = db.Column(db.Integer, nullable=False)
-
 
 
 class TurbineModelPoint(db.Model):
@@ -319,7 +330,7 @@ class TurbineVariableBound(db.Model):
 
 
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = 'user'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -333,8 +344,8 @@ class WindfarmConfiguration(db.Model):
     __tablename__ = 'windfarm_configuration'
     __table_args__ = (
         db.ForeignKeyConstraint(['set_id', 'model_name'], ['windfarm_turbine_model.set_id', 'windfarm_turbine_model.model_name'], ondelete='RESTRICT', onupdate='CASCADE'),
-        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name'),
-        db.Index('set_id_2', 'set_id', 'turbine_id')
+        db.Index('set_id_2', 'set_id', 'turbine_id'),
+        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name')
     )
 
     id = db.Column(db.Integer, primary_key=True, nullable=False)
@@ -379,10 +390,5 @@ class WindfarmTurbineModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     set_id = db.Column(db.ForeignKey('windfarm_infomation.set_id', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, server_default=db.FetchedValue())
     model_name = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False, index=True, info='配置名')
-    rated_power = db.Column(db.VARBINARY(20), nullable=False, info='额定功率')
-    blade = db.Column(db.String(255, 'utf8mb4_general_ci'), info='叶片型号')
-    gearbox = db.Column(db.String(255, 'utf8mb4_general_ci'), info='齿轮箱型号')
-    generator = db.Column(db.String(255, 'utf8mb4_general_ci'), info='发电机型号')
-    convertor = db.Column(db.String(255, 'utf8mb4_general_ci'), info='变流器型号')
 
     set = db.relationship('WindfarmInfomation', primaryjoin='WindfarmTurbineModel.set_id == WindfarmInfomation.set_id', backref='windfarm_turbine_models')

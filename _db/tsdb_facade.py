@@ -257,8 +257,8 @@ class TDEngine_FACADE():
             *,
             set_id:str,
             turbine_id:str, 
-            start_time:Union[str, pd.Timestamp], 
-            end_time:Union[str, pd.Timestamp], 
+            start_time:Union[str, pd.Timestamp]=None, 
+            end_time:Union[str, pd.Timestamp]=None, 
             point_name:Optional[List[str]]=None,
             var_name:Optional[List[str]]=None,
             limit:Optional[int]=None,
@@ -316,6 +316,8 @@ class TDEngine_FACADE():
         >>> df.shape[1]>500 and point_df.shape[0]>500
         True
         '''
+        start_time = pd.to_datetime('2020-01-01 00:00:00') if start_time is None else start_time
+        end_time = pd.Timestamp.now() if end_time is None else end_time
         start_time, end_time = make_sure_datetime([start_time, end_time])
         func_dct = make_sure_dict(func_dct)
         groupby = make_sure_list(groupby)
@@ -334,7 +336,10 @@ class TDEngine_FACADE():
             remote = remote,
             )
         # 查询
+        ## 查询列过多
         limit = 10 if point_df.shape[0]>100 and limit==None else limit
+        ## 防止忘记限制查询行数
+        limit = 1000000 if limit is None else limit
         dbname =TD_REMOTE_RESTAPI['database'] if remote==True else TD_LOCAL_CONNECTOR['database']
         tbname = f's_{set_id}' if turbine_id is None else f'd_{turbine_id}'
         sql = f'''

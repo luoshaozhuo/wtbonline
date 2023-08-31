@@ -229,7 +229,7 @@ def agg(df:pd.DataFrame, funcs:List[Callable])->pd.Series:
 
 def numeric_statistics():
     ''' 数值类型变量常用统计量 '''
-    return [mean, rms, iqr, std, skew, kurt, wf, crest, zc, cv]
+    return [mean, rms, iqr, std, skew, kurt, wf, crest, zc, cv, imp]
 
 def category_statistics():
     ''' 数值类型变量常用统计量 '''

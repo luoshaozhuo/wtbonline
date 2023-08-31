@@ -18,10 +18,10 @@ if __name__ == '__main__':
 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from flask_login import LoginManager, UserMixin
+from flask_login import LoginManager
     
-from _database.model import User as _User
-from _database.config import URI
+from wtbonline._db.rsdb.model import User
+from wtbonline._db.config import RSDB_URI
 
 # =============================================================================
 # constant
@@ -30,16 +30,10 @@ login_manager = LoginManager()
 login_manager.login_view = '/login'
 
 # =============================================================================
-# class
-# =============================================================================
-class User(UserMixin, _User):
-    pass
-
-# =============================================================================
 # function
 # =============================================================================
 @login_manager.user_loader
 def load_user(user_id):
-    with sessionmaker(create_engine(URI))() as session:
+    with sessionmaker(create_engine(RSDB_URI))() as session:
         user = session.query(User).filter(User.id==user_id).first()
     return user

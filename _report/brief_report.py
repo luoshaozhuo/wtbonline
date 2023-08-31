@@ -764,7 +764,7 @@ def chapter_3_7(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(_build_table(raw_single, bound_single, '叶根载荷关键参数-单独'))
     rev.append(_build_table(raw_df, bound_df, '叶根载荷关键参数-组合'))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg'))
+        rev.append(build_graph(graphs[key_], key_, f'3_7_{key_}.jpg'))
     return rev
 
 

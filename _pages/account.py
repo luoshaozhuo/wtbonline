@@ -24,9 +24,10 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 
-from _database import _mysql as msql
-from _database import model
-from _pages.tools.decorator import _on_error
+# from _database import _mysql as msql
+# from _database import model
+from wtbonline._pages.tools.decorator import _on_error
+from wtbonline._db.rsdb_interface import RSDBInterface
     
     
 # =============================================================================
@@ -164,7 +165,7 @@ def get_layout():
     )
 @_on_error
 def on_account_btn_refresh(n):
-    df = msql.read_user(columns=['username', 'privilege'])
+    df = RSDBInterface.read_user(columns=['username', 'privilege'])
     df['privilege'].replace({1:'管理员', 0:'用户'})
     df.columns = ['用户名', '权限']
     return df.to_dict('records')
@@ -182,19 +183,35 @@ def on_account_btn_refresh(n):
     )
 @_on_error
 def on_account_btn_admit(n, user_name, password, privilege):
-    if None in (user_name, password):
-        return no_update, '用户名或密码为空', True, 'danger'
     privilege = 1 if privilege=='管理员' else 0
-    hashed_password = generate_password_hash(password, method='scrypt')
-    df = pd.DataFrame({'username':user_name, 
-                       'password':hashed_password,
-                       'privilege':privilege},
-                      index=[0])
-    msql.insert(df, model.User, keys='username')
-    df = msql.read_user(columns=['username', 'privilege'])
+    hashed_password = generate_password_hash(password) if password is not None else None
+    exist_user = RSDBInterface.read_user()['username'].tolist()
+    # 修改用户信息
+    if user_name in exist_user:
+        new_values = {'privilege':privilege}
+        new_values = (new_values.update({'password':hashed_password}) if 
+                      password is not None else new_values)
+        RSDBInterface.update(
+            'user', 
+            new_values=new_values,
+            eq_clause={'username':user_name}
+            )
+        msg = '修改用户信息'
+    # 新增用户
+    else:
+        if None in (user_name, password):
+            return no_update, '用户名或密码为空', True, 'danger'
+        df = pd.DataFrame(
+            {'username':user_name, 
+            'password':hashed_password,
+            'privilege':privilege},
+            index=[0])
+        RSDBInterface.insert(df, 'user')
+        msg = '新增用户'
+    df= RSDBInterface.read_user(columns=['username', 'privilege'])
     df['privilege'].replace({1:'管理员', 0:'用户'})
     df.columns = ['用户名', '权限']
-    return df.to_dict('records'), '提交成功', True, 'success'
+    return df.to_dict('records'), msg, True, 'success'
 
 @callback(
     Output(f'{_PREFIX}_alert', 'children', allow_duplicate=True),
@@ -214,15 +231,15 @@ def on_account_btn_update(n, old_password, new_password):
         _ = current_user.password
         this_user = current_user
     except:
-        this_user = msql.read_user('admin').squeeze()
+        this_user = RSDBInterface.read_user(username='admin').squeeze()
     
     if not check_password_hash(this_user.password, old_password):
         return '旧密码不正确', True, 'danger'
     
-    new_password = generate_password_hash(new_password, method='scrypt')
-    sr = pd.Series({'password':new_password, 'username':this_user.username})    
-    msql.update_one(sr, 'username', model.User)
-    
+    new_password = generate_password_hash(new_password)
+    sr = pd.Series({'password':new_password, 'username':this_user.username})
+    RSDBInterface.update('user', {'password':new_password}, eq_clause={'username':this_user.username})
+
     return '密码已修改', True, 'success'
 
 # =============================================================================
@@ -234,6 +251,5 @@ if __name__ == '__main__':
                     external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
                     suppress_callback_exceptions=True)
     app.layout = html.Div(get_layout())
-    debug = True if len(sys.argv)>1 else False
-    app.run_server(debug=debug)
+    app.run_server(debug=False)
     

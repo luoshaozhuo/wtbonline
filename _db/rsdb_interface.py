@@ -10,7 +10,7 @@ Created on Tue Apr 25 19:21:08 2023
 # import
 from datetime import date
 import pandas as pd
-from typing import List, Optional, Union, Mapping
+from typing import List, Optional, Union, Mapping, Any
 
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.common import (make_sure_list, make_sure_datetime)
@@ -20,6 +20,16 @@ class RSDBInterface():
     @classmethod
     def insert(cls, df:Union[dict, pd.DataFrame], tbname:str):
         RSDB.insert(df, tbname)
+
+    @classmethod
+    def update(cls,               
+               tbname:str,
+               new_values:Mapping[str, Any],
+               eq_clause:Optional[Mapping[str, str]]=None, 
+               in_clause:Optional[Mapping[str, str]]=None, 
+               lge_clause:Optional[Mapping[str, str]]=None, 
+               lt_clause:Optional[Mapping[str, str]]=None):
+        RSDB.update(tbname, new_values, eq_clause=eq_clause, in_clause=in_clause, lge_clause=lge_clause, lt_clause=lt_clause)
 
     @classmethod
     def get_in_or_eq_clause(cls, **kwargs):
@@ -158,6 +168,7 @@ class RSDBInterface():
             *, 
             set_id:Optional[List[str or int]]=None,
             turbine_id:Optional[List[str or int]]=None,
+            map_id:Optional[List[str or int]]=None,
             columns:Optional[Union[List[str], str]]=None,
             )->pd.DataFrame:
         '''
@@ -165,7 +176,7 @@ class RSDBInterface():
         True
         '''
         tbname = 'windfarm_configuration'
-        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, turbine_id=turbine_id)
+        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, turbine_id=turbine_id, map_id=map_id)
         return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, columns=columns)
 
     @classmethod    

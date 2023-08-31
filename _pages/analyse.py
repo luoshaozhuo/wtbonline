@@ -21,9 +21,11 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px 
 
-from _database import _mysql as msql
-from _pages.tools.decorator import _on_error
+from wtbonline._db.rsdb_interface import RSDBInterface
+from wtbonline._db.tsdb_facade import TDFC 
+from wtbonline._pages.tools.decorator import _on_error
 
 # =============================================================================
 # constant
@@ -37,11 +39,97 @@ SIDEBAR_DF = pd.DataFrame([['性能', '功率曲线', 'powercurve', 1, 1],
                            ['可靠性', '可靠性', 'safety', 3, 1]],
                           columns=['category', 'name', 'id', 'order', 'suborder'])
 
+# funcion
+def mapid_to_tid(set_id, map_id):
+    df = RSDBInterface.read_windfarm_configuration(
+        set_id=set_id, 
+        map_id=map_id,
+        )
+    assert df.shape[0]>0, '{map_id}找不到对应的turbine_id'
+    return df['turbine_id'].iloc[0]
+
+def tid_to_map(set_id, turbine_id):
+    df = RSDBInterface.read_windfarm_configuration(
+        set_id=set_id, 
+        turbine_id=turbine_id
+        )
+    assert df.shape[0]>0, '{turbine_id}找不到对应的map_id'
+    return df['map_id'].iloc[0]
+
+
+def read_power_curve(set_id, turbine_id, start_date, end_date):
+    df = RSDBInterface.read_statistics_sample(
+        set_id=set_id,
+        turbine_id=turbine_id,
+        start_time=start_date,
+        end_time=end_date,
+        columns = ['turbine_id', 'var_355_mean', 'var_246_mean', 'totalfaultbool_mode',
+                   'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique',
+                   'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean']
+        )
+    # 正常发电数据
+    df = df[
+        (df['totalfaultbool_mode']=='False') &
+        (df['totalfaultbool_nunique']==1) &
+        (df['ongrid_mode']=='True') & 
+        (df['ongrid_nunique']==1) & 
+        (df['limitpowbool_mode']=='False') &
+        (df['limitpowbool_nunique']==1)
+        ]
+    df.rename(columns={'var_355_mean':'mean_wind_speed', 
+                       'var_246_mean':'mean_power'}, 
+                       inplace=True)
+    # 15°空气密度
+    df['mean_wind_speed'] = df['mean_wind_speed']*np.power((273.15+df['evntemp_mean'])/288.15,1/3.0)
+    return df
+
+def plot_power_curve(value_lst):
+    fig= go.Figure()
+    for i, j in enumerate(value_lst):
+        color = px.colors.qualitative.Plotly[i]
+        turbine_id = mapid_to_tid(j['机型编号'], j['风机编号'])
+        df = read_power_curve(j['机型编号'], turbine_id, j['开始日期'], j['结束日期'])
+        wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)
+        df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
+        power_curve = df.groupby(['wspd', 'turbine_id'])['mean_power'].median().reset_index()
+        mean_df = power_curve.groupby('wspd')['mean_power'].median().reset_index()
+        fig.add_trace(
+            go.Scatter(
+                x=mean_df['wspd'],
+                y=mean_df['mean_power'],
+                line=dict(color=color),
+                mode='lines',
+                name=j['图例号']
+                )
+            )
+        fig.add_trace(
+            go.Scatter(
+                x=df['mean_wind_speed'],
+                y=df['mean_power'],
+                mode='markers',
+                name=j['图例号'],
+                marker=dict(opacity=0.1, color=color)
+                )
+            ) 
+    fig.layout.xaxis.update({'title': '风速 m/s'})
+    fig.layout.yaxis.update({'title': '功率 kW'})
+    fig.update_layout(
+        legend=dict(
+            orientation="h",
+            font=dict(
+                    size=10,
+                    color="black"
+                ),
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1)
+        )
+    return fig
 
 # =============================================================================
 # layour
 # =============================================================================
-
 def _get_side_bar():
     class_name = 'border border-0 bg-transparent text-primary text-start'
     rev = []
@@ -127,73 +215,40 @@ def _get_modle_dialog():
                       dbc.ModalFooter([
                           dbc.Button(
                               '确定', 
-                              id='analyse_btn_confirm', 
+                              id=f'{_PREFIX}_btn_confirm', 
                               className='btn-primary me-2', 
                               n_clicks=0,
+                              disabled=True,
                               size='sm'
                               ),
                           dbc.Button(
                               '取消', 
-                              id='analyse_btn_cancel', 
+                              id=f'{_PREFIX}_btn_cancel', 
                               className='btn-secondary', 
                               n_clicks=0,
                               size='sm'
                               )
                           ]), 
-                      ], id='analyse_modal', is_open=False)
+                      ], id=f'{_PREFIX}_modal', is_open=False)
 
 def _get_plots(triggered_id, value_lst):
-    df = []
-    for i in value_lst:
-        turbine_id = msql.map_id_to_turbine_id(set_id=i['机型编号'], 
-                                                map_id=i['风机编号'])
-        temp = msql.read_statistics_sample(set_id=i['机型编号'], 
-                                           turbine_id=turbine_id,
-                                           start_time=i['开始日期'], 
-                                           end_time=i['结束日期'])
-        temp['图例号'] = i['图例号']
-        df.append(temp)
-    df = pd.concat(df, ignore_index=True)
-
+    header = ['Not implemented']
+    graph = {}
     if triggered_id=='powercurve':
-        fig = go.Figure()
-        for i,grp in df.groupby('图例号'):
-            fig.add_trace(
-                go.Scatter(x=grp['mean_wind_speed'],
-                           y=grp['mean_power'],
-                           mode='markers',
-                           name=i,
-                           showlegend=True,
-                           marker=dict(opacity=0.3),)
-                ) 
-        fig.update_layout(
-            legend=dict(
-                orientation='h',
-                font=dict(
-                        size=10,
-                        color='black'
-                    ),
-                yanchor='bottom',
-                y=1.02,
-                xanchor='right',
-                x=1),
-            )
-        
-        card = dbc.Card([
-            dbc.CardHeader('功率曲线局部视图'),
-            dbc.CardBody([
-                  dcc.Graph(figure=fig,
-                            id=f'{_PREFIX}_plot_powercurve_scatter',
-                            config={'displaylogo':False}), 
-                  # dcc.Graph(id=f'{_PREFIX}_plot_powercurve_time_series',
-                  #           config={'displaylogo':False}),
-                ])
-            ])
-        
+        header = '功率曲线'
+        graph = dcc.Graph(figure=plot_power_curve(value_lst),
+            id=f'{_PREFIX}_plot_powercurve_scatter',
+            config={'displaylogo':False})
+    
+    card = dbc.Card([
+        dbc.CardHeader(header),
+        dbc.CardBody([graph])
+        ])
     return dbc.Row(dbc.Col(card, class_name='m-0 px-1 pt-1'))
 
 def get_layout():
     layout = [_get_modle_dialog(),
+              dbc.Alert(id=f"{_PREFIX}_alert", color = 'danger', duration=3000, is_open=False),
               dcc.Store(data='powercurve', 
                         id=f'{_PREFIX}_store_sidebar', 
                         storage_type='session'),
@@ -227,7 +282,7 @@ def get_layout():
 @_on_error
 def on_analyse_btn_collapse(n, is_open):
     ''' 显示选定分析对象表格 '''
-    return not is_open
+    return not is_open 
 
 @callback(
     Output(f'{_PREFIX}_modal', 'is_open'),
@@ -236,14 +291,15 @@ def on_analyse_btn_collapse(n, is_open):
     Output(f'{_PREFIX}_dropdown_map_id', 'options'),
     Output(f'{_PREFIX}_dropdown_map_id', 'value'),
     Output(f'{_PREFIX}_datatable', 'data'),
+    Output(f'{_PREFIX}_btn_confirm', 'disabled'),
     Input(f'{_PREFIX}_btn_add', 'n_clicks'),
     Input(f'{_PREFIX}_btn_confirm', 'n_clicks'),
     Input(f'{_PREFIX}_btn_cancel', 'n_clicks'),
     Input(f'{_PREFIX}_dropdown_set_id', 'value'),
-    State(f'{_PREFIX}_daterange', 'start_date'),
-    State(f'{_PREFIX}_daterange', 'end_date'),
-    State(f'{_PREFIX}_dropdown_map_id', 'value'),
-    State(f'{_PREFIX}_datatable', 'data'),
+    Input(f'{_PREFIX}_daterange', 'start_date'),
+    Input(f'{_PREFIX}_daterange', 'end_date'),
+    Input(f'{_PREFIX}_dropdown_map_id', 'value'),
+    Input(f'{_PREFIX}_datatable', 'data'),
     prevent_initial_call=True
     )
 @_on_error
@@ -252,57 +308,66 @@ def on_anaylse_dialog(n1, n2, n3, set_id, start_date, end_date, map_id, obj_lst)
     _id = ctx.triggered_id
     # 点击增加，打开对话框，修改set_id及map_id的可选项以及默认值
     if _id==f'{_PREFIX}_btn_add':
-        df = msql.read_windfarm_configuration()
+        df = RSDBInterface.read_windfarm_configuration()
         # set_id
-        set_id_lst = msql.get_available_set_id()
+        set_id_lst = df['set_id'].unique().tolist()
         option_set_id = [{'label':i} for i in set_id_lst]
         set_id = set_id_lst[0]
         # map_id
-        map_id_lst = msql.get_available_map_id(set_id)
+        map_id_lst = df['map_id'].unique().tolist()
         option_map_id = [{'label':i} for i in map_id_lst]
         map_id = map_id_lst[0]
-        return (True, option_set_id, set_id, option_map_id, map_id, no_update)
+        rev = [True, option_set_id, set_id, option_map_id, map_id, no_update]
     # 选择新set_id后，变更map_id可选项以及默认值
     elif _id==f'{_PREFIX}_dropdown_set_id':
-        map_id_lst = msql.get_available_map_id(set_id)
+        map_id_lst = df['map_id'].unique().tolist()
         option_map_id = [{'label':i} for i in map_id_lst]
         map_id = map_id_lst[0]
-        return (no_update, no_update, no_update, option_map_id, map_id, no_update)
+        rev = [no_update, no_update, no_update, option_map_id, map_id, no_update]
     # 点击对话框里的确定按钮，关闭对话框，更新系列列表
     elif _id==f'{_PREFIX}_btn_confirm':
-        turbine_id = msql.map_id_to_turbine_id(set_id, map_id)
-        sr = msql.read_statistics_accumulattion(set_id=set_id,turbine_id=turbine_id)
-        sr = sr.squeeze()
-        start_date = sr['start_date'].isoformat() if start_date is None else start_date
-        end_date = sr['end_date'].isoformat() if end_date is None else end_date
         obj_lst = [] if obj_lst is None else obj_lst
         obj_lst.append({'图例号':'*', '机型编号':set_id, '风机编号':map_id, 
                         '开始日期':start_date, '结束日期':end_date})
         df = pd.DataFrame(obj_lst, index=np.arange(len(obj_lst)))
         df.drop_duplicates(['机型编号','风机编号','开始日期','结束日期'], inplace=True)
         df['图例号'] = [f't_{i}' for i in np.arange(df.shape[0])]
-        return False, no_update, no_update, no_update, no_update, df.to_dict('records')
-    return False, no_update, no_update, no_update, no_update, no_update
+        rev = [False, no_update, no_update, no_update, no_update, df.to_dict('records')]
+    elif _id==f'{_PREFIX}_btn_cancel':
+        rev =  [False, no_update, no_update, no_update, no_update, no_update]
+    else:
+        rev =  [no_update, no_update, no_update, no_update, no_update, no_update]
+    disabled = True if None in [set_id, map_id, start_date, end_date] else False
+    rev.append(disabled)
+    return rev
 
 
 @callback(
     Output(f'{_PREFIX}_daterange', 'min_date_allowed'),
     Output(f'{_PREFIX}_daterange', 'max_date_allowed'),
     Output(f'{_PREFIX}_daterange', 'disabled_days'),  
+    Output(f'{_PREFIX}_daterange', 'start_date'),
+    Output(f'{_PREFIX}_daterange', 'end_date'),
     Input(f'{_PREFIX}_dropdown_map_id', 'value'),
     State(f'{_PREFIX}_dropdown_set_id', 'value'),
     prevent_initial_call=True
     )
 @_on_error
 def on_change_analyse_dropdown_turbine_id(map_id, set_id):
-    turbine_id = msql.map_id_to_turbine_id(set_id, map_id).squeeze()
-    dates = msql.get_available_date(set_id=set_id, turbine_id=turbine_id)
+    turbine_id = mapid_to_tid(set_id, map_id)
+    df = RSDBInterface.read_statistics_sample(
+        set_id=set_id, 
+        turbine_id=turbine_id,
+        func_dct={'bin':['date']},
+        unique=True,
+        )
+    dates = df['bin_date'].squeeze()
     min_date = dates.min()
     max_date = dates.max()
     disabled_days = pd.date_range(min_date, max_date)
     disabled_days = disabled_days[~disabled_days.isin(dates)]
     disabled_days = [i.date().isoformat() for i in disabled_days]
-    return min_date, max_date, disabled_days
+    return min_date, max_date, disabled_days, None, None
 
 @callback(
     Output(f'{_PREFIX}_plot', 'children'),
@@ -331,5 +396,4 @@ if __name__ == '__main__':
                     external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
                     suppress_callback_exceptions=True)
     app.layout = html.Div(get_layout())
-    debug = True if len(sys.argv)>1 else False
-    app.run_server(debug=debug)
+    app.run_server(debug=False)
