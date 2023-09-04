@@ -11,14 +11,14 @@ Created on Mon May 15 12:24:50 2023
 # =============================================================================)
 from dash import html, dcc, Input, Output, no_update, callback, State, ctx, dash_table, ALL
 import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px 
 
 from wtbonline._db.rsdb_interface import RSDBInterface
-from wtbonline._db.tsdb_facade import TDFC 
-from _pages.tools._decorator import _on_error
+from wtbonline._pages.tools._decorator import _on_error
 
 # =============================================================================
 # constant
@@ -120,6 +120,10 @@ def plot_power_curve(value_lst):
         )
     return fig
 
+def _make_sure_datetime_string(x):
+    if x is None:
+        x = '0000000000T00:00:00'
+    return x
 # =============================================================================
 # layour
 # =============================================================================
@@ -175,54 +179,73 @@ def _get_card_select():
                      ])
     return dbc.Row(dbc.Col(card, class_name='m-0 px-1 pt-1'))
 
+
 def _get_modle_dialog():
-    return dbc.Modal([dbc.ModalHeader(dbc.ModalTitle('添加分析对象', class_name='fs-4')),
-                      dbc.ModalBody([
-                          dbc.InputGroup(
-                              [dbc.InputGroupText('机型编号', class_name='small'),
-                               dbc.Select(
-                                   id=f'{_PREFIX}_dropdown_set_id',
-                                   class_name='small',
-                                   )],
-                              className='mb-4'
-                              ),
-                          dbc.InputGroup(
-                              [dbc.InputGroupText('风机编号', class_name='small'),
-                               dbc.Select(
-                                   id=f'{_PREFIX}_dropdown_map_id',
-                                   class_name='small',
-                                   )],
-                              className='mb-4'
-                              ),
-                          dbc.InputGroup(
-                                [dbc.InputGroupText("日期范围", class_name='small'),
-                                 dcc.DatePickerRange(id=f'{_PREFIX}_daterange',
-                                                     minimum_nights=0,
-                                                     clearable=True,
-                                                     start_date_placeholder_text="Start Period",
-                                                     end_date_placeholder_text="End Period",
-                                                     style={'font-size':12})], 
-                                className='w-100'
-                                ),
-                          ]), 
-                      dbc.ModalFooter([
-                          dbc.Button(
-                              '确定', 
-                              id=f'{_PREFIX}_btn_confirm', 
-                              className='btn-primary me-2', 
-                              n_clicks=0,
-                              disabled=True,
-                              size='sm'
-                              ),
-                          dbc.Button(
-                              '取消', 
-                              id=f'{_PREFIX}_btn_cancel', 
-                              className='btn-secondary', 
-                              n_clicks=0,
-                              size='sm'
-                              )
-                          ]), 
-                      ], id=f'{_PREFIX}_modal', is_open=False)
+    return dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle('添加分析对象', class_name='fs-4')),
+            dbc.ModalBody([
+                dbc.InputGroup(
+                    [
+                        dbc.InputGroupText('机型编号', class_name='small'),
+                        dbc.Select(
+                            id=f'{_PREFIX}_dropdown_set_id',
+                            class_name='small',
+                            )
+                        ],
+                    className='mb-4'
+                    ),
+                dbc.InputGroup(
+                    [
+                        dbc.InputGroupText('风机编号', class_name='small'),
+                        dbc.Select(
+                            id=f'{_PREFIX}_dropdown_map_id',
+                            class_name='small',
+                            )
+                        ],
+                    className='mb-4'
+                    ),
+                dbc.InputGroup(
+                    [
+                        dbc.InputGroupText("开始日期", class_name='small'),
+                        dmc.DatePicker(id=f'{_PREFIX}_start_date', size='md', clearable =False),
+                        dbc.InputGroupText("时间", class_name='small'),
+                        dmc.TimeInput(id=f'{_PREFIX}_start_time', size='md'),
+                        ], 
+                    className='w-100'
+                    ),
+                html.Br(),
+                dbc.InputGroup(
+                    [
+                        dbc.InputGroupText("结束日期", class_name='small'),
+                        dmc.DatePicker(id=f'{_PREFIX}_end_date', size='md', clearable =False),
+                        dbc.InputGroupText("时间", class_name='small'),
+                        dmc.TimeInput(id=f'{_PREFIX}_end_time', size='md'),
+                        ], 
+                    className='w-100'
+                    ),
+                ]), 
+            dbc.ModalFooter([
+                dbc.Button(
+                    '确定', 
+                    id=f'{_PREFIX}_btn_confirm', 
+                    className='btn-primary me-2', 
+                    n_clicks=0,
+                    disabled=True,
+                    size='sm'
+                    ),
+                dbc.Button(
+                    '取消', 
+                    id=f'{_PREFIX}_btn_cancel', 
+                    className='btn-secondary', 
+                    n_clicks=0,
+                    size='sm'
+                    )
+                ]), 
+            ], 
+    id=f'{_PREFIX}_modal', 
+    is_open=False
+    )
 
 def _get_plots(triggered_id, value_lst):
     header = ['Not implemented']
@@ -284,19 +307,20 @@ def on_analyse_btn_collapse(n, is_open):
     Output(f'{_PREFIX}_dropdown_map_id', 'options'),
     Output(f'{_PREFIX}_dropdown_map_id', 'value'),
     Output(f'{_PREFIX}_datatable', 'data'),
-    Output(f'{_PREFIX}_btn_confirm', 'disabled'),
     Input(f'{_PREFIX}_btn_add', 'n_clicks'),
     Input(f'{_PREFIX}_btn_confirm', 'n_clicks'),
     Input(f'{_PREFIX}_btn_cancel', 'n_clicks'),
     Input(f'{_PREFIX}_dropdown_set_id', 'value'),
-    Input(f'{_PREFIX}_daterange', 'start_date'),
-    Input(f'{_PREFIX}_daterange', 'end_date'),
     Input(f'{_PREFIX}_dropdown_map_id', 'value'),
     Input(f'{_PREFIX}_datatable', 'data'),
+    State(f'{_PREFIX}_start_date', 'value'),
+    State(f'{_PREFIX}_start_time', 'value'),    
+    State(f'{_PREFIX}_end_date', 'value'),
+    State(f'{_PREFIX}_end_time', 'value'),
     prevent_initial_call=True
     )
 @_on_error
-def on_anaylse_dialog(n1, n2, n3, set_id, start_date, end_date, map_id, obj_lst):
+def on_analyse_dialog(n1, n2, n3, set_id, map_id, obj_lst, start_date, start_time, end_date, end_time):
     ''' 显示/隐藏添加分析对象对话框，更新分析对象数据 '''
     _id = ctx.triggered_id
     # 点击增加，打开对话框，修改set_id及map_id的可选项以及默认值
@@ -320,8 +344,10 @@ def on_anaylse_dialog(n1, n2, n3, set_id, start_date, end_date, map_id, obj_lst)
     # 点击对话框里的确定按钮，关闭对话框，更新系列列表
     elif _id==f'{_PREFIX}_btn_confirm':
         obj_lst = [] if obj_lst is None else obj_lst
+        start_time = _make_sure_datetime_string(start_time)
+        end_time = _make_sure_datetime_string(end_time)
         obj_lst.append({'图例号':'*', '机型编号':set_id, '风机编号':map_id, 
-                        '开始日期':start_date, '结束日期':end_date})
+                        '开始日期':start_date+start_time[10:], '结束日期':end_date+end_time[10:]})
         df = pd.DataFrame(obj_lst, index=np.arange(len(obj_lst)))
         df.drop_duplicates(['机型编号','风机编号','开始日期','结束日期'], inplace=True)
         df['图例号'] = [f't_{i}' for i in np.arange(df.shape[0])]
@@ -330,24 +356,52 @@ def on_anaylse_dialog(n1, n2, n3, set_id, start_date, end_date, map_id, obj_lst)
         rev =  [False, no_update, no_update, no_update, no_update, no_update]
     else:
         rev =  [no_update, no_update, no_update, no_update, no_update, no_update]
-    disabled = True if None in [set_id, map_id, start_date, end_date] else False
-    rev.append(disabled)
+    return rev
+
+@callback(
+    Output(f'{_PREFIX}_end_date', 'error', allow_duplicate=True),
+    Output(f'{_PREFIX}_end_time', 'error', allow_duplicate=True),
+    Output(f'{_PREFIX}_btn_confirm', 'disabled'),
+    Input(f'{_PREFIX}_start_date', 'value'),
+    Input(f'{_PREFIX}_start_time', 'value'),    
+    Input(f'{_PREFIX}_end_date', 'value'),
+    Input(f'{_PREFIX}_end_time', 'value'),
+    State(f'{_PREFIX}_dropdown_set_id', 'value'),
+    State(f'{_PREFIX}_dropdown_map_id', 'value'),
+    prevent_initial_call=True
+    )
+@_on_error
+def on_change_analyse_date_range(start_date, start_time, end_date, end_time, set_id, map_id):
+    if None in [set_id, map_id, start_date, end_date]:
+        rev = [no_update, no_update, True]
+    else:
+        start_time = _make_sure_datetime_string(start_time)
+        end_time = _make_sure_datetime_string(end_time)
+        start_dt = end_date + start_time[10:]
+        end_dt = start_date + end_time[10:]
+        if start_dt <= end_dt:
+            rev = [True, True, True]
+        else:
+            rev = [False, False, False]
     return rev
 
 
 @callback(
-    Output(f'{_PREFIX}_daterange', 'min_date_allowed'),
-    Output(f'{_PREFIX}_daterange', 'max_date_allowed'),
-    Output(f'{_PREFIX}_daterange', 'disabled_days'),  
-    Output(f'{_PREFIX}_daterange', 'start_date'),
-    Output(f'{_PREFIX}_daterange', 'end_date'),
+    Output(f'{_PREFIX}_start_date', 'minDate'),
+    Output(f'{_PREFIX}_start_date', 'maxDate'),
+    Output(f'{_PREFIX}_start_date', 'disabledDates'),  
+    Output(f'{_PREFIX}_start_date', 'value'),
+    Output(f'{_PREFIX}_end_date', 'minDate'),
+    Output(f'{_PREFIX}_end_date', 'maxDate'),
+    Output(f'{_PREFIX}_end_date', 'disabledDates'),  
+    Output(f'{_PREFIX}_end_date', 'value'),
     Input(f'{_PREFIX}_dropdown_map_id', 'value'),
     State(f'{_PREFIX}_dropdown_set_id', 'value'),
     prevent_initial_call=True
     )
 @_on_error
 def on_change_analyse_dropdown_turbine_id(map_id, set_id): 
-    turbine_id = mapid_to_tid(set_id, map_id)
+    turbine_id = mapid_to_tid(set_id, map_id=map_id)
     df = RSDBInterface.read_statistics_sample(
         set_id=set_id, 
         turbine_id=turbine_id,
@@ -360,7 +414,9 @@ def on_change_analyse_dropdown_turbine_id(map_id, set_id):
     disabled_days = pd.date_range(min_date, max_date)
     disabled_days = disabled_days[~disabled_days.isin(dates)]
     disabled_days = [i.date().isoformat() for i in disabled_days]
-    return min_date, max_date, disabled_days, None, None
+    rev = [min_date, max_date, disabled_days, None]
+    rev += [min_date, max_date, disabled_days, None]
+    return rev
 
 @callback(
     Output(f'{_PREFIX}_plot', 'children'),

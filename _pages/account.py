@@ -17,7 +17,7 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 
-from _pages.tools._decorator import _on_error
+from wtbonline._pages.tools._decorator import _on_error
 from wtbonline._db.rsdb_interface import RSDBInterface    
     
 # =============================================================================

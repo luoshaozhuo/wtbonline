@@ -21,7 +21,7 @@ import plotly.graph_objects as go
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._pages.tools.plot import line_plot, anormaly_plot, spectrum_plot, scatter_matrix_anormaly
 from wtbonline._pages.tools._decorator import _on_error
-from wtbonline._pages.tools.plot import ts_plot, spc_plot
+from wtbonline._pages.tools.plot import ts_plot_multiplue_y, spc_plot_multiplue_y
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._pages.tools.utils import mapid_to_tid, available_variable
@@ -69,10 +69,10 @@ _plot = dbc.Card(
                 ),
                 dbc.Col([
                     _control_bar('top', '时序图'),
-                    dcc.Graph(figure=ts_plot(), id=f'{_PREFIX}_graph_top'),
+                    dcc.Graph(figure=ts_plot_multiplue_y(), id=f'{_PREFIX}_graph_top'),
                     html.Hr(),
                     _control_bar('btm', '频谱图'),
-                    dcc.Graph(figure=ts_plot(), id=f'{_PREFIX}_graph_btm'),
+                    dcc.Graph(figure=ts_plot_multiplue_y(), id=f'{_PREFIX}_graph_btm'),
                 ],width={"size": 6})
             ])
             ])
@@ -209,7 +209,7 @@ def diagnose_on_change_analyse_dropdown_set_id(set_id, n1, n2, labels):
 @_on_error
 def diagnose_on_change_analyse_dropdown_map_id(map_id, set_id):
     if map_id=='' or map_id is None:
-        return scatter_matrix_anormaly(), ts_plot(), ts_plot(), '', None, '', True
+        return scatter_matrix_anormaly(), ts_plot_multiplue_y(), ts_plot_multiplue_y(), '', None, '', True
     anormaly_df = read_anormaly_without_label(set_id=set_id, map_id=map_id)
     count = len(anormaly_df)
     df = read_scatter_matrix_anormaly(set_id, map_id=map_id, columns=_SCATTER_PLOT_VARIABLES)
@@ -267,17 +267,17 @@ def diagnose_update_prfile_summary(selected_data, set_id):
     )
 def diagnose_update_graphs(selected_data, type_lst, y1_lst, y2_lst):
     if selected_data is None or len(selected_data['points'])>1:
-        return no_update, no_update, no_update, ts_plot(), ts_plot()
+        return no_update, no_update, no_update, ts_plot_multiplue_y(), ts_plot_multiplue_y()
     var_name=pd.Series(y1_lst+y2_lst).replace('', None).dropna().tolist()
     if len(var_name)==0:
-        return no_update, no_update, no_update, ts_plot(), ts_plot()
+        return no_update, no_update, no_update, ts_plot_multiplue_y(), ts_plot_multiplue_y()
     idx = selected_data['points'][0]['customdata']
     df, point_df = read_sample_ts(idx, var_name+['var_94'])
     point_df.set_index('var_name', inplace=True)
     if len(df)==0:
-        return True, f'无id={idx}, columns={var_name}数据', 'red', ts_plot(), ts_plot()
+        return True, f'无id={idx}, columns={var_name}数据', 'red', ts_plot_multiplue_y(), ts_plot_multiplue_y()
     
-    func = {'时序图':ts_plot, '频谱图':spc_plot}
+    func = {'时序图':ts_plot_multiplue_y, '频谱图':spc_plot_multiplue_y}
     top_cols = [y1_lst[0], y2_lst[0]]
     btm_cols = [y1_lst[1], y2_lst[1]]
     fig_top, fig_btm = no_update, no_update

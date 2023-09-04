@@ -14,6 +14,7 @@ from plotly.subplots import make_subplots
 import numpy as np
 import pandas as pd
 from collections.abc import Iterable
+from typing import List, Union, Optional
 
 from wtbonline._pages.tools.utils import var_name_to_point_name
 from wtbonline._db.common import make_sure_list, make_sure_dataframe
@@ -219,14 +220,14 @@ def scatter_matrix_anormaly(df=None, columns=None, set_id=None, selectedpoints=[
     
     return fig
 
-def ts_plot(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时间', ref_col=None, sample_spacing=1):
+def ts_plot_multiplue_y(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时间', ref_col=None, sample_spacing=1):
     '''
     >>> from wtbonline._pages.tools.utils import read_sample_ts
     >>> sample_id = 2300
     >>> var_name = ['var_18003', 'var_355']
     >>> df, point_df = read_sample_ts(sample_id, var_name)
     >>> point_df.set_index('var_name', inplace=True)
-    >>> fig = ts_plot(df, var_name, point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'])
+    >>> fig = ts_plot_multiplue_y(df, var_name, point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'])
     >>> fig.show()
     '''
     df = make_sure_dataframe(df)
@@ -269,7 +270,7 @@ def ts_plot(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时�
         )
     return fig
     
-def spc_plot(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时间', ref_col=None, sample_spacing=1):
+def spc_plot_multiple_y(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时间', ref_col=None, sample_spacing=1):
     '''
     sample_spacing: float
         采样周期，单位秒
@@ -280,7 +281,7 @@ def spc_plot(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时�
     >>> var_name = ['var_18003']
     >>> df, point_df = read_sample_ts(sample_id, var_name+['var_94'])
     >>> point_df.set_index('var_name', inplace=True)
-    >>> fig = spc_plot(df, [''], point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'], ref_col='var_94')
+    >>> fig = spc_plot_multiple_y(df, [''], point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'], ref_col='var_94')
     >>> fig.show()
     '''
     df = make_sure_dataframe(df)
@@ -298,7 +299,7 @@ def spc_plot(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时�
     if 'x' in (df.columns):
         df = df[df['x']>0]
     xtitle = '转频倍率'
-    fig = ts_plot(df, ycols, [f'({i})^2' for i in units], ytitles=ytitles, x='x', xtitle=xtitle)
+    fig = ts_plot_multiplue_y(df, ycols, [f'({i})^2' for i in units], ytitles=ytitles, x='x', xtitle=xtitle)
     if 'x' in (df.columns):
         for i in range(int(min(df['x'].max(), 100))):
             fig.add_vline(
@@ -311,6 +312,80 @@ def spc_plot(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时�
                 )
     return fig
 
+def simple_plot(
+        *, 
+        x_lst:List[List[float]]=[],
+        y_lst:List[List[float]]=[], 
+        xtitle:str='', 
+        ytitle:str='', 
+        name_lst:List[str]=[],
+        mode:str='markers+lines',
+        _type:str='scatter',
+        ref_freqs:List[float]=None,
+        ):
+    name_lst = make_sure_list(name_lst)
+    ref_freqs = make_sure_list(ref_freqs)
+    fig = go.Figure()
+    for i, name in enumerate(name_lst):
+        if _type=='polar':
+            trace = go.Scatterpolar(
+                theta=x_lst[i], 
+                r=y_lst[i],
+                name=name,
+                mode=mode,
+                showlegend=True,
+                marker=dict(size=3, opacity=0.5)
+                )
+        elif _type=='spectrum':
+            x, y = _power_spectrum(y_lst[i])
+            df = pd.DataFrame({'x':x, 'y':y})
+            df = df[df['x']>0].sort_values('x')
+            trace = go.Scatter(
+                x=df['x'], 
+                y=df['y'], 
+                name=name,
+                mode=mode,
+                showlegend=True,
+                marker=dict(size=3, opacity=0.5)
+                )            
+        elif _type=='scatter':
+            trace = go.Scatter(
+                x=x_lst[i], 
+                y=y_lst[i], 
+                name=name,
+                mode=mode,
+                showlegend=True,
+                marker=dict(size=3, opacity=0.5)
+                )
+        fig.add_trace(trace)
+    for i in ref_freqs:
+        fig.add_vline(
+            x=i, 
+            annotation_text=f"特征频率{i}",
+            annotation_font_size=10, 
+            line_width=1, 
+            line_dash="dash", 
+            line_color="green"
+            )
+    fig.update_xaxes(title_text=xtitle)
+    fig.update_yaxes(title_text=ytitle)
+    fig.update_layout(
+        height=700,
+        margin=dict(l=20, r=20, t=20, b=20),
+        legend=dict(
+            orientation='h',
+            font=dict(
+                    size=10,
+                    color='black'
+                ),
+            yanchor='bottom',
+            y=1.02,
+            xanchor='right',
+            x=1),
+        )
+    return fig
+        
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
+    
