@@ -10,13 +10,6 @@ Created on Thu Jun  8 14:22:56 2023
 # =============================================================================
 # import
 # =============================================================================
-from pathlib import Path
-import sys
-if __name__ == '__main__':
-    root = Path(__file__).parents[1]
-    if root not in sys.path:
-        sys.path.append(root.as_posix())
-
 from dash import html, dcc, Input, Output, no_update, callback, State, dash_table
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -24,11 +17,8 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 
-# from _database import _mysql as msql
-# from _database import model
-from wtbonline._pages.tools.decorator import _on_error
-from wtbonline._db.rsdb_interface import RSDBInterface
-    
+from _pages.tools._decorator import _on_error
+from wtbonline._db.rsdb_interface import RSDBInterface    
     
 # =============================================================================
 # constant

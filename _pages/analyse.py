@@ -8,14 +8,7 @@ Created on Mon May 15 12:24:50 2023
 '''
 # =============================================================================
 # import
-# =============================================================================
-from pathlib import Path
-import sys
-if __name__ == '__main__':
-    root = Path(__file__).parents[1]
-    if root not in sys.path:
-        sys.path.append(root.as_posix())
-
+# =============================================================================)
 from dash import html, dcc, Input, Output, no_update, callback, State, ctx, dash_table, ALL
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -25,7 +18,7 @@ import plotly.express as px
 
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC 
-from wtbonline._pages.tools.decorator import _on_error
+from _pages.tools._decorator import _on_error
 
 # =============================================================================
 # constant
@@ -353,7 +346,7 @@ def on_anaylse_dialog(n1, n2, n3, set_id, start_date, end_date, map_id, obj_lst)
     prevent_initial_call=True
     )
 @_on_error
-def on_change_analyse_dropdown_turbine_id(map_id, set_id):
+def on_change_analyse_dropdown_turbine_id(map_id, set_id): 
     turbine_id = mapid_to_tid(set_id, map_id)
     df = RSDBInterface.read_statistics_sample(
         set_id=set_id, 

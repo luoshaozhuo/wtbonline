@@ -211,6 +211,7 @@ class RSDBInterface():
         columns:Optional[Union[List[str], str]]=None,
         limit:int=None,
         unique:bool=False,
+        random:bool=False,
         func_dct:Mapping[str, List[str]]=None,
         groupby:List[str]=None,
         drop_duplicate:bool=True
@@ -228,7 +229,7 @@ class RSDBInterface():
         lt_clause = {} if end_time is None else {'bin':end_time}
         df = RSDB.query(tbname, columns=columns, lge_clause=lge_clause, eq_clause=eq_clause,
                         lt_clause=lt_clause, in_clause=in_clause, limit=limit, unique=unique,
-                        func_dct=func_dct, groupby=groupby)
+                        func_dct=func_dct, groupby=groupby, random=random)
         if drop_duplicate==True and 'creat_time' in df.columns:
             df.sort_values('create_time').drop_duplicates(keep='last', inplace=True)
         return df

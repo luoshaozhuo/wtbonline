@@ -27,7 +27,7 @@ from _pages.tools.plot import line_plot, anormaly_plot, _power_spectrum
 from _database import _mysql as msql
 from _database import _tdengine as td
 from _database import model
-from _pages.tools.decorator import _on_error
+from _pages.tools._decorator import _on_error
 
 # =============================================================================
 # constant

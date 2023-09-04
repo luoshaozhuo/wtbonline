@@ -955,7 +955,7 @@ def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
     map_id = model_df['map_id'].iloc[0]
 
     rev = []
-    rev.append(Paragraph('四 离群数据', PS_HEADING_1))
+    rev.append(Paragraph('4 离群数据', PS_HEADING_1))
     rev.append(Paragraph(f'本期报告时段内共有离群数据：{total}条, 待鉴别{left}条', PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
     rev.append(build_graph(fig, f'{map_id}离群值散点矩阵', '4_anormaly.jpg', height=1000))

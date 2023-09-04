@@ -10,13 +10,6 @@ Created on Fri Apr 21 11:58:00 2023
 # =============================================================================
 # imoprt
 # =============================================================================
-from pathlib import Path
-import sys
-if __name__ == '__main__':
-    root = Path(__file__).parents[1]
-    if root not in sys.path:
-        sys.path.append(root.as_posix())
-
 import dash_bootstrap_components as dbc
 from dash import html, dcc, callback, Input, Output, State, no_update
 from flask_login import login_user

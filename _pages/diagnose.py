@@ -9,251 +9,159 @@ Created on Sun Apr 23 19:49:18 2023
 # =============================================================================
 # import
 # =============================================================================
-from pathlib import Path
-import sys
-if __name__ == '__main__':
-    root = Path(__file__).parents[1]
-    if root not in sys.path:
-        sys.path.append(root.as_posix())
-
-from dash import html, dcc, Input, Output, no_update, callback, State, ctx, dash_table
+from dash import html, dcc, Input, Output, no_update, callback, State, ctx, dash_table, ALL, MATCH
 import dash_bootstrap_components as dbc
 from flask_login import current_user
 import time
 import pandas as pd
+import dash_bootstrap_components as dbc
+import json
+import plotly.graph_objects as go
 
-
-from _pages.tools.plot import line_plot, anormaly_plot, spectrum_plot
-from _database import _mysql as msql
-from _database import _tdengine as td
-from _database import model
-from _pages.tools.decorator import _on_error
-    
+from wtbonline._db.rsdb.dao import RSDB
+from wtbonline._pages.tools.plot import line_plot, anormaly_plot, spectrum_plot, scatter_matrix_anormaly
+from wtbonline._pages.tools._decorator import _on_error
+from wtbonline._pages.tools.plot import ts_plot, spc_plot
+from wtbonline._db.rsdb_interface import RSDBInterface
+from wtbonline._db.tsdb_facade import TDFC
+from wtbonline._pages.tools.utils import mapid_to_tid, available_variable
+from wtbonline._pages.tools.utils import var_name_to_point_name, read_sample_ts, read_scatter_matrix_anormaly
+from wtbonline._pages.tools.utils import read_anormaly_without_label, read_sample_label
 # =============================================================================
 # constant
 # =============================================================================
 _PREFIX = 'diagnose' 
+_SCATTER_PLOT_VARIABLES = [
+    'var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean',
+    'var_382_mean', 'var_383_mean'
+    ]
 
-sr = msql.read_model_anormaly(limit=1, columns=['sample_id', 'turbine_id', 'set_id']).squeeze()
-_STATISTIC_CONFIGURATION = msql.read_statistics_configuration()
-if len(sr)<1:
-    _INITTIAL_SAMPLE_ID, _INITTIAL_TURBINE_ID, _INITTIAL_SET_ID  = [None]*3
-    _POINT_NAME = []
-else:
-    _INITTIAL_SAMPLE_ID, _INITTIAL_TURBINE_ID, _INITTIAL_SET_ID  = sr.squeeze()
-    _POINT_NAME = msql.read_model_point(_INITTIAL_SET_ID, select=1)['point_name']
-
-del sr
 # =============================================================================
 # function
 # =============================================================================
-def _plot_fatory(sample_id, cols, _type):
-    try:
-        sr = msql.read_statistics_sample(_id=sample_id).squeeze()
-        if _type=='anormaly':
-            data_df = msql.read_statistics_sample(set_id=sr['set_id'], 
-                                                  turbine_id=sr['turbine_id'])
-            fig = None if data_df.shape[0]<1 else anormaly_plot(data_df, cols[0], cols[1])
-        else:
-            df, descr = td.read_scada(set_id=sr['set_id'],
-                                      turbine_id=sr['turbine_id'], 
-                                      start_time=sr['start_time'], 
-                                      point_name=cols)
-            if df.shape[0]<1:
-                fig = None
-            else:
-                units = descr.loc[cols,'unit']
-                if _type=='line':
-                    fig = line_plot(df, cols, units)
-                elif _type=='spectrum':
-                    freqs = msql.read_turbine_charateristic_frequency(
-                        set_id = sr['set_id'], point_name=cols
-                        )
-                    if len(freqs)>0:
-                        freqs = freqs['frequency'].squeeze()
-                        freqs = pd.Series(freqs.split(',')).astype(float)
-                    else:
-                        freqs = []
-                    fig = spectrum_plot(df, cols, units, freqs)
-    except:
-        raise ValueError((sample_id, cols, _type))
-    return fig
+def _control_bar(idx, label='时序图'):
+    return  dbc.InputGroup([
+                dbc.DropdownMenu(
+                    [
+                        dbc.DropdownMenuItem('频谱图', id={'type':f'{_PREFIX}_dropdown_menu_spc', 'index':idx}),
+                        dbc.DropdownMenuItem('时序图', id={'type':f'{_PREFIX}_dropdown_menu_ts', 'index':idx}),
+                    ],
+                    id={'type':f'{_PREFIX}_dropdown_menu_type', 'index':idx},
+                    label=label),
+                dbc.InputGroupText('Y1'),
+                dbc.Select(id={'type':f'{_PREFIX}_select_Y1', 'index':idx}),
+                dbc.InputGroupText('Y2'),
+                dbc.Select(id={'type':f'{_PREFIX}_select_Y2', 'index':idx}),
+            ], size='sm')
 
-def _get_anormaly_plot(sample_id, projection):
-    setting = msql.read_page_setting(page='diagnose', card='anormaly')
-    setting = setting[setting['component_id']==projection].squeeze()
-    return _plot_fatory(sample_id, eval(setting['value']), 'anormaly')
-
-# =============================================================================
-# layout
-# =============================================================================
-def _get_profile_summary(sr):
-    unit = _STATISTIC_CONFIGURATION[_STATISTIC_CONFIGURATION['table_name']=='statistic_sample']
-    unit = {r['name']:r['unit'].replace('-','') for _,r in unit.iterrows()}
-    setting_df = msql.read_page_setting('diagnose', 'profile')   
-    ret = []
-    for _,row in setting_df.iterrows():
-        value = unit.get(row['component_id'], None)
-        value = eval(row['value'])+' '+value if value else eval(row['value'])
-        ret.append(html.P(value, className='small m-0'))
-    return ret
-
-def _get_modal_diaglog():
-    return dbc.Modal(
-                [dbc.ModalHeader(dbc.ModalTitle("选择样本")),
-                 dbc.ModalBody([
-                     dcc.RadioItems(['全部异常', '已标注'],
-                                    value='全部异常',
-                                    id='diagnose_profile_radio',
-                                    labelClassName ='px-2 small',
-                                    inline=True),
-                     html.Div(
-                         dash_table.DataTable(
-                            id=f'{_PREFIX}_profile_datatable',
-                            filter_action="native",
-                            sort_action="native",
-                            sort_mode="multi",
-                            row_selectable="single",
-                            selected_rows=[],
-                            page_action="native",
-                            page_current= 0,
-                            page_size= 20,
-                            style_header = {'font-weight':'bold'},
-                            style_table ={
-                                'overflowX': 'auto',
-                                'font-size':'small'
-                            },
-                            ),
-                         className='py-2'
-                        )
-                     ]),
-                 dbc.ModalFooter(dbc.Button("确定", 
-                                            id=f'{_PREFIX}_profile_btn_confirm', 
-                                            className="btn-primary", 
-                                            n_clicks=0,
-                                            size="sm"
-                                            ))],
-                id="diagnose_profile_modal_query",
-                size="lg",
-                is_open=False,
-                )
+_plot = dbc.Card(
+    [
+        dbc.CardHeader('可视化'),
+        dbc.CardBody([
+            dbc.Row([
+                dbc.Col(
+                    dcc.Graph(
+                    figure=scatter_matrix_anormaly(),
+                    id=f'{_PREFIX}_graph_anormaly',
+                    hoverData={'points': [{'customdata': 'Japan'}]}
+                    ),
+                    width={"size": 6}
+                ),
+                dbc.Col([
+                    _control_bar('top', '时序图'),
+                    dcc.Graph(figure=ts_plot(), id=f'{_PREFIX}_graph_top'),
+                    html.Hr(),
+                    _control_bar('btm', '频谱图'),
+                    dcc.Graph(figure=ts_plot(), id=f'{_PREFIX}_graph_btm'),
+                ],width={"size": 6})
+            ])
+            ])
+        ], 
+    className='mt-2'
+    )
 
 _info = dbc.Card([
             dbc.CardHeader('数据概要'),
             dbc.CardBody(
                 [
-                html.Div([html.H4(id='diagnose_profile_turbine'),
-                          dbc.ButtonGroup([
-                              dbc.Button('查询', id=f'{_PREFIX}_profile_btn_query', 
-                                         className='btn-secondary'),
-                              dbc.Button('导出', id=f'{_PREFIX}_profile_btn_export', 
-                                         className='btn-primary'),
-                              dcc.Download(id=f'{_PREFIX}_proifle_download'),
-                              ],
-                              size="sm",
-                              className='mb-2'),
-                          _get_modal_diaglog()
-                          ],
-                         className = 'hstack d-flex justify-content-between align-items-center'
-                         ),
-                 html.Div(id=f'{_PREFIX}_profile_summary'),
-                 html.Br(),
-                 html.Div(
-                     [dbc.ButtonGroup([dbc.Button('异常', 
-                                                  className='btn-light', 
-                                                  id=f'{_PREFIX}_profile_btn_abnormal'),
-                                       dbc.Button('正常', 
-                                                  className='btn-light', 
-                                                  id=f'{_PREFIX}_profile_btn_normal'),
-                                       dbc.Button('未标注', 
-                                                  className='btn-warning', 
-                                                  id=f'{_PREFIX}_profile_btn_not_labeled')],
-                                      size="sm"),
-                      dbc.Button(['下一条',dbc.Badge(id=f'{_PREFIX}_profile_bage', 
-                                                  color="light", 
-                                                  text_color="primary", 
-                                                  className="ms-1")], 
-                                 id=f'{_PREFIX}_profile_btn_next',
-                                 className='btn-info',
-                                 size="sm")
+                dbc.InputGroup(
+                    [
+                        dbc.InputGroupText('机型编号', class_name='small'),
+                        dbc.Select(
+                            id=f'{_PREFIX}_dropdown_set_id',
+                            options=RSDBInterface.read_windfarm_infomation()['set_id'].tolist(),
+                            class_name='small',
+                            )
+                        ],
+                    className='mb-2',
+                    ),
+                dbc.InputGroup(
+                    [
+                        dbc.InputGroupText('风机编号', class_name='small'),
+                        dbc.Select(
+                            id=f'{_PREFIX}_dropdown_map_id',
+                            class_name='small',
+                            )
+                        ],
+                    className='mb-2',
+                    ),
+                html.Hr(),
+                html.Div(id=f'{_PREFIX}_profile_summary'),
+                html.Hr(),
+                html.Div(
+                    [
+                        dbc.ButtonGroup(
+                            [
+                                dbc.Button(
+                                    '异常', 
+                                    className='btn-light', 
+                                    disabled=True,
+                                    id=f'{_PREFIX}_profile_btn_abnormal'
+                                    ),
+                                dbc.Button(
+                                    '正常', 
+                                    className='btn-light', 
+                                    disabled=True,
+                                    id=f'{_PREFIX}_profile_btn_normal'
+                                    ),
+                                dbc.Button(
+                                    '未标注', 
+                                    className='btn-warning', 
+                                    disabled=True,
+                                    id=f'{_PREFIX}_profile_btn_not_labeled'
+                                    )
+                                ],
+                            size="sm"),
+                        dbc.Button(
+                            [
+                                '下一条',
+                                dbc.Badge(
+                                    id=f'{_PREFIX}_profile_bage', 
+                                    color="light", 
+                                    text_color="primary", 
+                                    className="ms-1",
+                                    )
+                                ], 
+                            id=f'{_PREFIX}_profile_btn_next',
+                            disabled=True,
+                            className='btn-info',
+                            size="sm"
+                            )
                      ], 
-                     className = 'hstack d-flex justify-content-between align-items-center')
+                    className = 'hstack d-flex justify-content-between align-items-center'),
                  ])
         ], className='mt-2')
 
-def _get_view_anormaly_card_body():
-    setting_df = msql.read_page_setting(page='diagnose', card='anormaly')
-    setting_df = setting_df.sort_values('order')
-    return  [dcc.RadioItems(setting_df['component_id'],
-                            value=setting_df['component_id'].iloc[0],
-                            labelClassName ='px-2 small',
-                            id=f'{_PREFIX}_anormaly_radio',
-                            inline=True),
-             dcc.Graph(id=f'{_PREFIX}_anormaly_plot',
-                       style={'height':400}, 
-                       config={'displaylogo':False})
-             ]
-
-_anormaly = dbc.Card([
-                dbc.CardHeader('离群数据投影'),
-                dbc.CardBody(_get_view_anormaly_card_body())
-                ], className='mt-2')
-
-
-_time_sereis = dbc.Card([
-    dbc.CardHeader('时序'),
-    dbc.CardBody([
-        dcc.Dropdown(
-            _POINT_NAME,
-            ['10s平均风速', '电网有功功率', '风轮转速', '10s平均风向', '1#叶片实际角度', '工作模式'],
-            id=f'{_PREFIX}_time_sereies_dropdown',
-            multi=True,
-            className='small'
-            ),
-        dcc.Graph(id=f'{_PREFIX}_time_series_plot',config={'displaylogo':False})
-        ]),
-    ],className='mt-2')
-
-_spectrum_1 = dbc.Card([
-    dbc.CardHeader('功率谱'),
-    dbc.CardBody([
-        dcc.Dropdown(
-            _POINT_NAME,
-            '10s平均风速',
-            id=f'{_PREFIX}_spectrum_dropdown_1', 
-            className='small'),
-        dcc.Graph(id=f'{_PREFIX}_spectrum_plot_1',
-                  style={'height':330}, 
-                  config={'displaylogo':False}),
-        ]),
-    ],className='mt-2')
-
-_spectrum_2 = dbc.Card([
-    dbc.CardHeader('功率谱'),
-    dbc.CardBody([
-        dcc.Dropdown(
-            _POINT_NAME,
-            '电网有功功率',
-            id=f'{_PREFIX}_spectrum_dropdown_2', 
-            className='small'),
-        dcc.Graph(id=f'{_PREFIX}_spectrum_plot_2',
-                  style={'height':330}, 
-                  config={'displaylogo':False}),
-        ]),
-    ],className='mt-2')
-
-
 def get_layout():
     return [
-        dcc.Store(data=_INITTIAL_SAMPLE_ID, 
-                  id=f'{_PREFIX}_store_sample_id', 
-                  storage_type='session'),
+        dbc.Alert(id=f"{_PREFIX}_alert", color = 'danger', duration=3000, is_open=False),
         dbc.Container(
-            dbc.Row([
-                    dbc.Col([_info, _anormaly], width=3),
-                    dbc.Col(_time_sereis, width=6),
-                    dbc.Col([_spectrum_1, _spectrum_2], width=3),
-                ], className='g-2'),
+            dbc.Row(
+                [
+                    dbc.Col(_info, width=2),
+                    dbc.Col(_plot),
+                    ], 
+                className='g-2'),
                 fluid=True,
             )
         ]
@@ -262,223 +170,238 @@ def get_layout():
 # callback    
 # =============================================================================
 @callback(
-    Output(f'{_PREFIX}_profile_turbine', 'children'),
+    Output(f'{_PREFIX}_dropdown_map_id', 'options'),
+    Output({'type':f'{_PREFIX}_select_Y1', 'index':ALL}, 'options'),
+    Output({'type':f'{_PREFIX}_select_Y2', 'index':ALL}, 'options'),
+    Output({'type':f'{_PREFIX}_select_Y1', 'index':ALL}, 'value'),
+    Output({'type':f'{_PREFIX}_select_Y2', 'index':ALL}, 'value'),
+    Input(f'{_PREFIX}_dropdown_set_id', 'value'),
+    Input({'type':f'{_PREFIX}_dropdown_menu_spc', 'index':ALL}, 'n_clicks'),
+    Input({'type':f'{_PREFIX}_dropdown_menu_ts', 'index':ALL}, 'n_clicks'),
+    State({'type':f'{_PREFIX}_dropdown_menu_type', 'index':ALL}, 'label'),
+    prevent_initial_call=True
+    )
+@_on_error
+def diagnose_on_change_analyse_dropdown_set_id(set_id, n1, n2, labels): 
+    turbine_ids = RSDBInterface.read_windfarm_configuration(set_id=set_id, columns='map_id')
+    turbine_ids = turbine_ids.squeeze().tolist()
+    options_all, options_float = available_variable(set_id)
+    options = []
+    for i in labels:
+        if i=='时序图':
+            options.append(options_all)
+        else:
+            options.append(options_float)
+    return turbine_ids, options, options, ['']*2,  ['']*2
+
+@callback(
+    Output(f'{_PREFIX}_graph_anormaly', 'figure'),
+    Output(f'{_PREFIX}_graph_top', 'figure'),
+    Output(f'{_PREFIX}_graph_btm', 'figure'),
     Output(f'{_PREFIX}_profile_summary', 'children'),
-    Output(f'{_PREFIX}_anormaly_plot', 'figure'),
-    Output(f'{_PREFIX}_time_series_plot', 'figure'),
-    Output(f'{_PREFIX}_spectrum_plot_1', 'figure'),
-    Output(f'{_PREFIX}_spectrum_plot_2', 'figure'),
-    Output(f'{_PREFIX}_profile_bage', 'children'),
-    Output(f'{_PREFIX}_profile_btn_next', 'disabled'),
+    Output(f'{_PREFIX}_graph_anormaly', 'selectedData'),
+    Output(f'{_PREFIX}_profile_bage', 'children', allow_duplicate=True),
+    Output(f'{_PREFIX}_profile_btn_next', 'disabled', allow_duplicate=True),
+    Input(f'{_PREFIX}_dropdown_map_id', 'value'),
+    State(f'{_PREFIX}_dropdown_set_id', 'value'),
+    prevent_initial_call=True
+    )
+@_on_error
+def diagnose_on_change_analyse_dropdown_map_id(map_id, set_id):
+    if map_id=='' or map_id is None:
+        return scatter_matrix_anormaly(), ts_plot(), ts_plot(), '', None, '', True
+    anormaly_df = read_anormaly_without_label(set_id=set_id, map_id=map_id)
+    count = len(anormaly_df)
+    df = read_scatter_matrix_anormaly(set_id, map_id=map_id, columns=_SCATTER_PLOT_VARIABLES)
+    graph_anormaly = scatter_matrix_anormaly(df, _SCATTER_PLOT_VARIABLES, set_id)
+    return graph_anormaly, no_update, no_update, no_update, None, count, False
+
+@callback(
+    Output({'type':f'{_PREFIX}_dropdown_menu_type', 'index':MATCH}, 'label'),
+    Input({'type':f'{_PREFIX}_dropdown_menu_spc', 'index':MATCH}, 'n_clicks'),
+    Input({'type':f'{_PREFIX}_dropdown_menu_ts', 'index':MATCH}, 'n_clicks'),
+    prevent_initial_call=True
+    )
+@_on_error
+def diagnose_on_change_analyse_dropdown_menu_type(n1, n2):
+    ctx = dash.callback_context
+    type_ = eval(ctx.triggered[0]["prop_id"].split(".")[0])['type']
+    if type_ == f'{_PREFIX}_dropdown_menu_spc':
+        rev = '频谱图'
+    else:
+        rev = '时序图'
+    return rev
+
+@callback(
+    Output(f'{_PREFIX}_profile_summary', 'children', allow_duplicate=True),
+    Input(f'{_PREFIX}_graph_anormaly', 'selectedData'),
+    State(f'{_PREFIX}_dropdown_set_id', 'value'),
+    prevent_initial_call=True
+    )
+def diagnose_update_prfile_summary(selected_data, set_id):
+    if selected_data is None or None in selected_data or len(selected_data['points'])>1:
+        return ''
+    sample_id = selected_data['points'][0]['customdata']
+    sr = RSDBInterface.read_statistics_sample(id_=sample_id, columns=_SCATTER_PLOT_VARIABLES).squeeze()
+    labels = var_name_to_point_name(
+        set_id=set_id, 
+        var_name=pd.Series(_SCATTER_PLOT_VARIABLES).str.replace('_mean', '')
+        )
+    rev = [html.P(f"样本编号: {sample_id}")]
+    for i in range(len(labels)):
+        rev.append(html.P(f"{labels[i]}: {round(sr[_SCATTER_PLOT_VARIABLES[i]], 4)}"))
+    return rev
+
+
+@callback(
+    Output(f"{_PREFIX}_alert", 'is_open'),
+    Output(f"{_PREFIX}_alert", 'children'),
+    Output(f"{_PREFIX}_alert", 'color'),
+    Output(f'{_PREFIX}_graph_top', 'figure', allow_duplicate=True),
+    Output(f'{_PREFIX}_graph_btm', 'figure', allow_duplicate=True),
+    Input(f'{_PREFIX}_graph_anormaly', 'selectedData'),
+    Input({'type':f'{_PREFIX}_dropdown_menu_type', 'index':ALL}, 'label'),
+    Input({'type':f'{_PREFIX}_select_Y1', 'index':ALL}, 'value'),
+    Input({'type':f'{_PREFIX}_select_Y2', 'index':ALL}, 'value'),
+    prevent_initial_call=True
+    )
+def diagnose_update_graphs(selected_data, type_lst, y1_lst, y2_lst):
+    if selected_data is None or len(selected_data['points'])>1:
+        return no_update, no_update, no_update, ts_plot(), ts_plot()
+    var_name=pd.Series(y1_lst+y2_lst).replace('', None).dropna().tolist()
+    if len(var_name)==0:
+        return no_update, no_update, no_update, ts_plot(), ts_plot()
+    idx = selected_data['points'][0]['customdata']
+    df, point_df = read_sample_ts(idx, var_name+['var_94'])
+    point_df.set_index('var_name', inplace=True)
+    if len(df)==0:
+        return True, f'无id={idx}, columns={var_name}数据', 'red', ts_plot(), ts_plot()
+    
+    func = {'时序图':ts_plot, '频谱图':spc_plot}
+    top_cols = [y1_lst[0], y2_lst[0]]
+    btm_cols = [y1_lst[1], y2_lst[1]]
+    fig_top, fig_btm = no_update, no_update
+    triggerd = dash.callback_context.triggered[0]
+    if triggerd['prop_id']==f'{_PREFIX}_graph_anormaly.selectedData':
+        fig_top = func[type_lst[0]](
+            df, 
+            top_cols, 
+            ['' if i=='' else point_df.loc[i, 'unit'] for i in top_cols], 
+            ['' if i=='' else point_df.loc[i, 'point_name'] for i in top_cols], 
+            ref_col='var_94'
+            )
+        fig_btm = func[type_lst[1]](
+            df, 
+            btm_cols, 
+            ['' if i=='' else point_df.loc[i, 'unit'] for i in btm_cols], 
+            ['' if i=='' else point_df.loc[i, 'point_name'] for i in btm_cols],
+            ref_col='var_94'
+            )
+    else:
+        if triggerd['prop_id'].find('top')>-1:
+            fig_top = func[type_lst[0]](
+                df, 
+                top_cols, 
+                ['' if i=='' else point_df.loc[i, 'unit'] for i in top_cols], 
+                ['' if i=='' else point_df.loc[i, 'point_name'] for i in top_cols], 
+                ref_col='var_94'
+                )
+        else:
+            fig_btm = func[type_lst[1]](
+                df, 
+                btm_cols, 
+                ['' if i=='' else point_df.loc[i, 'unit'] for i in btm_cols], 
+                ['' if i=='' else point_df.loc[i, 'point_name'] for i in btm_cols],
+                ref_col='var_94'
+                )
+            
+    return no_update, no_update, no_update, fig_top, fig_btm
+
+@callback(
+    Output(f'{_PREFIX}_graph_anormaly', 'figure', allow_duplicate=True),
+    Output(f'{_PREFIX}_graph_anormaly', 'selectedData', allow_duplicate=True),
+    Output(f'{_PREFIX}_profile_bage', 'children', allow_duplicate=True),
+    Input(f'{_PREFIX}_profile_btn_next', 'n_clicks'),
+    State(f'{_PREFIX}_dropdown_map_id', 'value'),
+    State(f'{_PREFIX}_dropdown_set_id', 'value'),
+    prevent_initial_call=True
+    )
+def diagnose_on_click_btn_next(n, map_id, set_id):
+    df = read_scatter_matrix_anormaly(set_id, map_id=map_id, columns=_SCATTER_PLOT_VARIABLES)
+    anormaly_df = read_anormaly_without_label(set_id=set_id, map_id=map_id)
+    selectedpoints = []
+    count = len(anormaly_df)
+    if len(anormaly_df)>0:
+        sample_id = anormaly_df['sample_id'].sample(1).squeeze()
+        selectedpoints = df[df['id']==sample_id].index.tolist()
+    graph_anormaly = scatter_matrix_anormaly(df, _SCATTER_PLOT_VARIABLES, set_id, selectedpoints)
+    return graph_anormaly, {'points':[{'customdata':sample_id}]}, count
+
+@callback(
+    Output(f'{_PREFIX}_profile_btn_abnormal', 'className', allow_duplicate=True),
+    Output(f'{_PREFIX}_profile_btn_normal', 'className', allow_duplicate=True),
+    Output(f'{_PREFIX}_profile_btn_not_labeled', 'className', allow_duplicate=True),
+    Output(f'{_PREFIX}_profile_btn_abnormal', 'disabled'),
+    Output(f'{_PREFIX}_profile_btn_normal', 'disabled'),
+    Output(f'{_PREFIX}_profile_btn_not_labeled', 'disabled'),
+    Input(f'{_PREFIX}_graph_anormaly', 'selectedData'),
+    prevent_initial_call=True
+    )
+def diagnose_update_label_buttons(selected_data):
+    if selected_data is None or len(selected_data['points'])>1:
+        rev = [no_update]*3 + [True]*3
+    else:
+        sample_id = selected_data['points'][0]['customdata']
+        label = read_sample_label(sample_id)
+        if label==1:
+            rev = ['btn-danger', 'btn-light', 'btn-light']
+        elif label==-1:
+            rev = ['btn-light', 'btn-success', 'btn-light']
+        else:
+            rev = ['btn-light', 'btn-light', 'btn-warning']
+        rev += [False]*3
+    return rev
+
+@callback(
     Output(f'{_PREFIX}_profile_btn_abnormal', 'className'),
     Output(f'{_PREFIX}_profile_btn_normal', 'className'),
     Output(f'{_PREFIX}_profile_btn_not_labeled', 'className'),
-    Output(f'{_PREFIX}_time_sereies_dropdown', 'options'),
-    Output(f'{_PREFIX}_spectrum_dropdown_1', 'options'),
-    Output(f'{_PREFIX}_spectrum_dropdown_2', 'options'),
-    Output(f'{_PREFIX}_store_sample_id', 'data'),
-    Input(f'{_PREFIX}_store_sample_id', 'data'),
-    State(f'{_PREFIX}_profile_turbine', 'children'),
-    State(f'{_PREFIX}_time_sereies_dropdown', 'value'),
-    State(f'{_PREFIX}_spectrum_dropdown_1', 'value'),
-    State(f'{_PREFIX}_spectrum_dropdown_2', 'value'),
-    State(f'{_PREFIX}_anormaly_radio', 'value')
-    )
-@_on_error
-def on_change_diagnose_sample_id(sample_id, turbine_id, col_ts, col_spc1, col_spc2, projection):
-    ''' sample_id变更后，更新所有相关图形 '''
-    if sample_id is not None:
-        sr = msql.read_statistics_sample(_id=sample_id).squeeze()
-        new_sample_id = no_update
-    else:
-        sr = msql.read_statistics_sample(limit=1).squeeze()
-        sample_id = sr['id']
-        new_sample_id = sample_id
-    set_id = sr['set_id']
-    turbine_id = sr['turbine_id']
-    map_id = msql.read_windfarm_configuration(set_id, turbine_id)['map_id'].squeeze()
-    options = msql.read_model_point(set_id=sr['set_id'], select=1)['point_name']
-    
-
-    scatter_plot = _get_anormaly_plot(sample_id, projection)   
-    ts_plot = _plot_fatory(sample_id, col_ts, 'line')
-    spc_plot_1 = _plot_fatory(sample_id, col_spc1, 'spectrum')
-    spc_plot_2 = _plot_fatory(sample_id, col_spc2, 'spectrum')
-    profile_summary =  _get_profile_summary(sr)
-    
-    sql = f'''
-          select count(*) as 'count' from {model.ModelAnormaly.__tablename__} a  
-          left join 
-          (select is_anormaly, sample_id from {model.ModelLabel.__tablename__}) b 
-          on a.sample_id=b.sample_id
-          where is_anormaly is NULL 
-          '''
-    count = msql.read_sql(sql=sql)['count'].squeeze()
-    disabled = False if count>2 else True
-    
-    sr = msql.read_model_label(sample_id=sample_id).squeeze()
-    normal = sr['is_anormaly']==0 if len(sr)>0 else None
-    btn_classname=[
-        'btn-danger' if normal==0 else 'btn-light',
-        'btn-success' if normal==1 else 'btn-light',
-        'btn-warning' if normal is None else 'btn-light',
-        ]
-    
-    return (f"{set_id} | {map_id}", profile_summary, scatter_plot, 
-            ts_plot, spc_plot_1, spc_plot_2, count, disabled, *btn_classname,
-            options, options, options, new_sample_id)
-
-@callback(
-    Output('diagnose_anormaly_plot', 'figure', allow_duplicate=True),
-    Input('diagnose_anormaly_radio', 'value'),
-    State('diagnose_store_sample_id', 'data'),
+    Output(f'{_PREFIX}_profile_bage', 'children', allow_duplicate=True),
+    Input(f'{_PREFIX}_profile_btn_abnormal', 'n_clicks'),
+    Input(f'{_PREFIX}_profile_btn_normal', 'n_clicks'),
+    Input(f'{_PREFIX}_profile_btn_not_labeled', 'n_clicks'),
+    State(f'{_PREFIX}_dropdown_set_id', 'value'),
+    State(f'{_PREFIX}_dropdown_map_id', 'value'),
+    State(f'{_PREFIX}_graph_anormaly', 'selectedData'),
     prevent_initial_call=True
     )
-@_on_error
-def on_change_diagnose_anormaly_radio(projection, sample_id):
-    return _get_anormaly_plot(sample_id, projection)
-
-@callback(
-    Output('diagnose_time_series_plot', 'figure', allow_duplicate=True),
-    Input('diagnose_time_sereies_dropdown', 'value'),
-    State('diagnose_store_sample_id', 'data'),
-    prevent_initial_call=True
-    )
-@_on_error
-def on_change_diagnose_time_sereies_dropdown(cols, sample_id):
-    ''' 时序y坐标变量变更后，更新时序图 '''
-    return _plot_fatory(sample_id, cols, 'line')
-
-@callback(
-    Output('diagnose_spectrum_plot_1', 'figure', allow_duplicate=True),
-    Input('diagnose_spectrum_dropdown_1', 'value'),
-    State('diagnose_store_sample_id', 'data'),
-    prevent_initial_call=True
-    )
-@_on_error
-def on_change_diagnose_spectrum_1_dropdown(col, sample_id):
-    ''' 频谱1应变量变更 '''  
-    return _plot_fatory(sample_id, col, 'spectrum')
-
-@callback(
-    Output('diagnose_spectrum_plot_2', 'figure', allow_duplicate=True),
-    Input('diagnose_spectrum_dropdown_2', 'value'),
-    State('diagnose_store_sample_id', 'data'),
-    prevent_initial_call=True
-    )
-@_on_error
-def on_change_diagnose_spectrum_2_dropdown(col, sample_id):
-    ''' 频谱2应变量变更后，更新时序图 '''
-    return _plot_fatory(sample_id, col, 'spectrum')
-
-@callback(
-    Output('diagnose_store_sample_id', 'data', allow_duplicate=True),
-    Input('diganose_profile_btn_abnormal', 'n_clicks'), # 点击“异常”按钮
-    Input('diganose_profile_btn_normal', 'n_clicks'), # 点击“正常”按钮
-    Input('diganose_profile_btn_not_labeled', 'n_clicks'), # 点击“未标注”按钮
-    Input('diagnose_profile_btn_confirm', 'n_clicks'), # 点击模态对话框“确定”按钮
-    Input('diagnose_profile_btn_next', 'n_clicks'), # 点击“下一条”按钮
-    Input('diagnose_anormaly_plot', 'clickData'), # 散点图点击数据点
-    State('diagnose_store_sample_id', 'data'),
-    State('diagnose_profile_datatable', 'selected_row_ids'),
-    prevent_initial_call=True
-    )
-@_on_error
-def on_diagnose_profile_change_sample_id(n1, n2, n3, n4, n5, sel_point, sample_id, row_ids):
-    ''' 变更sample_id '''
+def diagnose_on_click_label_buttons(n1, n2, n3, set_id, map_id, selected_data):
     try:
         username = current_user.username
     except:
         username = 'diagnose_test'
-    _id = ctx.triggered_id
-    if _id == 'diagnose_profile_btn_confirm':
-        if row_ids is not None and len(row_ids)>0:
-            rev = row_ids[0]
-        else:
-            rev = no_update
-    elif _id == 'diagnose_profile_btn_next':
-        # 选取未标注过的样本
-        sql = f'''
-              select a.* from {model.ModelAnormaly.__tablename__} a  
-              left join 
-              (select is_anormaly, sample_id from {model.ModelLabel.__tablename__}) b 
-              on a.sample_id=b.sample_id
-              where is_anormaly is NULL and a.sample_id!={sample_id} 
-              order By Rand() 
-              limit 1
-              '''
-        sr = msql._read_sql(sql=sql).squeeze()
-        if len(sr)==0:
-            rev = no_update           
-        rev = sr['sample_id']
-    elif _id =='diagnose_anormaly_plot':
-        rev = sel_point['points'][0]['customdata']
-    elif _id == 'diganose_profile_btn_not_labeled':
-        df = pd.DataFrame({'sample_id':[sample_id], 'username':[username]})
-        msql.delete(df, model.ModelLabel)
-        rev = sample_id
-    else:
-        is_anormaly = True if _id == 'diganose_profile_btn_abnormal' else False
-        cols = ['id', 'set_id', 'turbine_id']
-        df = msql.read_statistics_sample(_id=sample_id, columns=cols)
-        df['username'] = username
-        df['create_time'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-        df['is_anormaly'] = is_anormaly
-        df.rename(columns={'id':'sample_id'}, inplace=True)
-        msql.insert(df, model.ModelLabel)
-        rev = sample_id
+    create_time = pd.Timestamp.now()
+    sample_id = selected_data['points'][0]['customdata']
+    new_record = dict(
+        username=username, set_id=set_id, turbine_id=mapid_to_tid(set_id, map_id),
+        sample_id=sample_id, create_time=create_time              
+        )
+    triggerd = dash.callback_context.triggered[0]
+    rev = [no_update]*3
+    if triggerd['prop_id'].find('abnormal')>-1:
+        new_record.update(dict(is_anormaly=1))
+        RSDBInterface.insert(new_record, 'model_label')
+        rev = ['btn-danger', 'btn-light', 'btn-light']
+    elif triggerd['prop_id'].find('normal')>-1:
+        new_record.update(dict(is_anormaly=-1))
+        RSDBInterface.insert(new_record, 'model_label')
+        rev = ['btn-light', 'btn-success', 'btn-light']
+    elif triggerd['prop_id'].find('not_labeled')>-1:
+        RSDB.delete('model_label', eq_clause=dict(sample_id=sample_id, username=username))
+        rev = ['btn-light', 'btn-light', 'btn-warning'] 
+    anormaly_df = read_anormaly_without_label(set_id=set_id, map_id=map_id)
+    rev.append(len(anormaly_df))
     return rev
-
-@callback(
-    Output(f'{_PREFIX}_profile_modal_query', 'is_open'),
-    Input(f'{_PREFIX}_profile_btn_query', 'n_clicks'), # 点击“查询”按钮
-    Input(f'{_PREFIX}_profile_btn_confirm', 'n_clicks'), # 点击“确定”按钮
-    prevent_initial_call=True
-    )
-@_on_error
-def on_diagnose_profile_modal_state(n1, n2):
-    ''' 打开/关闭模态对话框 '''
-    _id = ctx.triggered_id
-    if _id == f'{_PREFIX}_profile_btn_query':
-        return True
-    return False
-
-@callback(
-    Output('diagnose_proifle_download', 'data'),
-    Input('diagnose_profile_btn_export', 'n_clicks'),
-    State('diagnose_store_sample_id', 'data'),
-    prevent_initial_call=True
-    )
-@_on_error
-def on_diagnose_profile_btn_export(n, sample_id):
-    ''' 导出数据 '''
-    sr = msql.read_statistic_sample(sample_id=sample_id).squeeze()
-    df,_ = td.read_scada(set_id=sr['set_id'], 
-                          turbine_id=sr['turbine_id'],
-                          start_time=sr['start_time'])
-    return dcc.send_data_frame(df.to_csv, 'data.csv')
-
-@callback(
-    Output(f'{_PREFIX}_profile_datatable', 'columns'),
-    Output(f'{_PREFIX}_profile_datatable', 'data'),
-    Input(f'{_PREFIX}_profile_radio', 'value'),
-    Input(f'{_PREFIX}_profile_btn_query', 'n_clicks'), # 点击“查询”按钮
-    )
-@_on_error
-def on_change_diagnose_profile_radio(value, n):
-    ''' 导出数据 '''
-    if value=='全部异常':
-        sample_id = msql.read_model_anormaly()['sample_id']
-    elif value=='已标注':
-        sample_id = msql.read_model_label()['sample_id']
-    if len(sample_id)>0:
-        df = msql.read_statistics_sample(_id=sample_id).round(2)
-    else:
-        df = msql.read_statistics_sample(limit=1).drop(index=0)
-
-    columns=[{"name": i, "id": i} for i in df.columns]
-    data=df.to_dict('records')
-    return columns, data
 
 # =============================================================================
 # for test
@@ -489,6 +412,5 @@ if __name__ == '__main__':
                     external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
                     suppress_callback_exceptions=True)
     app.layout = html.Div(get_layout())
-    debug = True if len(sys.argv)>1 else False
-    app.run_server(debug=debug)
+    app.run_server(debug=False)
     

@@ -15,6 +15,9 @@ import numpy as np
 import pandas as pd
 from collections.abc import Iterable
 
+from wtbonline._pages.tools.utils import var_name_to_point_name
+from wtbonline._db.common import make_sure_list, make_sure_dataframe
+
 # =============================================================================
 # function
 # =============================================================================
@@ -170,3 +173,144 @@ def spectrum_plot(df, ycol, unit, charateristic_freq=[], sample_spacing=1):
                       annotation_font_size=10, line_width=1, line_dash="dash", line_color="green")
     return fig
 
+def scatter_matrix_anormaly(df=None, columns=None, set_id=None, selectedpoints=[]):
+    columns = make_sure_list(columns)
+    fig = go.Figure()
+    if df is not None and set_id is not None and len(columns)>0:
+        idx = df[df['is_anormaly']==1].index
+        df['textd'] ='正常'
+        df.loc[idx, 'textd'] = '离群'
+        df['color'] = 'gray'
+        df.loc[idx, 'color'] = 'red'
+        df['opacity'] = 0.2
+        df.loc[idx, 'opacity'] = 1
+        
+        dimensions = []
+        labels = var_name_to_point_name(
+            set_id=set_id, 
+            var_name=pd.Series(columns).str.replace('_mean', '')
+            )
+        for col, label in zip(columns, labels):
+            if col=='is_anormaly' or col=='id':
+                continue
+            dimensions.append(dict(label=label, values=df[col]))
+        fig.add_trace(
+            go.Splom(
+                dimensions=dimensions,
+                marker=dict(color=df['color'],
+                            size=3,
+                            line=dict(width=0),
+                            opacity=df['opacity'],
+                            ),
+                text=df['textd'],
+                showupperhalf=False,
+                customdata =df['id'],
+                selected={'marker':{'color':'cyan', 'opacity':1, 'size':6}},
+                diagonal=dict(visible=False),
+                selectedpoints=selectedpoints
+                )
+            )
+    fig.update_layout(
+        clickmode='event+select',
+        height=800,
+        hovermode='closest',
+        margin=dict(l=20, r=20, t=20, b=20),
+        )
+    
+    return fig
+
+def ts_plot(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时间', ref_col=None, sample_spacing=1):
+    '''
+    >>> from wtbonline._pages.tools.utils import read_sample_ts
+    >>> sample_id = 2300
+    >>> var_name = ['var_18003', 'var_355']
+    >>> df, point_df = read_sample_ts(sample_id, var_name)
+    >>> point_df.set_index('var_name', inplace=True)
+    >>> fig = ts_plot(df, var_name, point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'])
+    >>> fig.show()
+    '''
+    df = make_sure_dataframe(df)
+    ycols = make_sure_list(ycols)
+    units = make_sure_list(units)
+    ytitles = ['']*len(ycols) if ytitles is None else make_sure_list(ytitles)
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    secondary_y = False
+    if df.shape[0]>0:
+        for i,col in enumerate(ycols):
+            if col=='':
+                continue
+            if col==ycols[-1] and len(ycols)>1:
+                secondary_y = True
+            fig.add_trace(
+                go.Scatter(
+                    x=df[x],
+                    y=df[col],
+                    mode='lines+markers',
+                    marker={'size':2},
+                    name=ytitles[i],
+                    ),
+                secondary_y=secondary_y,
+                )
+            if i==0 or col==ycols[-1]:
+                fig.update_yaxes(title_text=ytitles[i]+' '+units[i], secondary_y=secondary_y)
+    fig.update_xaxes(title_text=xtitle)
+    fig.update_layout(
+        height=350,
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01),
+        clickmode='event+select',
+        hovermode='x',
+        margin=dict(l=20, r=20, t=20, b=20),
+        )
+    return fig
+    
+def spc_plot(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时间', ref_col=None, sample_spacing=1):
+    '''
+    sample_spacing: float
+        采样周期，单位秒
+    ref_col:str
+        字段单位，默认为rpm
+    >>> from wtbonline._pages.tools.utils import read_sample_ts
+    >>> sample_id = 2300
+    >>> var_name = ['var_18003']
+    >>> df, point_df = read_sample_ts(sample_id, var_name+['var_94'])
+    >>> point_df.set_index('var_name', inplace=True)
+    >>> fig = spc_plot(df, [''], point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'], ref_col='var_94')
+    >>> fig.show()
+    '''
+    df = make_sure_dataframe(df)
+    ycols = make_sure_list(ycols)
+    if df.shape[0]>0:
+        for y in ycols:
+            if y=='':
+                continue
+            df[y] = df[y] - df[y].mean()
+            x_fft, y_fft = _power_spectrum(df[y], sample_spacing=sample_spacing)
+            df[y] = y_fft
+            if 'x' in (df.columns):
+                continue
+            df['x'] = x_fft if ref_col is None else x_fft*60/df[ref_col]
+    if 'x' in (df.columns):
+        df = df[df['x']>0]
+    xtitle = '转频倍率'
+    fig = ts_plot(df, ycols, [f'({i})^2' for i in units], ytitles=ytitles, x='x', xtitle=xtitle)
+    if 'x' in (df.columns):
+        for i in range(int(min(df['x'].max(), 100))):
+            fig.add_vline(
+                x=i+1, 
+                annotation_text=f"{i+1}倍频",
+                annotation_font_size=10, 
+                line_width=1, 
+                line_dash="dash", 
+                line_color="green"
+                )
+    return fig
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

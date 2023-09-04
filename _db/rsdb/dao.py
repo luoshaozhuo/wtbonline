@@ -166,6 +166,7 @@ class RSDBDAO():
               func_dct:Mapping[str, List[str]]=None,
               groupby:Optional[Union[str, List[str]]]=None,
               orderby:Optional[Union[str, List[str]]]=None,
+              random:bool=False,
               _delete:bool=False,
               _update:bool=False,
               _new_values:Mapping[str, Any]=None
@@ -190,6 +191,8 @@ class RSDBDAO():
             query = self.lt_(query, lt_clause, Model)
             if len(orderby)>0:
                 query = query.order_by(*[getattr(Model, i) for i in orderby])
+            if random==True:
+                query = query.order_by(func.random())
             if len(groupby)>0:
                 query = query.group_by(*[getattr(Model, i) for i in groupby])
             if limit is not None:
