@@ -1,6 +1,6 @@
 # coding: utf-8
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import UserMixin
+
 
 db = SQLAlchemy()
 
@@ -274,17 +274,34 @@ class StatisticsSample(db.Model):
     create_time = db.Column(db.DateTime, nullable=False)
 
 
+
+class TimedTask(db.Model):
+    __tablename__ = 'timed_task'
+
+    id = db.Column(db.Integer, primary_key=True)
+    status = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='start/pause/delete')
+    func = db.Column(db.String(100, 'utf8mb4_general_ci'), nullable=False)
+    setting = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='interval/date')
+    parameter = db.Column(db.String(255, 'utf8mb4_general_ci'))
+    username = db.Column(db.ForeignKey('user.username', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True, info='任务发布者')
+    create_time = db.Column(db.DateTime, nullable=False)
+
+    user = db.relationship('User', primaryjoin='TimedTask.username == User.username', backref='timed_tasks')
+
+
+
 class TimedTaskLog(db.Model):
     __tablename__ = 'timed_task_log'
 
     id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.ForeignKey('timed_task.id'), index=True)
     success = db.Column(db.Integer, nullable=False)
-    func = db.Column(db.String(40, 'utf8mb4_general_ci'), nullable=False)
-    args = db.Column(db.String(255, 'utf8mb4_general_ci'))
-    kwargs = db.Column(db.String(255, 'utf8mb4_general_ci'))
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
     pid = db.Column(db.Integer, nullable=False)
+
+    task = db.relationship('TimedTask', primaryjoin='TimedTaskLog.task_id == TimedTask.id', backref='timed_task_logs')
+
 
 
 class TurbineModelPoint(db.Model):
@@ -329,7 +346,7 @@ class TurbineVariableBound(db.Model):
 
 
 
-class User(UserMixin, db.Model):
+class User(db.Model):
     __tablename__ = 'user'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -343,8 +360,8 @@ class WindfarmConfiguration(db.Model):
     __tablename__ = 'windfarm_configuration'
     __table_args__ = (
         db.ForeignKeyConstraint(['set_id', 'model_name'], ['windfarm_turbine_model.set_id', 'windfarm_turbine_model.model_name'], ondelete='RESTRICT', onupdate='CASCADE'),
-        db.Index('set_id_2', 'set_id', 'turbine_id'),
-        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name')
+        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name'),
+        db.Index('set_id_2', 'set_id', 'turbine_id')
     )
 
     id = db.Column(db.Integer, primary_key=True, nullable=False)

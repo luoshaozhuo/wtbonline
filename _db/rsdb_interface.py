@@ -46,6 +46,23 @@ class RSDBInterface():
                 in_clause.update({key_:values})
         return eq_clause, in_clause
 
+
+    @classmethod
+    def read_timed_task(
+            cls, 
+            *, 
+            status:Optional[Union[str, List[str]]]=['start', 'pause'],
+            success:Optional[Union[str, List[str]]]=None,
+            func:Optional[Union[str, List[str]]]=None,
+            limit=None,
+            )->pd.DataFrame:
+        '''
+        >>> _ = RSDBInterface.read_timed_task_log()
+        '''
+        tbname = 'timed_task_log'
+        eq_clause, in_clause = cls.get_in_or_eq_clause(success=success, func=func, status=status)
+        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit) 
+
     @classmethod
     def read_timed_task_log(
             cls, 

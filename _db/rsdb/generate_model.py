@@ -7,7 +7,6 @@ Created on Wed Apr 19 11:59:04 2023
 自动生成sqlalchemy模型代码
 """
 import os
-from platform import platform
 from wtbonline._db.config import RSDB_URI
 from pathlib import Path
 
