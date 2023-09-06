@@ -101,12 +101,10 @@ def log_it(logger, is_timed_task=False):
                     end_time = pd.Timestamp.now()
                     RSDBInterface.insert(
                         dict(
-                            func=func.__name__,
+                            task_id=kwargs.get('task_id', '-999'),
                             pid=pid,
                             start_time=start_time,
                             end_time=end_time,
-                            args=','.join([str(i) for i in args]),
-                            kwargs=str(kwargs),
                             success=success
                             ), 
                         'timed_task_log')

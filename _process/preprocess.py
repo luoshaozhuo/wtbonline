@@ -109,30 +109,7 @@ def load_tsdb(set_id, turbine_id, date):
     TDFC.write(df, set_id=set_id, turbine_id=turbine_id)
 
 @log_it(_LOGGER, True)
-def start_over():
-    ''' 从0开始拉取数据到本地TFDB '''
-    df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
-    for _, (set_id, turbine_id) in df.iterrows():
-        dts = get_dates_tsdb(turbine_id, remote=True)
-        for date in dts:
-            print(set_id, turbine_id, date)
-            load_tsdb(set_id, turbine_id, date)
-
-@log_it(_LOGGER, True)
-def daily_update(yesterday:Union[str, date]=None):
-    ''' 本地TSDB更新前一天数据 '''
-    if yesterday is None:
-        date_befor_yesterday = (pd.Timestamp.now() - pd.Timedelta('1d')).date()
-    else:
-        date_befor_yesterday = make_sure_datetime(yesterday)
-    conf_df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
-    for _, (set_id, turbine_id) in conf_df.iterrows():
-        dtlc = get_dates_tsdb(turbine_id, remote=False)
-        if not (dtlc==date_befor_yesterday).any():
-            load_tsdb(set_id, turbine_id, date_befor_yesterday)
- 
-@log_it(_LOGGER, True)
-def update_tsdb():
+def update_tsdb(*args, **kwargs):
     ''' 本地TSDB查缺 '''
     for i in range(10):
         try:
@@ -157,10 +134,11 @@ def update_tsdb():
             load_tsdb(set_id, turbine_id, date)
 
 @log_it(_LOGGER, True)
-def init_tdengine():
+def init_tdengine(*args, **kwargs):
     TDFC.init_database()
-
-def heart_beat():
+    
+@log_it(_LOGGER, True)
+def heart_beat(*args, **kwargs):
      _LOGGER.info('heart_beat')
 
 

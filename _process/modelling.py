@@ -236,7 +236,8 @@ def train(
             RSDB.insert(this_entity, 'model')
 
 @log_it(_LOGGER,True)
-def train_all(start_time:Union[str, date], end_time:Union[str, date], minimum=8000):
+def train_all(*args, **kwargs):
+# def train_all(start_time:Union[str, date], end_time:Union[str, date], minimum=8000):
     '''
     train_all(start_time='2023-01-01', end_time='2024-04-01')
     '''
@@ -248,9 +249,9 @@ def train_all(start_time:Union[str, date], end_time:Union[str, date], minimum=80
             farm_name=farm_name,
             set_id=row['set_id'],
             turbine_id=row['turbine_id'],
-            start_time=start_time,
-            end_time=end_time,
-            minimum=minimum,
+            start_time=kwargs['start_time'],
+            end_time=kwargs['end_time'],
+            minimum=kwargs.get('minimum', 3000),
             logger=_LOGGER
             )
 
@@ -313,7 +314,8 @@ def predict(
     RSDBInterface.insert(anomaly_df, 'model_anormaly')
 
 @log_it(_LOGGER, True)
-def predict_all(start_time:Union[str, date], end_time:Union[str, date], size:int=20):
+def predict_all(*args, **kwargs):
+# def predict_all(start_time:Union[str, date], end_time:Union[str, date], size:int=20):
     '''
     predict_all(start_time='2022-01-01', end_time='2023-04-01')
     '''
@@ -330,9 +332,9 @@ def predict_all(start_time:Union[str, date], end_time:Union[str, date], size:int
             uuids=grp['uuid'], 
             set_id=sid, 
             turbine_id=tid, 
-            start_time=start_time, 
-            end_time=end_time,
-            size=size
+            start_time=kwargs['start_time'], 
+            end_time=kwargs['end_time'],
+            size=kwargs.get('size', 20)
             )
 
 def test_train(uuids_, start_time, end_time):

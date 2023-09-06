@@ -9,7 +9,7 @@ curl -X GET  localhost:40000/scheduler/jobs
 curl -X DELETE localhost:40000/scheduler/jobs/heart_beat
 curl -X PATCH localhost:40000/scheduler/jobs/update_tsdb -d '{"next_run_time":"2023-08-15 07:58:00"}'
 curl -X POST localhost:40000/scheduler/jobs/heart_beat/pause
-curl -X POST localhost:40000/scheduler/jobs -d '{"id":"heart_beat","func":"wtbonline._process.preprocess:heart_beat","trigger":"interval","seconds":10}'
+curl -X POST localhost:40000/scheduler/jobs -d '{"id":"heart_beat","func":"wtbonline._process.preprocess:heart_beat","trigger":"date", "start_date":"2023-09-06 17:25:00", "kwargs":{"task_id":1}}'
 curl -X POST localhost:40000/scheduler/jobs/heart_beat/resume
 curl -X DELETE localhost:40000/scheduler/jobs/heart_beat
 curl -X POST localhost:40000/scheduler/jobs -d '{"id":"update_tsdb","func":"wtbonline._process.preprocess:update_tsdb","next_run_time":"2023-08-15 03:16:00"}'

@@ -147,7 +147,7 @@ def dates_in_statistic_sample(set_id, turbine_id):
     return RSDB.read_sql(sql)['dt']
 
 @log_it(_LOGGER, True)
-def update_statistic_sample():
+def update_statistic_sample(*args, **kwargs):
     ''' 本地sample查缺 
     >>> update_statistic_sample()
     '''
