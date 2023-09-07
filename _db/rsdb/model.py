@@ -1,6 +1,6 @@
 # coding: utf-8
 from flask_sqlalchemy import SQLAlchemy
-
+from flask_login import UserMixin
 
 db = SQLAlchemy()
 
@@ -346,7 +346,7 @@ class TurbineVariableBound(db.Model):
 
 
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = 'user'
 
     id = db.Column(db.Integer, primary_key=True)

@@ -189,7 +189,7 @@ def scatter_matrix_anormaly(df=None, columns=None, set_id=None, selectedpoints=[
         dimensions = []
         labels = var_name_to_point_name(
             set_id=set_id, 
-            var_name=pd.Series(columns).str.replace('_mean', '')
+            var_name=tuple(pd.Series(columns).str.replace('_mean', ''))
             )
         for col, label in zip(columns, labels):
             if col=='is_anormaly' or col=='id':
@@ -220,14 +220,14 @@ def scatter_matrix_anormaly(df=None, columns=None, set_id=None, selectedpoints=[
     
     return fig
 
-def ts_plot_multiplue_y(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时间', ref_col=None, sample_spacing=1):
+def ts_plot_multiple_y(df=None, ycols=None, units=None, ytitles=None, x='ts', xtitle='时间', ref_col=None, sample_spacing=1):
     '''
     >>> from wtbonline._pages.tools.utils import read_sample_ts
     >>> sample_id = 2300
     >>> var_name = ['var_18003', 'var_355']
     >>> df, point_df = read_sample_ts(sample_id, var_name)
     >>> point_df.set_index('var_name', inplace=True)
-    >>> fig = ts_plot_multiplue_y(df, var_name, point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'])
+    >>> fig = ts_plot_multiple_y(df, var_name, point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'])
     >>> fig.show()
     '''
     df = make_sure_dataframe(df)
@@ -278,14 +278,15 @@ def spc_plot_multiple_y(df=None, ycols=None, units=None, ytitles=None, x='ts', x
         字段单位，默认为rpm
     >>> from wtbonline._pages.tools.utils import read_sample_ts
     >>> sample_id = 2300
-    >>> var_name = ['var_18003']
-    >>> df, point_df = read_sample_ts(sample_id, var_name+['var_94'])
+    >>> var_name = ['var_94']
+    >>> df, point_df = read_sample_ts(sample_id, tuple(var_name+['var_94']))
     >>> point_df.set_index('var_name', inplace=True)
-    >>> fig = spc_plot_multiple_y(df, [''], point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'], ref_col='var_94')
+    >>> fig = spc_plot_multiple_y(df, var_name, point_df.loc[var_name, 'unit'], point_df.loc[var_name, 'point_name'], ref_col='var_94')
     >>> fig.show()
     '''
-    df = make_sure_dataframe(df)
+    df = make_sure_dataframe(df.copy())
     ycols = make_sure_list(ycols)
+    y_ref = df[ref_col].abs()
     if df.shape[0]>0:
         for y in ycols:
             if y=='':
@@ -295,11 +296,11 @@ def spc_plot_multiple_y(df=None, ycols=None, units=None, ytitles=None, x='ts', x
             df[y] = y_fft
             if 'x' in (df.columns):
                 continue
-            df['x'] = x_fft if ref_col is None else x_fft*60/df[ref_col]
+            df['x'] = x_fft if ref_col is None else x_fft*60/y_ref
     if 'x' in (df.columns):
         df = df[df['x']>0]
     xtitle = '转频倍率'
-    fig = ts_plot_multiplue_y(df, ycols, [f'({i})^2' for i in units], ytitles=ytitles, x='x', xtitle=xtitle)
+    fig = ts_plot_multiple_y(df, ycols, [f'({i})^2' for i in units], ytitles=ytitles, x='x', xtitle=xtitle)
     if 'x' in (df.columns):
         for i in range(int(min(df['x'].max(), 100))):
             fig.add_vline(
@@ -385,7 +386,7 @@ def simple_plot(
         )
     return fig
         
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+# if __name__ == "__main__":
+#     import doctest
+#     doctest.testmod()
     

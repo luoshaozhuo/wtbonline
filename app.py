@@ -11,9 +11,9 @@ Created on Wed Apr 19 15:35:00 2023
 import dash
 import dash_bootstrap_components as dbc
 
-from _database.model import db
-from _pages.tools.login_manager import login_manager
-from config import Default
+from wtbonline._pages.tools.login_manager import login_manager
+from wtbonline.config import Default
+from wtbonline._db.rsdb.model import db
 
 # =============================================================================
 # global

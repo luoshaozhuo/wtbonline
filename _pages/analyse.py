@@ -377,9 +377,9 @@ def on_change_analyse_date_range(start_date, start_time, end_date, end_time, set
     else:
         start_time = _make_sure_datetime_string(start_time)
         end_time = _make_sure_datetime_string(end_time)
-        start_dt = end_date + start_time[10:]
-        end_dt = start_date + end_time[10:]
-        if start_dt <= end_dt:
+        start_dt = pd.to_datetime(start_date + start_time[10:])
+        end_dt = pd.to_datetime(end_date + end_time[10:])
+        if start_dt >= end_dt:
             rev = [True, True, True]
         else:
             rev = [False, False, False]

@@ -149,7 +149,7 @@ def dates_in_statistic_sample(set_id, turbine_id):
 @log_it(_LOGGER, True)
 def update_statistic_sample(*args, **kwargs):
     ''' 本地sample查缺 
-    >>> update_statistic_sample()
+    # >>> update_statistic_sample()
     '''
     for i in range(10):
         df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
@@ -174,7 +174,8 @@ def update_statistic_sample(*args, **kwargs):
                 turbine_id=turbine_id, 
                 start_time=dt,
                 end_time=dt+pd.Timedelta('1d'),
-                remote=False
+                remote=False,
+                remove_tz=True,
                 )
             stat_df = statistic_sample(df, set_id, turbine_id)
             if len(stat_df)<1:

@@ -291,9 +291,9 @@ def on_change_explore_date_range(start_date, start_time, end_date, end_time, set
     else:
         start_time = _make_sure_datetime_string(start_time)
         end_time = _make_sure_datetime_string(end_time)
-        start_dt = end_date + start_time[10:]
-        end_dt = start_date + end_time[10:]
-        if start_dt <= end_dt:
+        start_dt = pd.to_datetime(start_date + start_time[10:])
+        end_dt = pd.to_datetime(end_date + end_time[10:])
+        if start_dt >= end_dt:
             rev = [True, True, True]
         else:
             rev = [False, False, False]
@@ -429,7 +429,7 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, sct_x, sct_y, rad_th,
     name_lst=[]
     ref_freqs=[]
     ytitle=''
-    point_name = pd.Series([xcol, ycol]).replace('ts', None).dropna()
+    point_name = tuple(pd.Series([xcol, ycol]).replace('ts', None).dropna())
     for dct in table_lst:
         df, desc_df = read_raw_data(
             set_id=dct['机型编号'], 
@@ -438,6 +438,8 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, sct_x, sct_y, rad_th,
             start_time=dct['开始日期'],
             end_time=dct['结束日期'],
             )
+        if len(df)<1:
+            continue
         name_lst.append(dct['图例号'])
         x = df[xcol].tolist() if xcol=='ts' else df[desc_df.loc[xcol, 'var_name']].tolist()
         y = df[desc_df.loc[ycol, 'var_name']].tolist()

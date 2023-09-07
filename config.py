@@ -10,12 +10,12 @@ APP配置
 # import
 # =============================================================================
 import os
-from _database.config import URI
+from wtbonline._db.config import RSDB_URI
 
 # =============================================================================
 # class
 # =============================================================================
 class Default:
     SECRET_KEY=os.urandom(12)
-    SQLALCHEMY_DATABASE_URI=URI
+    SQLALCHEMY_DATABASE_URI=RSDB_URI
     SQLALCHEMY_TRACK_MODIFICATIONS=False

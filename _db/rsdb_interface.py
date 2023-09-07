@@ -289,8 +289,6 @@ class RSDBInterface():
         turbine_id:(list or int or str)=None,
         sample_id:(list or int or str)=None,
         is_anormaly:int=None,
-        start_time:Union[str, pd.Timestamp, date] = None,
-        end_time:Union[str, pd.Timestamp, date] = None,
         columns:Optional[Union[List[str], str]]=None,
         limit:int=None,
         ):
@@ -299,17 +297,13 @@ class RSDBInterface():
         >>> _ = RSDBInterface.read_model_label(id_=1, set_id='10050')
         '''
         tbname = 'model_label'
-        start_time = make_sure_datetime(start_time)
-        lge_clause = {} if start_time is None else {'bin':start_time}
-        end_time = make_sure_datetime(end_time)  
-        lt_clause = {} if end_time is None else {'bin':end_time}
         columns = make_sure_list(columns)
         eq_clause, in_clause = cls.get_in_or_eq_clause(
             id=id_, set_id=set_id, username=username, turbine_id=turbine_id, 
             sample_id=sample_id, is_anormaly=is_anormaly
             )
         return RSDB.query(tbname, columns=columns, eq_clause=eq_clause, in_clause=in_clause, 
-                          limit=limit, lge_clause=lge_clause, lt_clause=lt_clause)
+                          limit=limit)
 
     @classmethod  
     def read_user(

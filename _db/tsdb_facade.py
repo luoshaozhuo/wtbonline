@@ -268,6 +268,7 @@ class TDEngine_FACADE():
             sliding:Optional[str]=None,
             func_dct:Optional[Mapping[str,List[str]]]=None,
             remote:bool=False,
+            remove_tz:bool=True,
             ):
         ''' 从tsdb读取数据，同时返回相应的字段说明 
         >>> set_id = RSDBInterface.read_windfarm_infomation()['set_id'].iloc[0]
@@ -363,6 +364,8 @@ class TDEngine_FACADE():
             df.columns = cols_org
         df = self._conver_dtype(df, point_df)
         point_df['column'] = point_df['point_name'] + '_' + point_df['unit']
+        if remove_tz==True:
+            df['ts'] = df['ts'].dt.tz_localize(None)
         return df, point_df
     
     def write(

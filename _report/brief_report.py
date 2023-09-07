@@ -919,9 +919,7 @@ def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
         rev.append(Paragraph('无离群值识别记录', PS_BODY))
         return rev
     
-    label_df = RSDBInterface.read_model_label(
-        set_id=set_id, start_time=min_date, end_time=max_date
-        ).drop_duplicates('sample_id')
+    label_df = RSDBInterface.read_model_label(set_id=set_id).drop_duplicates('sample_id')
     total = anormaly_df.shape[0]
     left = total - label_df.shape[0]
 
@@ -1027,19 +1025,25 @@ def build_brief_report(
 
 # main
 @log_it(_LOGGER, True)
-def build_brief_report_all(*, end_time=None, delta:int=90):
+def build_brief_report_all(**kwargs):
     '''
+    end_time : 截至时间
     delta : 单位天
-    >>> main('2023-08-01')
+    >>> build_brief_report_all(end_time='', delta=180)
     '''
-    end_time = pd.Timestamp.now().date() if end_time is None else make_sure_datetime(end_time).date()
-    start_time = end_time - pd.Timedelta(f'{delta}d')
+    assert pd.Series(['end_time', 'delta']).isin(kwargs).all()
+    if kwargs['end_time'] is not None and kwargs['end_time']!='':
+        end_time = pd.to_datetime(kwargs['end_time'])
+    else:
+        end_time = pd.Timestamp.now().date()
+    start_time = end_time - pd.Timedelta(f"{kwargs['delta']}d")
+    
     path = RSDBInterface.read_app_configuration(key_='report_outpath')['value'].squeeze()
     path = Path(path)
     path.mkdir(parents=True, exist_ok=True)
     conf_df = RSDBInterface.read_windfarm_configuration()
     for set_id in conf_df['set_id'].unique():
-        filename = f'brief_report_{set_id}_{end_time}_{delta}d.pdf'
+        filename = f"brief_report_{set_id}_{end_time}_{kwargs['delta']}d.pdf"
         pathname = path/filename
         build_brief_report(
             pathname=pathname.as_posix(), 
@@ -1049,7 +1053,7 @@ def build_brief_report_all(*, end_time=None, delta:int=90):
             ) 
 
 
-#%% main
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()#
+# #%% main
+# if __name__ == "__main__":
+#     import doctest
+#     doctest.testmod()#

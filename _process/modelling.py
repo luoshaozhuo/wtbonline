@@ -237,10 +237,15 @@ def train(
 
 @log_it(_LOGGER,True)
 def train_all(*args, **kwargs):
-# def train_all(start_time:Union[str, date], end_time:Union[str, date], minimum=8000):
     '''
     train_all(start_time='2023-01-01', end_time='2024-04-01')
     '''
+    if kwargs['end_time'] is not None and kwargs['end_time']!='':
+        end_time = pd.to_datetime(kwargs['end_time'])
+    else:
+        end_time = pd.Timestamp.now().date()
+    start_time = end_time - pd.Timedelta(f"{kwargs['delta']}d")
+    
     conf_df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
     farm_name = RSDBInterface.read_windfarm_infomation()['farm_name'].iloc[0]
     for _, row in conf_df.iterrows():
@@ -249,8 +254,8 @@ def train_all(*args, **kwargs):
             farm_name=farm_name,
             set_id=row['set_id'],
             turbine_id=row['turbine_id'],
-            start_time=kwargs['start_time'],
-            end_time=kwargs['end_time'],
+            start_time=start_time,
+            end_time=end_time,
             minimum=kwargs.get('minimum', 3000),
             logger=_LOGGER
             )
@@ -315,10 +320,15 @@ def predict(
 
 @log_it(_LOGGER, True)
 def predict_all(*args, **kwargs):
-# def predict_all(start_time:Union[str, date], end_time:Union[str, date], size:int=20):
     '''
     predict_all(start_time='2022-01-01', end_time='2023-04-01')
     '''
+    if kwargs['end_time'] is not None and kwargs['end_time']!='':
+        end_time = pd.to_datetime(kwargs['end_time']) 
+    else:
+        end_time = pd.Timestamp.now().date()
+    start_time = end_time - pd.Timedelta(f"{kwargs['delta']}d")
+    
     model_df = RSDBInterface.read_model(
         name=['lof_ctrl', 'lof_vibr'],
         func_dct={'create_time':['max']},
@@ -332,8 +342,8 @@ def predict_all(*args, **kwargs):
             uuids=grp['uuid'], 
             set_id=sid, 
             turbine_id=tid, 
-            start_time=kwargs['start_time'], 
-            end_time=kwargs['end_time'],
+            start_time=start_time, 
+            end_time=end_time,
             size=kwargs.get('size', 20)
             )
 
@@ -505,7 +515,7 @@ def scater_matrix_anormaly(df):
     return fig
 
 
-#%% main
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+# #%% main
+# if __name__ == "__main__":
+#     import doctest
+#     doctest.testmod()

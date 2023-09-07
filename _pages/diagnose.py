@@ -10,31 +10,29 @@ Created on Sun Apr 23 19:49:18 2023
 # import
 # =============================================================================
 from dash import html, dcc, Input, Output, no_update, callback, State, ctx, dash_table, ALL, MATCH
+import dash
 import dash_bootstrap_components as dbc
 from flask_login import current_user
-import time
 import pandas as pd
 import dash_bootstrap_components as dbc
-import json
-import plotly.graph_objects as go
 
 from wtbonline._db.rsdb.dao import RSDB
-from wtbonline._pages.tools.plot import line_plot, anormaly_plot, spectrum_plot, scatter_matrix_anormaly
+from wtbonline._pages.tools.plot import scatter_matrix_anormaly
 from wtbonline._pages.tools._decorator import _on_error
-from wtbonline._pages.tools.plot import ts_plot_multiplue_y, spc_plot_multiplue_y
+from wtbonline._pages.tools.plot import ts_plot_multiple_y, spc_plot_multiple_y
 from wtbonline._db.rsdb_interface import RSDBInterface
-from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._pages.tools.utils import mapid_to_tid, available_variable
 from wtbonline._pages.tools.utils import var_name_to_point_name, read_sample_ts, read_scatter_matrix_anormaly
 from wtbonline._pages.tools.utils import read_anormaly_without_label, read_sample_label
+
 # =============================================================================
 # constant
 # =============================================================================
 _PREFIX = 'diagnose' 
-_SCATTER_PLOT_VARIABLES = [
+_SCATTER_PLOT_VARIABLES = tuple([
     'var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean',
     'var_382_mean', 'var_383_mean'
-    ]
+    ])
 
 # =============================================================================
 # function
@@ -69,10 +67,10 @@ _plot = dbc.Card(
                 ),
                 dbc.Col([
                     _control_bar('top', '时序图'),
-                    dcc.Graph(figure=ts_plot_multiplue_y(), id=f'{_PREFIX}_graph_top'),
+                    dcc.Graph(figure=ts_plot_multiple_y(), id=f'{_PREFIX}_graph_top'),
                     html.Hr(),
                     _control_bar('btm', '频谱图'),
-                    dcc.Graph(figure=ts_plot_multiplue_y(), id=f'{_PREFIX}_graph_btm'),
+                    dcc.Graph(figure=ts_plot_multiple_y(), id=f'{_PREFIX}_graph_btm'),
                 ],width={"size": 6})
             ])
             ])
@@ -176,13 +174,11 @@ def get_layout():
     Output({'type':f'{_PREFIX}_select_Y1', 'index':ALL}, 'value'),
     Output({'type':f'{_PREFIX}_select_Y2', 'index':ALL}, 'value'),
     Input(f'{_PREFIX}_dropdown_set_id', 'value'),
-    Input({'type':f'{_PREFIX}_dropdown_menu_spc', 'index':ALL}, 'n_clicks'),
-    Input({'type':f'{_PREFIX}_dropdown_menu_ts', 'index':ALL}, 'n_clicks'),
     State({'type':f'{_PREFIX}_dropdown_menu_type', 'index':ALL}, 'label'),
     prevent_initial_call=True
     )
 @_on_error
-def diagnose_on_change_analyse_dropdown_set_id(set_id, n1, n2, labels): 
+def diagnose_on_change_analyse_dropdown_set_id(set_id, labels): 
     turbine_ids = RSDBInterface.read_windfarm_configuration(set_id=set_id, columns='map_id')
     turbine_ids = turbine_ids.squeeze().tolist()
     options_all, options_float = available_variable(set_id)
@@ -191,8 +187,35 @@ def diagnose_on_change_analyse_dropdown_set_id(set_id, n1, n2, labels):
         if i=='时序图':
             options.append(options_all)
         else:
-            options.append(options_float)
+            options.append(options_float) 
     return turbine_ids, options, options, ['']*2,  ['']*2
+
+# @callback(
+#     Output(f'{_PREFIX}_dropdown_map_id', 'options'),
+#     Output({'type':f'{_PREFIX}_select_Y1', 'index':ALL}, 'options'),
+#     Output({'type':f'{_PREFIX}_select_Y2', 'index':ALL}, 'options'),
+#     Output({'type':f'{_PREFIX}_select_Y1', 'index':ALL}, 'value'),
+#     Output({'type':f'{_PREFIX}_select_Y2', 'index':ALL}, 'value'),
+#     Input(f'{_PREFIX}_dropdown_set_id', 'value'),
+#     Input({'type':f'{_PREFIX}_dropdown_menu_spc', 'index':ALL}, 'n_clicks'),
+#     Input({'type':f'{_PREFIX}_dropdown_menu_ts', 'index':ALL}, 'n_clicks'),
+#     State({'type':f'{_PREFIX}_dropdown_menu_type', 'index':ALL}, 'label'),
+#     prevent_initial_call=True
+#     )
+# @_on_error
+# def diagnose_on_change_analyse_dropdown_set_id(set_id, n1, n2, labels): 
+#     turbine_ids = RSDBInterface.read_windfarm_configuration(set_id=set_id, columns='map_id')
+#     turbine_ids = turbine_ids.squeeze().tolist()
+#     options_all, options_float = available_variable(set_id)
+#     options = []
+#     for i in labels:
+#         if i=='时序图':
+#             options.append(options_all)
+#         else:
+#             options.append(options_float) 
+#     return turbine_ids, options, options, ['']*2,  ['']*2
+
+
 
 @callback(
     Output(f'{_PREFIX}_graph_anormaly', 'figure'),
@@ -209,7 +232,7 @@ def diagnose_on_change_analyse_dropdown_set_id(set_id, n1, n2, labels):
 @_on_error
 def diagnose_on_change_analyse_dropdown_map_id(map_id, set_id):
     if map_id=='' or map_id is None:
-        return scatter_matrix_anormaly(), ts_plot_multiplue_y(), ts_plot_multiplue_y(), '', None, '', True
+        return scatter_matrix_anormaly(), ts_plot_multiple_y(), ts_plot_multiple_y(), '', None, '', True
     anormaly_df = read_anormaly_without_label(set_id=set_id, map_id=map_id)
     count = len(anormaly_df)
     df = read_scatter_matrix_anormaly(set_id, map_id=map_id, columns=_SCATTER_PLOT_VARIABLES)
@@ -218,19 +241,33 @@ def diagnose_on_change_analyse_dropdown_map_id(map_id, set_id):
 
 @callback(
     Output({'type':f'{_PREFIX}_dropdown_menu_type', 'index':MATCH}, 'label'),
+    Output({'type':f'{_PREFIX}_select_Y1', 'index':MATCH}, 'options', allow_duplicate=True),
+    Output({'type':f'{_PREFIX}_select_Y2', 'index':MATCH}, 'options', allow_duplicate=True),
+    Output({'type':f'{_PREFIX}_select_Y1', 'index':MATCH}, 'value', allow_duplicate=True),
+    Output({'type':f'{_PREFIX}_select_Y2', 'index':MATCH}, 'value',  allow_duplicate=True),
     Input({'type':f'{_PREFIX}_dropdown_menu_spc', 'index':MATCH}, 'n_clicks'),
     Input({'type':f'{_PREFIX}_dropdown_menu_ts', 'index':MATCH}, 'n_clicks'),
+    State(f'{_PREFIX}_dropdown_set_id', 'value'),
     prevent_initial_call=True
     )
 @_on_error
-def diagnose_on_change_analyse_dropdown_menu_type(n1, n2):
+def diagnose_on_change_analyse_dropdown_menu_type(n1, n2, set_id):
     ctx = dash.callback_context
     type_ = eval(ctx.triggered[0]["prop_id"].split(".")[0])['type']
     if type_ == f'{_PREFIX}_dropdown_menu_spc':
-        rev = '频谱图'
+        label = '频谱图'
     else:
-        rev = '时序图'
-    return rev
+        label = '时序图'
+        
+    turbine_ids = RSDBInterface.read_windfarm_configuration(set_id=set_id, columns='map_id')
+    turbine_ids = turbine_ids.squeeze().tolist()
+    options_all, options_float = available_variable(set_id)
+    if label=='时序图':
+        options = (options_all)
+    else:
+        options = (options_float) 
+        
+    return label, options, options, '', ''
 
 @callback(
     Output(f'{_PREFIX}_profile_summary', 'children', allow_duplicate=True),
@@ -245,7 +282,7 @@ def diagnose_update_prfile_summary(selected_data, set_id):
     sr = RSDBInterface.read_statistics_sample(id_=sample_id, columns=_SCATTER_PLOT_VARIABLES).squeeze()
     labels = var_name_to_point_name(
         set_id=set_id, 
-        var_name=pd.Series(_SCATTER_PLOT_VARIABLES).str.replace('_mean', '')
+        var_name=tuple(pd.Series(_SCATTER_PLOT_VARIABLES).str.replace('_mean', ''))
         )
     rev = [html.P(f"样本编号: {sample_id}")]
     for i in range(len(labels)):
@@ -267,17 +304,17 @@ def diagnose_update_prfile_summary(selected_data, set_id):
     )
 def diagnose_update_graphs(selected_data, type_lst, y1_lst, y2_lst):
     if selected_data is None or len(selected_data['points'])>1:
-        return no_update, no_update, no_update, ts_plot_multiplue_y(), ts_plot_multiplue_y()
-    var_name=pd.Series(y1_lst+y2_lst).replace('', None).dropna().tolist()
+        return no_update, no_update, no_update, ts_plot_multiple_y(), ts_plot_multiple_y()
+    var_name=pd.Series(y1_lst+y2_lst).replace('', None).dropna().drop_duplicates().tolist()
     if len(var_name)==0:
-        return no_update, no_update, no_update, ts_plot_multiplue_y(), ts_plot_multiplue_y()
+        return no_update, no_update, no_update, ts_plot_multiple_y(), ts_plot_multiple_y()
     idx = selected_data['points'][0]['customdata']
-    df, point_df = read_sample_ts(idx, var_name+['var_94'])
-    point_df.set_index('var_name', inplace=True)
+    df, point_df = read_sample_ts(idx, tuple(var_name+['var_94']))
+    point_df.set_index('var_name', inplace=True, drop=False)
     if len(df)==0:
-        return True, f'无id={idx}, columns={var_name}数据', 'red', ts_plot_multiplue_y(), ts_plot_multiplue_y()
+        return True, f'无id={idx}, columns={var_name}数据', 'red', ts_plot_multiple_y(), ts_plot_multiple_y()
     
-    func = {'时序图':ts_plot_multiplue_y, '频谱图':spc_plot_multiplue_y}
+    func = {'时序图':ts_plot_multiple_y, '频谱图':spc_plot_multiple_y}
     top_cols = [y1_lst[0], y2_lst[0]]
     btm_cols = [y1_lst[1], y2_lst[1]]
     fig_top, fig_btm = no_update, no_update
@@ -386,6 +423,7 @@ def diagnose_on_click_label_buttons(n1, n2, n3, set_id, map_id, selected_data):
         username=username, set_id=set_id, turbine_id=mapid_to_tid(set_id, map_id),
         sample_id=sample_id, create_time=create_time              
         )
+    
     triggerd = dash.callback_context.triggered[0]
     rev = [no_update]*3
     if triggerd['prop_id'].find('abnormal')>-1:
@@ -399,6 +437,7 @@ def diagnose_on_click_label_buttons(n1, n2, n3, set_id, map_id, selected_data):
     elif triggerd['prop_id'].find('not_labeled')>-1:
         RSDB.delete('model_label', eq_clause=dict(sample_id=sample_id, username=username))
         rev = ['btn-light', 'btn-light', 'btn-warning'] 
+        
     anormaly_df = read_anormaly_without_label(set_id=set_id, map_id=map_id)
     rev.append(len(anormaly_df))
     return rev

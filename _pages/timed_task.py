@@ -34,6 +34,7 @@ _FUNC_DCT = {
     "训练模型":"wtbonline._process.modelling:train_all",
     "离群值识别":"wtbonline._process.modelling:predict_all",
     "简报":"wtbonline._report.brief_report:build_brief_report_all",
+    "更新缓存":"wtbonline._pages.tools.utils:update_cache",
     "心跳":"wtbonline._process.preprocess:heart_beat",
     }
 _DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -190,8 +191,8 @@ def _control():
                 html.Hr(),
                 dbc.InputGroup(
                     [
-                        dbc.InputGroupText("截止日期", class_name='small'),
-                        dmc.DatePicker(id=f'{_PREFIX}_end_date', size='sm', clearable =False, value=pd.Timestamp.now().date(), disabled=True),
+                        dbc.InputGroupText("截止日", class_name='small'),
+                        dmc.DatePicker(id=f'{_PREFIX}_end_date', size='sm', value=pd.Timestamp.now().date(), disabled=True),
                         ], 
                     className='w-100'
                     ), 
@@ -314,19 +315,14 @@ def timed_task_on_btn_add(n, func, job_start_date, job_start_time, setting, inte
     if setting=='interval':
         task_parameter.update({unit:interval})
     
-    function_parameter = {}
-    if func in ['训练模型', '离群值识别', '简报']:
-        function_parameter.update({'end_time': end_date+' 00:00:00'})
-    if func in ['训练模型']:
-        function_parameter.update({'minimum': minimum})
-    if func in ['离群值识别']:
-        function_parameter.update({'size': size})
-    if func in ['简报']:
-        function_parameter.update({'delta': delta})
-    if func in ['训练模型', '离群值识别']:
-        start_time = pd.to_datetime(end_date) - pd.Timedelta(f'{delta}d')     
-        function_parameter.update({'start_time': start_time.strftime(_DATE_TIME_FORMAT)})
-
+    end_time = end_date+' 00:00:00' if end_date is not None and end_date!='' else ''
+    function_parameter = dict(
+        end_time = end_time,
+        delta = delta,
+        size = size,
+        minimum =minimum
+        )
+    
     RSDBInterface.insert(
         dict(
             status=status,

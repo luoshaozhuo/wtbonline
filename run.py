@@ -9,12 +9,12 @@ Created on Thu Apr 20 10:24:08 2023
 # =============================================================================
 # import
 # =============================================================================
-from dash import html, dcc, Input, Output, no_update
+from dash import html, dcc, Input, Output, no_update, callback
 import dash_bootstrap_components as dbc
 from flask_login import logout_user, current_user
 
-from _pages import login, error_404, diagnose, analyse, explore, account, timed_task
-from wtbonline import wtbonline
+from wtbonline._pages import login, error_404, diagnose, analyse, explore, account, timed_task
+from wtbonline.app import app
 
 # =============================================================================
 # layout
@@ -22,7 +22,7 @@ from wtbonline import wtbonline
 navbar_children = [
     dbc.NavItem(dbc.NavLink("探索", href="explore")),
     dbc.NavItem(dbc.NavLink("分析", href="analyse")),
-    dbc.NavItem(dbc.NavLink("设计", href="design")),
+    dbc.NavItem(dbc.NavLink("设计", href="design", disabled=True)),
     dbc.NavItem(dbc.NavLink("诊断", href="diagnose")),
     dbc.NavItem(dbc.NavLink("定时任务", href="timedtask")),
     dbc.NavItem(dbc.NavLink("账户管理", href="account")),
@@ -64,7 +64,7 @@ layout = html.Div(
 # =============================================================================
 # callback
 # =============================================================================
-@wtbonline.callback(Output('run_page', 'children'),
+@callback(Output('run_page', 'children'),
               Output('run_location', 'pathname'),
               Output('navBar', 'children'),
               [Input('run_location', 'pathname')])
@@ -85,7 +85,7 @@ def show_Page(pathname):
     
     return error_404.get_layout(), no_update, ''    
 
-@wtbonline.callback(
+@callback(
     Output('run_location', 'pathname', allow_duplicate=True),
     Input('run_logout', 'n_clicks'),
     prevent_initial_call=True,
@@ -101,13 +101,8 @@ def on_run_logout(nclick):
 # =============================================================================
 # main
 # =============================================================================
-wtbonline.layout = layout
-server = wtbonline.server
-
-def main():
-    import sys
-    debug = True if len(sys.argv)>1 else False
-    wtbonline.run_server(debug=debug)    
+app.layout = layout
+server = app.server
 
 if __name__ == '__main__':
-    main()
+    app.run_server(debug=False, host='0.0.0.0', port=8050) 

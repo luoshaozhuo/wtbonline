@@ -189,7 +189,7 @@ def on_account_btn_admit(n, user_name, password, privilege):
         msg = '修改用户信息'
     # 新增用户
     else:
-        if None in (user_name, password):
+        if None in (user_name, hashed_password):
             return no_update, '用户名或密码为空', True, 'danger'
         df = pd.DataFrame(
             {'username':user_name, 
