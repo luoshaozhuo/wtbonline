@@ -131,7 +131,11 @@ def update_tsdb(*args, **kwargs):
             if date==pd.Timestamp.now().date():
                 continue
             print(set_id, turbine_id, date)
-            load_tsdb(set_id, turbine_id, date)
+            try:
+                load_tsdb(set_id, turbine_id, date)
+            except:
+                _LOGGER.error(f'failed to update_tsdb: {set_id}, {turbine_id}, {date}')
+                raise 
 
 @log_it(_LOGGER, True)
 def init_tdengine(*args, **kwargs):

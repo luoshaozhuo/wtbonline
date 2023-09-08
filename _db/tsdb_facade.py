@@ -364,7 +364,7 @@ class TDEngine_FACADE():
             df.columns = cols_org
         df = self._conver_dtype(df, point_df)
         point_df['column'] = point_df['point_name'] + '_' + point_df['unit']
-        if remove_tz==True:
+        if remove_tz==True and len(df)>0:
             df['ts'] = df['ts'].dt.tz_localize(None)
         return df, point_df
     
@@ -392,8 +392,10 @@ class TDEngine_FACADE():
         df = make_sure_dataframe(df.copy())
         if len(df)<1:
             return
+        # 获取字段名称
         temp, _ = TDFC.read(set_id=set_id, turbine_id=turbine_id, start_time=pd.Timestamp.now(),
                          end_time=pd.Timestamp.now()+pd.Timedelta('1d'), limit=1)
+        # 只选取数据库中存在的字段名
         df = df[df.columns[df.columns.isin(temp.columns)]]
         df['ts'] = df['ts'].dt.tz_localize(None)
         if 'device' in df.columns:
@@ -408,12 +410,10 @@ class TDEngine_FACADE():
         if dbname != None:
             kwargs['database'] = dbname
         pathname = Path(TEMP_DIR)/f'tmp_{uuid.uuid4().hex}.csv'
-        try:
-            df[columns].to_csv(pathname, index=False)
-            sql = f"insert into {kwargs['database']}.d_{turbine_id} file '{pathname.as_posix()}';"
-            _ = self.query(sql, driver_kwargs=kwargs)
-        finally:
-            pathname.unlink()
+        df[columns].to_csv(pathname, index=False)
+        sql = f"insert into {kwargs['database']}.d_{turbine_id} file '{pathname.as_posix()}';"
+        _ = self.query(sql, driver_kwargs=kwargs)
+        pathname.unlink()
 
 TDFC = TDEngine_FACADE()
 

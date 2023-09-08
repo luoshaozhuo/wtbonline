@@ -12,8 +12,8 @@ curl -X POST localhost:40000/scheduler/jobs/heart_beat/pause
 curl -X POST localhost:40000/scheduler/jobs -d '{"id":"heart_beat","func":"wtbonline._process.preprocess:heart_beat","trigger":"date", "start_date":"2023-09-06 17:25:00", "kwargs":{"task_id":1}}'
 curl -X POST localhost:40000/scheduler/jobs/heart_beat/resume
 curl -X DELETE localhost:40000/scheduler/jobs/heart_beat
-curl -X POST localhost:40000/scheduler/jobs -d '{"id":"update_tsdb","func":"wtbonline._process.preprocess:update_tsdb","next_run_time":"2023-08-15 03:16:00"}'
-curl -X POST localhost:40000/scheduler/jobs -d '{"id":"update_statistic_sample","func":"wtbonline._process.statistic:update_statistic_sample","next_run_time":"2023-08-15 02:53:00"}'
+curl -X POST localhost:40000/scheduler/jobs -d '{"id":"update_tsdb","func":"wtbonline._process.preprocess:update_tsdb","next_run_time":"2023-09-10 07:16:00","misfire_grace_time":600}'
+curl -X POST localhost:40000/scheduler/jobs -d '{"id":"update_statistic_sample","func":"wtbonline._process.statistic:update_statistic_sample","next_run_time":"2023-09-10 07:53:00"},"misfire_grace_time":600}'
 curl -X POST localhost:40000/scheduler/jobs -d '{"id":"train_all","func":"wtbonline._process.modelling:train_all", "kwargs":{"start_time":"2023-05-01 00:00:00", "end_time":"2023-08-15 00:00:00","minimum":3000}, "next_run_time":"2023-08-15 14:43:00"}'
 curl -X POST localhost:40000/scheduler/jobs -d '{"id":"predict_all","func":"wtbonline._process.modelling:predict_all", "kwargs":{"start_time":"2023-05-01 00:00:00", "end_time":"2023-08-15 00:00:00","size":20}, "next_run_time":"2023-08-15 14:43:00"}'
 curl -X POST localhost:40000/scheduler/jobs -d '{"id":"build_brief_report","func":"wtbonline._report.brief_report:main", "kwargs":{"end_time":"2023-08-01 00:00:00", "delta":60}, "next_run_time":"2023-08-16 08:51:00"}'
