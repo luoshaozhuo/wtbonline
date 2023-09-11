@@ -134,33 +134,9 @@ def _setting():
 def _control():
     return dbc.Card([
             dbc.CardHeader('任务设置'),
-            dbc.CardBody([
+            dbc.CardBody([       
                 dbc.InputGroup([
-                    dbc.InputGroupText("任务函数"), 
-                    dbc.Select(
-                        id=f'{_PREFIX}_func',
-                        options = [{"label":key, "value":key} for key in _FUNC_DCT]
-                        )
-                    ]),
-                html.Br(),
-                dbc.InputGroup(
-                    [
-                        dbc.InputGroupText("运行日期", class_name='small'),
-                        dmc.DatePicker(id=f'{_PREFIX}_start_date', size='sm', clearable =False, placeholder='默认为当前日期'),
-                        ], 
-                    className='w-100'
-                    ), 
-                html.Br(),
-                dbc.InputGroup(
-                    [
-                        dbc.InputGroupText("运行时间", class_name='small'),
-                        dmc.TimeInput(id=f'{_PREFIX}_start_time', size='sm'),
-                        ], 
-                    className='w-100'
-                    ), 
-                html.Br(),
-                dbc.InputGroup([
-                    dbc.InputGroupText("任务设定"), 
+                    dbc.InputGroupText("任务类型"), 
                     dbc.Select(
                         id=f'{_PREFIX}_setting',
                         options=[
@@ -169,6 +145,22 @@ def _control():
                             ],
                         )
                     ]),
+                html.Br(),
+                dbc.InputGroup(
+                    [
+                        dbc.InputGroupText("日期", class_name='small'),
+                        dmc.DatePicker(id=f'{_PREFIX}_start_date', size='sm', placeholder='默认为当前日期'),
+                        ], 
+                    className='w-100'
+                    ), 
+                html.Br(),
+                dbc.InputGroup(
+                    [
+                        dbc.InputGroupText("时间", class_name='small'),
+                        dmc.TimeInput(id=f'{_PREFIX}_start_time', size='sm'),
+                        ], 
+                    className='w-100'
+                    ), 
                 html.Br(),
                 dbc.InputGroup([
                     dbc.InputGroupText("周期", class_name='small'), 
@@ -189,6 +181,14 @@ def _control():
                         )
                     ]),
                 html.Hr(),
+                dbc.InputGroup([
+                    dbc.InputGroupText("任务函数"), 
+                    dbc.Select(
+                        id=f'{_PREFIX}_func',
+                        options = [{"label":key, "value":key} for key in _FUNC_DCT]
+                        )
+                    ]),
+                html.Br(),
                 dbc.InputGroup(
                     [
                         dbc.InputGroupText("截止日", class_name='small'),
@@ -224,8 +224,8 @@ def _control():
                 html.Div(
                     dbc.Button('添加任务', color='primary', className='me-1', id=f'{_PREFIX}_btn_add', disabled=True),
                     className='d-grid',
-                )                
-            ])
+                )
+            ])       
         ])
 
 

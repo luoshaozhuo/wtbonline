@@ -11,6 +11,7 @@ Created on Sun Apr 23 19:49:18 2023
 # =============================================================================
 from dash import html, dcc, Input, Output, no_update, callback, State, ctx, dash_table, ALL, MATCH
 import dash
+import dash_mantine_components as dmc
 import dash_bootstrap_components as dbc
 from flask_login import current_user
 import pandas as pd
@@ -57,20 +58,22 @@ _plot = dbc.Card(
         dbc.CardHeader('可视化'),
         dbc.CardBody([
             dbc.Row([
-                dbc.Col(
-                    dcc.Graph(
-                    figure=scatter_matrix_anormaly(),
-                    id=f'{_PREFIX}_graph_anormaly',
-                    hoverData={'points': [{'customdata': 'Japan'}]}
-                    ),
+                dbc.Col(  
+                    dmc.LoadingOverlay(
+                        dcc.Graph(
+                            figure=scatter_matrix_anormaly(),
+                            id=f'{_PREFIX}_graph_anormaly',
+                            hoverData={'points': [{'customdata': 'Japan'}]}
+                            )
+                        ),
                     width={"size": 6}
                 ),
                 dbc.Col([
                     _control_bar('top', '时序图'),
-                    dcc.Graph(figure=ts_plot_multiple_y(), id=f'{_PREFIX}_graph_top'),
+                    dmc.LoadingOverlay(dcc.Graph(figure=ts_plot_multiple_y(), id=f'{_PREFIX}_graph_top')),
                     html.Hr(),
                     _control_bar('btm', '频谱图'),
-                    dcc.Graph(figure=ts_plot_multiple_y(), id=f'{_PREFIX}_graph_btm'),
+                    dmc.LoadingOverlay(dcc.Graph(figure=ts_plot_multiple_y(), id=f'{_PREFIX}_graph_btm'), exitTransitionDuration=1),
                 ],width={"size": 6})
             ])
             ])
@@ -190,33 +193,6 @@ def diagnose_on_change_analyse_dropdown_set_id(set_id, labels):
             options.append(options_float) 
     return turbine_ids, options, options, ['']*2,  ['']*2
 
-# @callback(
-#     Output(f'{_PREFIX}_dropdown_map_id', 'options'),
-#     Output({'type':f'{_PREFIX}_select_Y1', 'index':ALL}, 'options'),
-#     Output({'type':f'{_PREFIX}_select_Y2', 'index':ALL}, 'options'),
-#     Output({'type':f'{_PREFIX}_select_Y1', 'index':ALL}, 'value'),
-#     Output({'type':f'{_PREFIX}_select_Y2', 'index':ALL}, 'value'),
-#     Input(f'{_PREFIX}_dropdown_set_id', 'value'),
-#     Input({'type':f'{_PREFIX}_dropdown_menu_spc', 'index':ALL}, 'n_clicks'),
-#     Input({'type':f'{_PREFIX}_dropdown_menu_ts', 'index':ALL}, 'n_clicks'),
-#     State({'type':f'{_PREFIX}_dropdown_menu_type', 'index':ALL}, 'label'),
-#     prevent_initial_call=True
-#     )
-# @_on_error
-# def diagnose_on_change_analyse_dropdown_set_id(set_id, n1, n2, labels): 
-#     turbine_ids = RSDBInterface.read_windfarm_configuration(set_id=set_id, columns='map_id')
-#     turbine_ids = turbine_ids.squeeze().tolist()
-#     options_all, options_float = available_variable(set_id)
-#     options = []
-#     for i in labels:
-#         if i=='时序图':
-#             options.append(options_all)
-#         else:
-#             options.append(options_float) 
-#     return turbine_ids, options, options, ['']*2,  ['']*2
-
-
-
 @callback(
     Output(f'{_PREFIX}_graph_anormaly', 'figure'),
     Output(f'{_PREFIX}_graph_top', 'figure'),
@@ -279,6 +255,8 @@ def diagnose_update_prfile_summary(selected_data, set_id):
     if selected_data is None or None in selected_data or len(selected_data['points'])>1:
         return ''
     sample_id = selected_data['points'][0]['customdata']
+    if sample_id is None:
+        return ''
     sr = RSDBInterface.read_statistics_sample(id_=sample_id, columns=_SCATTER_PLOT_VARIABLES).squeeze()
     labels = var_name_to_point_name(
         set_id=set_id, 
@@ -303,7 +281,7 @@ def diagnose_update_prfile_summary(selected_data, set_id):
     prevent_initial_call=True
     )
 def diagnose_update_graphs(selected_data, type_lst, y1_lst, y2_lst):
-    if selected_data is None or len(selected_data['points'])>1:
+    if selected_data is None or len(selected_data['points'])!=1:
         return no_update, no_update, no_update, ts_plot_multiple_y(), ts_plot_multiple_y()
     var_name=pd.Series(y1_lst+y2_lst).replace('', None).dropna().drop_duplicates().tolist()
     if len(var_name)==0:
@@ -371,6 +349,8 @@ def diagnose_on_click_btn_next(n, map_id, set_id):
     if len(anormaly_df)>0:
         sample_id = anormaly_df['sample_id'].sample(1).squeeze()
         selectedpoints = df[df['id']==sample_id].index.tolist()
+    else:
+        sample_id=None
     graph_anormaly = scatter_matrix_anormaly(df, _SCATTER_PLOT_VARIABLES, set_id, selectedpoints)
     return graph_anormaly, {'points':[{'customdata':sample_id}]}, count
 
@@ -385,7 +365,7 @@ def diagnose_on_click_btn_next(n, map_id, set_id):
     prevent_initial_call=True
     )
 def diagnose_update_label_buttons(selected_data):
-    if selected_data is None or len(selected_data['points'])>1:
+    if selected_data is None or len(selected_data['points'])!=1:
         rev = [no_update]*3 + [True]*3
     else:
         sample_id = selected_data['points'][0]['customdata']

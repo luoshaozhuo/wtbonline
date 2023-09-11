@@ -289,7 +289,7 @@ def spc_plot_multiple_y(df=None, ycols=None, units=None, ytitles=None, x='ts', x
     y_ref = df[ref_col].abs()
     if df.shape[0]>0:
         for y in ycols:
-            if y=='':
+            if y=='' or (df[y]==df[y].iloc[0]).all()==True:
                 continue
             df[y] = df[y] - df[y].mean()
             x_fft, y_fft = _power_spectrum(df[y], sample_spacing=sample_spacing)

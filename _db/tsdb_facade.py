@@ -19,7 +19,8 @@ from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.common import make_sure_list, make_sure_datetime
 from wtbonline._db.common import make_sure_dataframe, make_sure_dict
 from wtbonline._db.tsdb.tdengine import TDEngine_RestAPI, TDEngine_Connector
-from wtbonline._db.config import TD_LOCAL_CONNECTOR, TD_REMOTE_RESTAPI, TEMP_DIR
+from wtbonline._db.config import get_temp_dir
+from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
 
 # =============================================================================
 # constant
@@ -122,7 +123,7 @@ class TDEngine_FACADE():
         >>> (dbs=='test').any()
         False
         '''
-        kwargs = TD_LOCAL_CONNECTOR.copy()
+        kwargs = get_td_local_connector()
         dbname = kwargs['database'] if dbname==None else dbname
         kwargs['database'] = None
         set_ids = (RSDBInterface.read_windfarm_configuration(columns='set_id').squeeze().unique()
@@ -147,7 +148,7 @@ class TDEngine_FACADE():
         connector = TDEngine_RestAPI if remote==True else TDEngine_Connector
         kwargs = driver_kwargs
         if kwargs==None:
-            kwargs = TD_REMOTE_RESTAPI if remote==True else TD_LOCAL_CONNECTOR
+            kwargs = get_td_remote_restapi() if remote==True else get_td_local_connector()
         df = connector(**kwargs).query(sql)
         return df
 
@@ -341,7 +342,7 @@ class TDEngine_FACADE():
         limit = 10 if point_df.shape[0]>100 and limit==None else limit
         ## 防止忘记限制查询行数
         limit = 1000000 if limit is None else limit
-        dbname =TD_REMOTE_RESTAPI['database'] if remote==True else TD_LOCAL_CONNECTOR['database']
+        dbname =get_td_remote_restapi()['database'] if remote==True else get_td_local_connector()['database']
         tbname = f's_{set_id}' if turbine_id is None else f'd_{turbine_id}'
         sql = f'''
             select {','.join(cols)} from {dbname}.{tbname}
@@ -406,10 +407,10 @@ class TDEngine_FACADE():
 
         # ts字段必须在首位，否则报错
         columns = ['ts'] + df.columns.drop('ts').tolist()
-        kwargs = TD_LOCAL_CONNECTOR.copy()
+        kwargs = get_td_local_connector()
         if dbname != None:
             kwargs['database'] = dbname
-        pathname = Path(TEMP_DIR)/f'tmp_{uuid.uuid4().hex}.csv'
+        pathname = Path(get_temp_dir())/f'tmp_{uuid.uuid4().hex}.csv'
         df[columns].to_csv(pathname, index=False)
         sql = f"insert into {kwargs['database']}.d_{turbine_id} file '{pathname.as_posix()}';"
         _ = self.query(sql, driver_kwargs=kwargs)

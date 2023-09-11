@@ -49,8 +49,6 @@ def get_td_local_connector():
     sr['password'] = str(password, encoding='utf')
     return sr.to_dict()
 
-TD_LOCAL_CONNECTOR = get_td_local_connector()
-
 def get_td_remote_restapi():
     '''
     >>> get_td_remote_restapi().keys()
@@ -68,8 +66,6 @@ def get_td_remote_restapi():
     password = fn.decrypt(bytes(sr['password'], encoding='utf'))
     sr['password'] = str(password, encoding='utf')
     return sr.to_dict()
-
-TD_REMOTE_RESTAPI = get_td_remote_restapi()
 
 def get_temp_dir():
     '''

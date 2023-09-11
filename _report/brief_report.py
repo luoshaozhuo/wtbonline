@@ -36,7 +36,7 @@ plt.rcParams['font.family']='sans-serif'
 plt.rcParams['font.sans-serif']=['SimHei']
 plt.rcParams['axes.unicode_minus']=False 
 
-from wtbonline._db.config import TD_LOCAL_CONNECTOR
+from wtbonline._db.config import get_td_local_connector
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._pages.tools.plot import line_plot 
@@ -390,7 +390,7 @@ def chapter_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
     '''
     sql = f'''
         select first(totalenergy) as min, last(totalenergy) as max, device
-        from {TD_LOCAL_CONNECTOR['database']}.s_{set_id} 
+        from {get_td_local_connector()['database']}.s_{set_id} 
         where ts>='{min_date}' and ts<'{max_date}' 
         group by device 
         order by device

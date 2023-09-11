@@ -65,8 +65,10 @@ def _get_side_bar():
 def _get_card_plot():
     card = dbc.Card([dbc.CardHeader('绘图区'),
                      dbc.CardBody([
-                         dcc.Graph(id=f'{_PREFIX}_plot',
-                                   config={'displaylogo':False})
+                         dmc.LoadingOverlay(
+                            dcc.Graph(id=f'{_PREFIX}_plot',
+                                    config={'displaylogo':False})
+                            )                        
                          ])
                      ]),
     return dbc.Row(dbc.Col(card, class_name='m-0 px-1 pt-1'))
@@ -314,7 +316,7 @@ def on_change_explore_date_range(start_date, start_time, end_date, end_time, set
     prevent_initial_call=True
     )
 @_on_error
-def on_change_explore_dropdown_turbine_id(map_id, set_id): 
+def on_change_explore_dropdown_map_id(map_id, set_id): 
     turbine_id = mapid_to_tid(set_id, map_id=map_id)
     df = RSDBInterface.read_statistics_sample(
         set_id=set_id, 
@@ -322,9 +324,15 @@ def on_change_explore_dropdown_turbine_id(map_id, set_id):
         func_dct={'bin':['date']},
         unique=True,
         )
-    dates = df['bin_date'].squeeze()
-    min_date = dates.min()
-    max_date = dates.max()
+    if len(df)>0:
+        dates = df['bin_date'].squeeze()
+        min_date = dates.min()
+        max_date = dates.max()
+    else:
+        now = pd.Timestamp.now()
+        min_date = (now - pd.Timedelta('1d')).date()
+        max_date = now.date()
+        dates = []
     disabled_days = pd.date_range(min_date, max_date)
     disabled_days = disabled_days[~disabled_days.isin(dates)]
     disabled_days = [i.date().isoformat() for i in disabled_days]

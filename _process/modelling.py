@@ -20,7 +20,7 @@ from functools import partial
 from datetime import date
 import plotly.graph_objects as go
  
-from wtbonline._db.config import TEMP_DIR
+from wtbonline._db.config import get_temp_dir
 from wtbonline._process.model.trainer import SimpleTrainer
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.rsdb_interface import RSDBInterface
@@ -374,7 +374,7 @@ def test_train(uuids_, start_time, end_time):
             uuid_='test',
             minimun=minimun,
             )
-        pathname = TEMP_DIR/f'manual_{uu}.pkl'
+        pathname = get_temp_dir()/f'manual_{uu}.pkl'
         trainer.save_model(pathname=pathname)
         plot(trainer, test_df, pathname, f'manual_{uu}')
 
@@ -445,7 +445,7 @@ def test_predict(uuids_, start_time, end_time):
     b = all_df[all_df['is_anormaly']==True]
     sub_df = all_df.loc[a.index.tolist() + b.index.tolist()]
     fig = scater_matrix_anormaly(sub_df)
-    fig.write_html(TEMP_DIR/'test_predict.html')
+    fig.write_html(get_temp_dir()/'test_predict.html')
 
 def plot(trainer, test_df, pathname, filename):
     test_df = test_df.copy()
@@ -468,7 +468,7 @@ def plot(trainer, test_df, pathname, filename):
     sub_df['is_anormaly'] = False
     sub_df.loc[b.index, 'is_anormaly'] = True
     fig = scater_matrix_anormaly(sub_df)
-    fig.write_html(TEMP_DIR/f'{filename}.html')
+    fig.write_html(get_temp_dir()/f'{filename}.html')
 
 def scater_matrix_anormaly(df):
     # 绘图

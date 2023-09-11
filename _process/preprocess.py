@@ -10,7 +10,7 @@ from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.time import resample
 from wtbonline._logging import get_logger, log_it
-from wtbonline._db.config import TD_LOCAL_CONNECTOR, TD_REMOTE_RESTAPI
+from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
 
 #%% constant
 _LOGGER = get_logger('preprocess')
@@ -86,7 +86,7 @@ def get_dates_tsdb(turbine_id, remote=True):
     True
     '''
     # sql = f'select distinct(timetruncate(ts, 1d)) as date from d_{turbine_id}'
-    db =TD_REMOTE_RESTAPI['database'] if remote==True else TD_LOCAL_CONNECTOR['database']
+    db =get_td_remote_restapi()['database'] if remote==True else get_td_local_connector()['database']
     sql = f'select first(ts) as date from {db}.d_{turbine_id} interval(1d) sliding(1d)'
     sr = TDFC.query(sql=sql, remote=remote)['date']
     sr = pd.to_datetime(sr).dt.date
