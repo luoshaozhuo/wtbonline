@@ -111,6 +111,7 @@ def load_tsdb(set_id, turbine_id, date):
 @log_it(_LOGGER, True)
 def update_tsdb(*args, **kwargs):
     ''' 本地TSDB查缺 '''
+    task_id = kwargs.get('task_id', 'NA')
     for i in range(10):
         try:
             df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
@@ -132,6 +133,7 @@ def update_tsdb(*args, **kwargs):
                 continue
             print(set_id, turbine_id, date)
             try:
+                _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {turbine_id}, {date}')
                 load_tsdb(set_id, turbine_id, date)
             except:
                 _LOGGER.error(f'failed to update_tsdb: {set_id}, {turbine_id}, {date}')

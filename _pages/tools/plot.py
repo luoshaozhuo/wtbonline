@@ -286,23 +286,26 @@ def spc_plot_multiple_y(df=None, ycols=None, units=None, ytitles=None, x='ts', x
     '''
     df = make_sure_dataframe(df.copy())
     ycols = make_sure_list(ycols)
-    y_ref = df[ref_col].abs()
     if df.shape[0]>0:
-        for y in ycols:
-            if y=='' or (df[y]==df[y].iloc[0]).all()==True:
-                continue
-            df[y] = df[y] - df[y].mean()
-            x_fft, y_fft = _power_spectrum(df[y], sample_spacing=sample_spacing)
-            df[y] = y_fft
-            if 'x' in (df.columns):
-                continue
-            df['x'] = x_fft if ref_col is None else x_fft*60/y_ref
+            for y in ycols:
+                if y=='' or (df[y]==df[y].iloc[0]).all()==True:
+                    continue
+                df[y] = df[y] - df[y].mean()
+                x_fft, y_fft = _power_spectrum(df[y], sample_spacing=sample_spacing)
+                df[y] = y_fft
+                if 'x' in (df.columns) or ref_col is None:
+                    continue
+                freq_ref = df[ref_col].abs().mean()
+                freq_ref = freq_ref/60 if freq_ref>0 else 1
+                df['x'] = x_fft if ref_col is None else x_fft/freq_ref
     if 'x' in (df.columns):
         df = df[df['x']>0]
+    else:
+        df = pd.DataFrame(columns=df.columns.tolist()+['x'])
     xtitle = '转频倍率'
     fig = ts_plot_multiple_y(df, ycols, [f'({i})^2' for i in units], ytitles=ytitles, x='x', xtitle=xtitle)
-    if 'x' in (df.columns):
-        for i in range(int(min(df['x'].max(), 100))):
+    if 'x' in (df.columns) and df.shape[0]>1:
+        for i in range(int(min(df['x'].max(), 10))):
             fig.add_vline(
                 x=i+1, 
                 annotation_text=f"{i+1}倍频",

@@ -52,6 +52,10 @@ def data_filter(df, return_exclude=False, return_count=False):
     condtion = (df['workmode_mode']=='32') & (df['workmode_nunique']==1)
     cnt_dct.update({'非发电':df[~condtion].shape[0]})
     conds = conds & condtion
+    
+    condtion = (df['ongrid_mode']=='True') & (df['ongrid_nunique']==1)
+    cnt_dct.update({'非并网':df[~condtion].shape[0]})
+    conds = conds & condtion
 
     condtion = (df['totalfaultbool_mode']=='False') & (df['totalfaultbool_nunique']==1)
     cnt_dct.update({'有故障':df[~condtion].shape[0]})
@@ -234,6 +238,8 @@ def train(
                 })
             RSDB.delete('model', eq_clause={'uuid':trainer.estimator.description['uuid']})
             RSDB.insert(this_entity, 'model')
+        else:
+            logger.warn(f'模型训练失败: {set_id} {turbine_id} {start_time} {end_time} {selects} {minimum}')
 
 @log_it(_LOGGER,True)
 def train_all(*args, **kwargs):
@@ -249,7 +255,7 @@ def train_all(*args, **kwargs):
     conf_df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
     farm_name = RSDBInterface.read_windfarm_infomation()['farm_name'].iloc[0]
     for _, row in conf_df.iterrows():
-        print(row['set_id'], row['turbine_id'])
+        _LOGGER.info(f"train {row['set_id']} {row['turbine_id']}")
         train(
             farm_name=farm_name,
             set_id=row['set_id'],

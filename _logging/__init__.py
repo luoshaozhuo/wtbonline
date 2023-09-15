@@ -9,7 +9,7 @@ from wtbonline._db.rsdb_interface import RSDBInterface
 _parent = RSDBInterface.read_app_configuration(key_='log_path').loc[0, 'value']
 _parent = Path(_parent)
 
-def get_steam_handler():
+def get_stream_handler():
     handler = logging.StreamHandler()#默认是sys.stderr
     handler.setLevel(logging.INFO) 
     formatter = logging.Formatter(
@@ -63,7 +63,7 @@ def get_logger(name:str):
     rev.setLevel(logging.INFO)
     rev.addHandler(get_info_handler(_dir,name))
     rev.addHandler(get_error_handler(_dir,name))
-    # rev.addHandler(get_steam_handler())
+    rev.addHandler(get_stream_handler())
     return rev
 
 def log_it(logger, is_timed_task=False):

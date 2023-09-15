@@ -132,6 +132,7 @@ def statistic_sample(df, set_id:str, turbine_id:str, bin_length:str='10min')->pd
     rev['set_id'] = set_id
     rev['turbine_id'] = turbine_id
     rev.replace({np.nan:None}, inplace=True)
+    rev.replace({np.inf:None}, inplace=True)
     return rev
 
 def dates_in_statistic_sample(set_id, turbine_id):
@@ -151,6 +152,7 @@ def update_statistic_sample(*args, **kwargs):
     ''' 本地sample查缺 
     # >>> update_statistic_sample()
     '''
+    task_id = kwargs.get('task_id', 'NA')
     for i in range(10):
         df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
         if len(df)>0:
@@ -167,7 +169,7 @@ def update_statistic_sample(*args, **kwargs):
         # statistics_sample表
         candidates = tsdb_dates[~tsdb_dates.isin(statistics_dates)]
         for dt in candidates:
-            print(set_id, turbine_id, dt)
+            _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {turbine_id}, {dt}')
             dt = make_sure_datetime(dt)
             df, _ = TDFC.read(
                 set_id=set_id,

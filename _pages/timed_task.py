@@ -37,6 +37,8 @@ _FUNC_DCT = {
     "更新缓存":"wtbonline._pages.tools.utils:update_cache",
     "心跳":"wtbonline._process.preprocess:heart_beat",
     }
+
+_DATE_DATE_FORMAT = '%Y-%m-%d'
 _DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 _URL='http://scheduler:40000/scheduler/jobs'
 
@@ -306,10 +308,12 @@ def timed_task_on_btn_add(n, func, job_start_date, job_start_time, setting, inte
         username = 'timed_task_test'
     job_start_time = _make_sure_datetime_string(job_start_time)
     status = 'pause'
-    if job_start_date is None:
-        job_start_time = pd.Timestamp.now().strftime(_DATE_TIME_FORMAT)
+    
+    job_start_date = pd.Timestamp.now() if job_start_date is None else pd.to_datetime(job_start_date)
+    if job_start_time is None or job_start_time=='':
+        job_start_time = job_start_date.strftime(_DATE_TIME_FORMAT)
     else:
-        job_start_time = job_start_date + ' ' + job_start_time[11:]
+        job_start_time = job_start_date.strftime(_DATE_DATE_FORMAT) + ' ' + job_start_time[11:]
         
     task_parameter = {'misfire_grace_time':600}
     if setting=='interval':
@@ -384,13 +388,15 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, rows, data):
     _id = ctx.triggered_id
     for _,row in df.iterrows():
         exist=False
-        # 考虑超时会导致scheduler丢失mysql连接，重试2次，让其恢复
-        for i in range(2):
+        # 考虑超时会导致scheduler丢失mysql连接，重试3次，让其恢复
+        for i in range(3):
             response = requests.get(_URL+f"/{row['id']}")
             if response.reason=='OK':
                 exist = True
                 break
-            time.sleep(0.1)
+            time.sleep(0.5)
+        if response.reason!='OK':
+            rev_aug = [True, f"apscheduler丢失mysql连接, code={response.status_code}, response={response.text}", 'danger']  
         if _id==f'{_PREFIX}_btn_start':
             if exist:
                 response = requests.post(_URL+f"/{row['id']}/resume")

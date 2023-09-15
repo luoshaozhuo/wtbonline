@@ -365,7 +365,8 @@ class TDEngine_FACADE():
             df.columns = cols_org
         df = self._conver_dtype(df, point_df)
         point_df['column'] = point_df['point_name'] + '_' + point_df['unit']
-        if remove_tz==True and len(df)>0:
+        
+        if remove_tz==True and len(df)>0 and 'ts' in df.columns:
             df['ts'] = df['ts'].dt.tz_localize(None)
         return df, point_df
     

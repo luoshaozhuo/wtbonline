@@ -57,8 +57,8 @@ def read_power_curve(set_id, turbine_id, start_date, end_date):
         start_time=start_date,
         end_time=end_date,
         columns = ['turbine_id', 'var_355_mean', 'var_246_mean', 'totalfaultbool_mode',
-                   'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique',
-                   'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean']
+                   'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
+                   'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean'],
         )
     # 正常发电数据
     df = df[
@@ -67,7 +67,9 @@ def read_power_curve(set_id, turbine_id, start_date, end_date):
         (df['ongrid_mode']=='True') & 
         (df['ongrid_nunique']==1) & 
         (df['limitpowbool_mode']=='False') &
-        (df['limitpowbool_nunique']==1)
+        (df['limitpowbool_nunique']==1) &
+        (df['workmode_mode']=='32') &
+        (df['workmode_nunique']==1) 
         ]
     df.rename(columns={'var_355_mean':'mean_wind_speed', 
                        'var_246_mean':'mean_power'}, 
@@ -86,6 +88,7 @@ def plot_power_curve(value_lst):
         df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
         power_curve = df.groupby(['wspd', 'turbine_id'])['mean_power'].median().reset_index()
         mean_df = power_curve.groupby('wspd')['mean_power'].median().reset_index()
+        df = df.sample(5000) if df.shape[0]>5000 else df
         fig.add_trace(
             go.Scatter(
                 x=mean_df['wspd'],
@@ -246,21 +249,22 @@ def _get_modle_dialog():
     id=f'{_PREFIX}_modal', 
     is_open=False
     )
-
-def _get_plots(triggered_id, value_lst):
-    header = ['Not implemented']
-    graph = {}
-    if triggered_id=='powercurve':
-        header = '功率曲线'
-        graph = dcc.Graph(figure=plot_power_curve(value_lst),
-            id=f'{_PREFIX}_plot_powercurve_scatter',
-            config={'displaylogo':False})
     
+
+def _get_card_plot():
     card = dbc.Card([
-        dbc.CardHeader(header),
-        dbc.CardBody(dmc.loLoadingOverlay(graph))
+        dbc.CardHeader('可视化'),
+        dbc.CardBody(
+            dmc.LoadingOverlay(
+                dcc.Graph(
+                    id=f'{_PREFIX}_plot',
+                    config={'displaylogo':False})
+                )
+            )
         ])
     return dbc.Row(dbc.Col(card, class_name='m-0 px-1 pt-1'))
+
+
 
 def get_layout():
     layout = [_get_modle_dialog(),
@@ -276,7 +280,7 @@ def get_layout():
                        [dbc.Container(_get_card_select(), 
                                       fluid=True,
                                       className='m-0'),
-                        dbc.Container(id=f'{_PREFIX}_plot', 
+                        dbc.Container(_get_card_plot(), 
                                       fluid=True,
                                       className='m-0'
                                       )
@@ -425,7 +429,7 @@ def on_change_analyse_dropdown_map_id(map_id, set_id):
     return rev
 
 @callback(
-    Output(f'{_PREFIX}_plot', 'children'),
+    Output(f'{_PREFIX}_plot', 'figure'),
     Output(f'{_PREFIX}_store_sidebar', 'data'),
     Input({'main':f'{_PREFIX}_sidebar', 'sub': ALL}, 'n_clicks'),
     Input(f'{_PREFIX}_btn_refresh', 'n_clicks'),
@@ -440,7 +444,12 @@ def on_update_analyse_graph(n1, n2, value_lst, sidebar):
     triggered_id = ctx.triggered_id
     if not triggered_id==f'{_PREFIX}_btn_refresh':
         sidebar = triggered_id['sub'] 
-    return _get_plots(sidebar, value_lst), sidebar
+    plot_power_curve(value_lst)
+    if sidebar=='powercurve':
+        figure = plot_power_curve(value_lst)
+    else:
+        figure = {}
+    return figure, sidebar
 
 # =============================================================================
 # for test

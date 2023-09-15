@@ -15,6 +15,7 @@ from xlwings.utils import hex_to_rgb
 from typing import List, Optional, Union, Mapping
 from datetime import date
 import itertools
+from tempfile import TemporaryDirectory
 
 from reportlab.lib import utils, colors
 from reportlab.lib.pagesizes import A4
@@ -175,13 +176,13 @@ def add_page_templates(doc):
                )
     doc.addPageTemplates(lst)
 
-def build_graph(fig, title, fiename, width=1000, height=None):
+def build_graph(fig, title, fiename, width=1000, height=None, temp_dir=TEMP_DIR):
     fig.layout.update({'title': title})
     fig.layout.margin.update({'l':10, 't':50 ,'r':10, 'b':20})
     fig.layout.update({'width':1000})
     if height is not None:
         fig.layout.update({'height':1000})
-    pathname = TEMP_DIR/fiename
+    pathname = Path(temp_dir)/fiename
     if pathname.exists():
         pathname.unlink()
     fig.write_image(pathname, engine=PLOT_ENGINE, scale=2)
@@ -225,7 +226,7 @@ def _stat(set_id, start_time, end_time, cols, funcs, groupby='device', turbine_i
         )
     return _standard(set_id, df), point_df
 
-def _build_table(df, bound_df, title):
+def _build_table(df, bound_df, title, temp_dir):
     ''' 超限表格 '''
     bound_df = bound_df.sort_values('var_name')
     cols = bound_df['var_name']
@@ -239,7 +240,7 @@ def _build_table(df, bound_df, title):
     for col in stat_df.select_dtypes('float').columns:
         stat_df[col] = stat_df[col].apply(lambda x:round(x, 2))
     fig_tbl = ff.create_table(stat_df, height_constant=50)
-    return build_graph(fig_tbl, title, f'{title}.jpg')
+    return build_graph(fig_tbl, title, f'{title}.jpg', temp_dir)
 
 def _exceed(raw_df, bound_df):
     rev = []
@@ -366,6 +367,7 @@ def chapter_1(set_id:str,
     >>> n = df.shape[0]
     >>> _ = chapter_1(set_id, start_time, end_time, min_date, max_date, n)
     '''
+    _LOGGER.info('chapter 1')
     farm_df = RSDBInterface.read_windfarm_configuration(set_id=set_id)
     text = f'''机组型号：{set_id}<br/>
                机组总数：{farm_df.shape[0]} 台<br/>
@@ -381,13 +383,14 @@ def chapter_1(set_id:str,
     rev.append(Paragraph(text, PS_BODY))
     return rev
 
-def chapter_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01 00:00:00'
     >>> max_date='2023-10-01 00:00:00'
     >>> _ = chapter_2(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 2')
     sql = f'''
         select first(totalenergy) as min, last(totalenergy) as max, device
         from {get_td_local_connector()['database']}.s_{set_id} 
@@ -421,16 +424,17 @@ def chapter_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
     rev = []
     rev.append(Paragraph('2 发电情况', PS_HEADING_1))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(build_graph(fig, f'{min_date}至{max_date}累积发电量', '2_energy.jpg'))
+    rev.append(build_graph(fig, f'{min_date}至{max_date}累积发电量', '2_energy.jpg', temp_dir))
     return rev
 
-def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date='2023-10-01'
     >>> _ = chapter_3_1(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 3-1')
     conf_df =  RSDBInterface.read_windfarm_configuration(set_id=set_id)
     graphs = {}
     for model_name, grp in conf_df.groupby('model_name'):
@@ -519,19 +523,20 @@ def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
         
     rev = []
     rev.append(Paragraph('3.1 功率曲线', PS_HEADING_2))
-    rev.append(build_graph(fig_tbl, '功率曲线k值排名', '3_1_power_curve_k.jpg'))
+    rev.append(build_graph(fig_tbl, '功率曲线k值排名', '3_1_power_curve_k.jpg', temp_dir))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg'))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
     return rev
 
-def chapter_3_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_3_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date='2023-10-01'
     >>> _ = chapter_3_2(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 3-2')
     cols = ['var_171', 'var_172', 'var_175', 'var_182', 'var_2713', 'var_2714', 'var_2715']
     bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=cols)
     funcs = ['min', 'max']
@@ -544,18 +549,19 @@ def chapter_3_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.2 齿轮箱', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '齿轮箱关键参数'))
+    rev.append(_build_table(raw_df, bound_df, '齿轮箱关键参数', temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg'))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
     return rev
 
-def chapter_3_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_3_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date='2023-10-01'
     >>> _ = chapter_3_3(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 3-3')
     cols = ['var_171', 'var_172', 'abs(var_171-var_172)']
     bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=cols)
     funcs = ['min', 'max']
@@ -567,18 +573,19 @@ def chapter_3_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev = []
     rev.append(Paragraph('3.3 主轴承', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))  
-    rev.append(_build_table(raw_df, bound_df, '主轴承关键参数'))
+    rev.append(_build_table(raw_df, bound_df, '主轴承关键参数', temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg'))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
     return rev
 
-def chapter_3_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_3_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date='2023-10-01'
     >>> _ = chapter_3_4(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 3-4')
     cols = ['var_206', 'var_207', 'var_208', 'var_209', 'var_210', 'var_211']
     bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=cols)
     funcs = ['min', 'max']
@@ -591,18 +598,19 @@ def chapter_3_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.4 发电机', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '发电机关键参数'))
+    rev.append(_build_table(raw_df, bound_df, '发电机关键参数', temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg'))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
     return rev
 
-def chapter_3_5(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_3_5(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date='2023-10-01'
     >>> _ = chapter_3_5(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 3-5')
     cols = ['var_15004', 'var_15005', 'var_15006', 'var_12016']
     bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=cols)
     funcs = ['min', 'max']
@@ -615,18 +623,19 @@ def chapter_3_5(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.5 变流器', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '变流器关键参数'))
+    rev.append(_build_table(raw_df, bound_df, '变流器关键参数', temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg'))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
     return rev
 
-def chapter_3_6(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_3_6(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date='2023-10-01'
     >>> _ = chapter_3_6(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 3-6')
     cols = ['var_246', 
             'var_104', 'var_105', 'var_106', 
             'abs(var_104-var_105)', 'abs(var_104-var_106)', 'abs(var_105-var_106)',
@@ -642,18 +651,19 @@ def chapter_3_6(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.6 叶片同步', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '叶片关键参数'))
+    rev.append(_build_table(raw_df, bound_df, '叶片关键参数', temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg'))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
     return rev
 
-def chapter_3_7(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_3_7(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date='2023-10-01'
     >>> _ = chapter_3_7(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 3-7')
     funcs = ['min', 'max']
     # 单独
     org_cols = ['var_18000', 'var_18001', 'var_18002', 'var_18003', 'var_18004', 'var_18005']
@@ -761,20 +771,21 @@ def chapter_3_7(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.7 叶根载荷', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_single, bound_single, '叶根载荷关键参数-单独'))
-    rev.append(_build_table(raw_df, bound_df, '叶根载荷关键参数-组合'))
+    rev.append(_build_table(raw_single, bound_single, '叶根载荷关键参数-单独', temp_dir))
+    rev.append(_build_table(raw_df, bound_df, '叶根载荷关键参数-组合', temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'3_7_{key_}.jpg'))
+        rev.append(build_graph(graphs[key_], key_, f'3_7_{key_}.jpg', temp_dir))
     return rev
 
 
-def chapter_3_8(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_3_8(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date='2023-10-01'
     >>> _ = chapter_3_7(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 3-8')
     cols = ['var_18000', 'var_18003']
     funcs = ['min', 'max']
     vars = [f'{f}({v}) as {v}_{f}' for v, f in itertools.product(cols, funcs)]
@@ -859,13 +870,13 @@ def chapter_3_8(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.8 1#叶根摆振弯矩', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '1#叶根摆振弯矩'))
+    rev.append(_build_table(raw_df, bound_df, '1#叶根摆振弯矩', temp_dir))
     for i, s_plot, p_plot in graphs:
-        rev.append(build_graph(s_plot, i, f'{i}_scatter.jpg'))
-        rev.append(build_graph(p_plot, i, f'{i}_polar.jpg'))
+        rev.append(build_graph(s_plot, i, f'{i}_scatter.jpg', temp_dir))
+        rev.append(build_graph(p_plot, i, f'{i}_polar.jpg', temp_dir))
     return rev
 
-# def chapter_3_9(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+# def chapter_3_9(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
 #     rev = []
 #     rev.append(Paragraph('3.8 Pitchkick', PS_HEADING_2))
 #     df = pd.DataFrame([['s10010', '2023-01-01 00:05:10', '2500', '2023-01-01 00:04:10'],
@@ -884,32 +895,34 @@ def chapter_3_8(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
 #     rev.append(Paragraph('3.9 Pitchkick', PS_HEADING_2))
 #     rev.append(Paragraph('s10010触发PichKick', PS_BODY))
 #     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-#     rev.append(build_graph(fig_tbl, 'Pitchkick触发记录', 'pitchkick_tbl.jpg'))
+#     rev.append(build_graph(fig_tbl, 'Pitchkick触发记录', 'pitchkick_tbl.jpg', temp_dir))
 #     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-#     rev.append(build_graph(fig_line, 'Pitchkick触发样例', 'pitchkick_ts.jpg'))
+#     rev.append(build_graph(fig_line, 'Pitchkick触发样例', 'pitchkick_ts.jpg', temp_dir))
 #     return rev
 
 
-def chapter_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
+    _LOGGER.info('chapter 3')
     return [
         Paragraph('3 运行一致性', PS_HEADING_1),
-        *chapter_3_1(set_id, min_date, max_date),
-        *chapter_3_2(set_id, min_date, max_date),
-        *chapter_3_3(set_id, min_date, max_date),
-        *chapter_3_4(set_id, min_date, max_date),
-        *chapter_3_5(set_id, min_date, max_date),
-        *chapter_3_6(set_id, min_date, max_date),
-        *chapter_3_7(set_id, min_date, max_date),
-        *chapter_3_8(set_id, min_date, max_date),
+        *chapter_3_1(set_id, min_date, max_date, temp_dir),
+        *chapter_3_2(set_id, min_date, max_date, temp_dir),
+        *chapter_3_3(set_id, min_date, max_date, temp_dir),
+        *chapter_3_4(set_id, min_date, max_date, temp_dir),
+        *chapter_3_5(set_id, min_date, max_date, temp_dir),
+        *chapter_3_6(set_id, min_date, max_date, temp_dir),
+        *chapter_3_7(set_id, min_date, max_date, temp_dir),
+        *chapter_3_8(set_id, min_date, max_date, temp_dir),
         ]
 
-def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date=None
     >>> _ = chapter_4(set_id, min_date, max_date)
     '''
+    _LOGGER.info('chapter 4')
     anormaly_df = RSDBInterface.read_model_anormaly(
         set_id=set_id, start_time=min_date, end_time=max_date
         ).drop_duplicates('sample_id')
@@ -956,18 +969,19 @@ def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
     rev.append(Paragraph('4 离群数据', PS_HEADING_1))
     rev.append(Paragraph(f'本期报告时段内共有离群数据：{total}条, 待鉴别{left}条', PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(build_graph(fig, f'{map_id}离群值散点矩阵', '4_anormaly.jpg', height=1000))
+    rev.append(build_graph(fig, f'{map_id}离群值散点矩阵', '4_anormaly.jpg', height=1000, temp_dir=temp_dir))
     return rev
 
 
 
-def appendix(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
+def appendix(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     '''
     >>> set_id='20835'
     >>> min_date='2023-01-01'
     >>> max_date=None
     >>> _ = appendix(set_id, min_date, max_date)
     '''
+    _LOGGER.info('appendix')
     conf_df =  RSDBInterface.read_windfarm_configuration(set_id=set_id)
     df = _read_power_curve(set_id, None, min_date, max_date)
     wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)
@@ -995,7 +1009,7 @@ def appendix(set_id:str, min_date:Union[str, date], max_date:Union[str, date]):
     rev.append(Paragraph('附录 A', PS_HEADING_1))
     rev.append(Paragraph('A.1 功率曲线', PS_HEADING_2))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg'))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
     return rev
 
 def build_brief_report(
@@ -1007,21 +1021,23 @@ def build_brief_report(
         ):
     df, _ = TDFC.read(
         set_id=set_id, turbine_id=None, start_time=start_time, end_time=end_time, 
-        func_dct={'ts':['first', 'last']}, groupby='device')
+        func_dct={'ts':['first', 'last']}, groupby='device', remote=False)
     min_date = df['ts_first'].min()
     max_date = df['ts_last'].max()
     n = df.shape[0]
 
     doc = BRDocTemplate(pathname)
     add_page_templates(doc)
-    doc.build([
-        *chapter_1(set_id, start_time, end_time, min_date, max_date, n),
-        *chapter_2(set_id, min_date, max_date),
-        *chapter_3(set_id, min_date, max_date),
-        *chapter_4(set_id, min_date, max_date),
-        PageBreak(),
-        *appendix(set_id, min_date, max_date),
-        ])
+    with TemporaryDirectory(dir=TEMP_DIR.as_posix()) as temp_dir:
+        _LOGGER.info(f'temp directory:{temp_dir}')
+        doc.build([
+            *chapter_1(set_id, start_time, end_time, min_date, max_date, n),
+            *chapter_2(set_id, min_date, max_date, temp_dir),
+            *chapter_3(set_id, min_date, max_date, temp_dir),
+            *chapter_4(set_id, min_date, max_date, temp_dir),
+            PageBreak(),
+            *appendix(set_id, min_date, max_date, temp_dir),
+            ])
 
 # main
 @log_it(_LOGGER, True)
@@ -1053,7 +1069,8 @@ def build_brief_report_all(**kwargs):
             ) 
 
 
-# #%% main
-# if __name__ == "__main__":
-#     import doctest
-#     doctest.testmod()#
+#%% main
+if __name__ == "__main__":
+    # import doctest
+    # doctest.testmod()#
+    pass
