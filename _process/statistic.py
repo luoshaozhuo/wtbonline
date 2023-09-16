@@ -133,6 +133,7 @@ def statistic_sample(df, set_id:str, turbine_id:str, bin_length:str='10min')->pd
     rev['turbine_id'] = turbine_id
     rev.replace({np.nan:None}, inplace=True)
     rev.replace({np.inf:None}, inplace=True)
+    rev.replace({-1*np.inf:None}, inplace=True)
     return rev
 
 def dates_in_statistic_sample(set_id, turbine_id):

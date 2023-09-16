@@ -25,15 +25,16 @@ from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._pages.tools.utils import mapid_to_tid, available_variable
 from wtbonline._pages.tools.utils import var_name_to_point_name, read_sample_ts, read_scatter_matrix_anormaly
 from wtbonline._pages.tools.utils import read_anormaly_without_label, read_sample_label
+from wtbonline._pages import _SCATTER_PLOT_VARIABLES
 
 # =============================================================================
 # constant
 # =============================================================================
 _PREFIX = 'diagnose' 
-_SCATTER_PLOT_VARIABLES = tuple([
-    'var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean',
-    'var_382_mean', 'var_383_mean'
-    ])
+# _SCATTER_PLOT_VARIABLES = tuple([
+#     'var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean',
+#     'var_382_mean', 'var_383_mean'
+#     ])
 
 # =============================================================================
 # function
@@ -431,5 +432,5 @@ if __name__ == '__main__':
                     external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
                     suppress_callback_exceptions=True)
     app.layout = html.Div(get_layout())
-    app.run_server(debug=False)
+    app.run_server(debug=False, host='0.0.0.0', port=40006)
     

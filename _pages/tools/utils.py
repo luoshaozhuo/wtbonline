@@ -16,6 +16,7 @@ from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.common import make_sure_list
 from wtbonline._process.modelling import data_filter
 from wtbonline._logging import get_logger, log_it
+from wtbonline._pages import _SCATTER_PLOT_VARIABLES
 
 _LOGGER = get_logger('page')
 _CACHE_SIZE_SMALL = 100
@@ -106,7 +107,7 @@ def read_sample_ts(sample_id:int, var_name:Union[str, tuple[str]]):
     point_df = point_df.set_index('var_name', drop=False).loc[var_name]
     return df, point_df
 
-
+@lru_cache(maxsize=_CACHE_SIZE_SMALL)
 def read_scatter_matrix_anormaly(
         set_id:str, 
         *,
@@ -120,7 +121,7 @@ def read_scatter_matrix_anormaly(
     columns_aug = tuple([
         'id', 'set_id', 'turbine_id', 'pv_c', 'validation',
         'limitpowbool_mode' ,'limitpowbool_nunique',
-        'workmode_mode', 'workmode_nunique',
+        'workmode_mode', 'workmode_nunique', 'ongrid_mode', 'ongrid_nunique',
         'totalfaultbool_mode', 'totalfaultbool_nunique',
         ])
     df = RSDBInterface.read_statistics_sample(
@@ -218,6 +219,8 @@ def tdfc_read_cache(set_id, turbine_id, start_time, end_time):
 def update_cache(*args, **kwargs):
     mapid_to_tid.cache_clear()
     tdfc_read_cache.cache_clear()
+    read_scatter_matrix_anormaly.cache_clear()
+    
     delta = RSDBInterface.read_app_configuration(key_='cache_days')
     delta = int(delta['value'].iloc[0])
     anomaly_ids = (
@@ -239,18 +242,26 @@ def update_cache(*args, **kwargs):
         .drop_duplicates()
         .squeeze()
         )
+    config_df = RSDBInterface.read_windfarm_configuration(columns=['turbine_id', 'map_id'])
+    
     df = pd.concat([anomaly_df, sample_df], ignore_index=True)
+    df = pd.merge(config_df, df, how='inner', on='turbine_id')
     df.drop_duplicates(inplace=True)
     
-    for _, row in df.iterrows():
-        print(row['turbine_id'], row['bin'])
-        _ = tdfc_read_cache(
-            set_id=row['set_id'],
-            turbine_id=row['turbine_id'],
-            start_time=row['bin'],
-            end_time=row['bin']+pd.Timedelta('10m'),
+    for (set_id, turbine_id, map_id), grp in df.groupby(['set_id', 'turbine_id', 'map_id']):
+        for bin in grp['bin']:
+            print(turbine_id, bin)
+            _ = tdfc_read_cache(
+                set_id=set_id,
+                turbine_id=turbine_id,
+                start_time=bin,
+                end_time=bin+pd.Timedelta('10m'),
+                )
+        _ = read_scatter_matrix_anormaly(
+            set_id=set_id,
+            map_id=map_id,
+            columns=_SCATTER_PLOT_VARIABLES
             )
-
 
 # if __name__ == "__main__":
 #     import doctest

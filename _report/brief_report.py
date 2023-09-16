@@ -391,40 +391,45 @@ def chapter_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
     >>> _ = chapter_2(set_id, min_date, max_date)
     '''
     _LOGGER.info('chapter 2')
-    sql = f'''
-        select first(totalenergy) as min, last(totalenergy) as max, device
-        from {get_td_local_connector()['database']}.s_{set_id} 
-        where ts>='{min_date}' and ts<'{max_date}' 
-        group by device 
-        order by device
-        '''
-    df = TDFC.query(sql)
-    df['发电量（kWh）'] = df['max'] - df['min']
+    fns = ['first', 'last']
+    df = []
+    for func in fns:
+        temp,_ = TDFC.read(set_id=set_id, turbine_id=None, start_time=min_date, end_time=max_date,
+                    groupby='device', func_dct={'totalenergy':[func]})
+        df.append(temp)
+    pd.merge(*df, how='inner', on='device').round(0)
+
+    df['发电量（kWh）'] = df['totalenergy_last'] - df['totalenergy_first']
+    df = df.sort_values('发电量（kWh）', ascending=False)
     df = _standard(set_id, df)
 
     cols = ['map_id', '发电量（kWh）']
-    fig = ff.create_table(df[cols], height_constant=50)
-    fig.add_traces([go.Bar(x=df['map_id'], 
-                           y=df['发电量（kWh）'].astype(int), 
-                           xaxis='x2',
-                           yaxis='y2',
-                           marker_color='#0099ff')
-                    ])
-    
-    fig['layout']['xaxis2'] = {}
-    fig['layout']['yaxis2'] = {}
-    fig.layout.yaxis2.update({'anchor': 'x2'})
-    fig.layout.xaxis2.update({'anchor': 'y2'})
-    fig.layout.xaxis.update({'domain': [0, .3]})
-    fig.layout.xaxis2.update({'domain': [0.4, 1.]})
-    fig.layout.yaxis2.update({'title': '发电量 kWh'})
-    fig.layout.xaxis2.update({'title': 'map_id'})
-    fig.layout.update({'title': f'{min_date}至{max_date}累积发电量'})
-    
+    graphs = {}
+    for i in range(int(np.ceil(df.shape[0]/10))):
+        sub_df = df.iloc[i*10:(i+1)*10, :]
+        fig = ff.create_table(sub_df[cols], height_constant=50)
+        fig.add_traces([go.Bar(x=sub_df['map_id'], 
+                            y=sub_df['发电量（kWh）'].astype(int), 
+                            xaxis='x2',
+                            yaxis='y2',
+                            marker_color='#0099ff')
+                        ])
+        fig['layout']['xaxis2'] = {}
+        fig['layout']['yaxis2'] = {}
+        fig.layout.yaxis2.update({'anchor': 'x2'})
+        fig.layout.xaxis2.update({'anchor': 'y2'})
+        fig.layout.xaxis.update({'domain': [0, .3]})
+        fig.layout.xaxis2.update({'domain': [0.4, 1.]})
+        fig.layout.yaxis2.update({'title': '发电量 kWh'})
+        fig.layout.xaxis2.update({'title': 'map_id'})
+        fig.layout.update({'title': f'{min_date}至{max_date}累积发电量'})
+        graphs.update({f'排名{i*10+1}至{i*10+10}':fig})
+
     rev = []
     rev.append(Paragraph('2 发电情况', PS_HEADING_1))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(build_graph(fig, f'{min_date}至{max_date}累积发电量', '2_energy.jpg', temp_dir))
+    for key_ in graphs:
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
     return rev
 
 def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -1019,9 +1024,14 @@ def build_brief_report(
         start_time:Union[str, date], 
         end_time:Union[str, date]
         ):
-    df, _ = TDFC.read(
-        set_id=set_id, turbine_id=None, start_time=start_time, end_time=end_time, 
-        func_dct={'ts':['first', 'last']}, groupby='device', remote=False)
+    fns = ['first', 'last']
+    df = []
+    for func in fns:
+        temp, _ = TDFC.read(
+            set_id=set_id, turbine_id=None, start_time=start_time, end_time=end_time, 
+            func_dct={'ts':[func]}, groupby='device', remote=False)
+        df.append(temp)
+    df = pd.concat(df, axis=1)
     min_date = df['ts_first'].min()
     max_date = df['ts_last'].max()
     n = df.shape[0]
