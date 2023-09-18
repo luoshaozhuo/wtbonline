@@ -21,7 +21,8 @@ import time
 from wtbonline._pages.tools._decorator import _on_error
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.rsdb.dao import RSDB
-    
+from wtbonline._pages.tools.utils import is_duplicated_task
+
 # =============================================================================
 # constant
 # =============================================================================
@@ -287,6 +288,9 @@ def timed_task_on_change_func(func, setting):
 
 @callback(
     Output(f'{_PREFIX}_datatable', 'data', allow_duplicate=True),
+    Output(f'{_PREFIX}_alert', 'is_open', allow_duplicate=True),
+    Output(f'{_PREFIX}_alert', 'children', allow_duplicate=True),
+    Output(f'{_PREFIX}_alert', 'color', allow_duplicate=True),
     Input(f'{_PREFIX}_btn_add', 'n_clicks'),
     State(f'{_PREFIX}_func', 'value'),
     State(f'{_PREFIX}_start_date', 'value'),
@@ -302,6 +306,10 @@ def timed_task_on_change_func(func, setting):
     )
 @_on_error
 def timed_task_on_btn_add(n, func, job_start_date, job_start_time, setting, interval, unit,  end_date, minimum, size, delta):
+    func_name = _FUNC_DCT[func].split(':')[1]
+    if 'update_statistic_sample'==func_name and is_duplicated_task(func_name):
+        return no_update, True, f"已有在运行中的一次新任务或定时任务：'{func}'，删除后再尝试添加", 'danger'
+    
     try:
         username = current_user.username
     except:
@@ -340,7 +348,7 @@ def timed_task_on_btn_add(n, func, job_start_date, job_start_time, setting, inte
             ),
         'timed_task'
         )
-    return _render_table()
+    return _render_table(), no_update, no_update, no_update
 
 @callback(
     Output(f'{_PREFIX}_datatable', 'data', allow_duplicate=True),
@@ -372,6 +380,7 @@ def timed_task_select_rows(rows, data):
 
 @callback(
     Output(f'{_PREFIX}_datatable', 'data', allow_duplicate=True),
+    Output(f'{_PREFIX}_datatable', 'selected_rows', allow_duplicate=True),
     Output(f'{_PREFIX}_alert', 'is_open'),
     Output(f'{_PREFIX}_alert', 'children'),
     Output(f'{_PREFIX}_alert', 'color'),
@@ -386,17 +395,20 @@ def timed_task_select_rows(rows, data):
 def timed_task_on_btn_start_pause_delete(n1, n2, n3, rows, data):  
     df = pd.DataFrame(data).iloc[rows]
     _id = ctx.triggered_id
+    # 这里考虑多选的情况
     for _,row in df.iterrows():
         exist=False
         # 考虑超时会导致scheduler丢失mysql连接，重试3次，让其恢复
         for i in range(3):
             response = requests.get(_URL+f"/{row['id']}")
-            if response.reason=='OK':
+            if response.reason == 'OK':
                 exist = True
                 break
+            elif response.reason == 'NOT FOUND':
+                break
             time.sleep(0.5)
-        if response.reason!='OK':
-            rev_aug = [True, f"apscheduler丢失mysql连接, code={response.status_code}, response={response.text}", 'danger']  
+        else:
+            return _render_table(), [], True, f"apscheduler丢失mysql连接, code={response.status_code}, response={response.text}", 'danger' 
         if _id==f'{_PREFIX}_btn_start':
             if exist:
                 response = requests.post(_URL+f"/{row['id']}/resume")
@@ -416,17 +428,19 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, rows, data):
                 response = requests.post(_URL, json=kwargs)
             status = 'start'
         elif _id==f'{_PREFIX}_btn_pause':
-            response = requests.post(_URL+f"/{row['id']}/pause")
+            if exist:
+                response = requests.post(_URL+f"/{row['id']}/pause")
             status = 'pause'
-        else:
-            response = requests.delete(_URL+f"/{row['id']}")
+        elif _id==f'{_PREFIX}_btn_delete':
+            if exist:
+                response = requests.delete(_URL+f"/{row['id']}")
             status = 'delete'
+        # 如果没有重新执行requests，沿用循环开头的requests.get(_URL+f"/{row['id']}")得到的request，此时为ok或not found
         if response.ok==False and pd.Series(response.text).str.match('.*Job .* not found').all() == False:
-            rev_aug = [True, f"操作失败：task_id={row['id']}, code={response.status_code}, response={response.text}", 'danger']
-            return [_render_table()] + rev_aug
+            return _render_table(), [], True, f"操作失败：task_id={row['id']}, code={response.status_code}, response={response.text}", 'danger'
         RSDBInterface.update('timed_task', {'status':status}, eq_clause={'id':row['id']})         
     rev_aug = [True, f"操作成功", 'success']
-    return [_render_table()] + rev_aug
+    return [_render_table(), []] + rev_aug
 
 
 # =============================================================================

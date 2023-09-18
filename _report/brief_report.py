@@ -176,12 +176,12 @@ def add_page_templates(doc):
                )
     doc.addPageTemplates(lst)
 
-def build_graph(fig, title, fiename, width=1000, height=None, temp_dir=TEMP_DIR):
+def build_graph(fig, title, fiename, *, width=1000, height=None, temp_dir=TEMP_DIR):
     fig.layout.update({'title': title})
     fig.layout.margin.update({'l':10, 't':50 ,'r':10, 'b':20})
     fig.layout.update({'width':1000})
     if height is not None:
-        fig.layout.update({'height':1000})
+        fig.layout.update({'height':height})
     pathname = Path(temp_dir)/fiename
     if pathname.exists():
         pathname.unlink()
@@ -240,7 +240,7 @@ def _build_table(df, bound_df, title, temp_dir):
     for col in stat_df.select_dtypes('float').columns:
         stat_df[col] = stat_df[col].apply(lambda x:round(x, 2))
     fig_tbl = ff.create_table(stat_df, height_constant=50)
-    return build_graph(fig_tbl, title, f'{title}.jpg', temp_dir)
+    return build_graph(fig_tbl, title, f'{title}.jpg', temp_dir=temp_dir)
 
 def _exceed(raw_df, bound_df):
     rev = []
@@ -397,7 +397,7 @@ def chapter_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
         temp,_ = TDFC.read(set_id=set_id, turbine_id=None, start_time=min_date, end_time=max_date,
                     groupby='device', func_dct={'totalenergy':[func]})
         df.append(temp)
-    pd.merge(*df, how='inner', on='device').round(0)
+    df = pd.merge(*df, how='inner', on='device').round(0)
 
     df['发电量（kWh）'] = df['totalenergy_last'] - df['totalenergy_first']
     df = df.sort_values('发电量（kWh）', ascending=False)
@@ -429,7 +429,7 @@ def chapter_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
     rev.append(Paragraph('2 发电情况', PS_HEADING_1))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
     return rev
 
 def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -441,6 +441,7 @@ def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     '''
     _LOGGER.info('chapter 3-1')
     conf_df =  RSDBInterface.read_windfarm_configuration(set_id=set_id)
+   
     graphs = {}
     for model_name, grp in conf_df.groupby('model_name'):
         turbine_id = grp['turbine_id'].tolist()
@@ -450,88 +451,43 @@ def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
             row['turbine_id']:row['map_id'] for _,row in temp.iterrows()
             })
         df = df.sort_values(by=['turbine_id'])
-
-        wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)
+        wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26, 0.25)- 0.125)
         df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
-        power_curve = df.groupby(['wspd', 'turbine_id'])['mean_power'].median().reset_index()
-        mean_df = power_curve.groupby('wspd')['mean_power'].median().reset_index()
-        upper_df = power_curve.groupby('wspd')['mean_power'].max().reset_index()
-        lower_df = power_curve.groupby('wspd')['mean_power'].min().reset_index()
-
-        ref_df = RSDBInterface.read_windfarm_power_curve(model_name=model_name)
-        ref_df.rename(columns={'mean_speed':'wspd'}, inplace=True)
-
-        fig_ts = go.Figure()
-        color = px.colors.qualitative.Plotly[0] 
-        fig_ts.add_trace(
-            go.Scatter(
-                x=ref_df['wspd'],
-                y=ref_df['mean_power'],
-                line=dict(color=color),
-                mode='lines+markers',
-                name='参考功率曲线'
+        df = df[(df['wspd']>=7) & (df['wspd']<=10)]
+        
+        stat_df = df.pivot_table(values='mean_power', index='turbine_id', columns='wspd').astype(int)
+        isnormal_df = (stat_df-stat_df.mean()).abs() < (1.0*stat_df.std())
+        stat_df = stat_df.reset_index().rename(columns={'turbine_id':'风机编号'})
+        isnormal_df = isnormal_df.reset_index().rename(columns={'turbine_id':'风机编号'})
+        isnormal_df.iloc[:, 0] = True
+        fill_color_df = stat_df.copy()
+        fill_color_df.iloc[0::2, :] = '#ebecf0'
+        fill_color_df.iloc[1::2, :] = '#f9fafe'
+        fill_color_df = fill_color_df.where(isnormal_df, '#FF4500')
+        
+        k = 10
+        n = int(np.ceil(stat_df.shape[0]/k))
+        for i in range(n):
+            stat_sub = stat_df.iloc[(i*k):(i+1)*k, :]
+            fill_color_sub = fill_color_df.iloc[(i*k):(i+1)*k, :]
+            fig = go.Figure(data=[go.Table(
+                header=dict(values=list(stat_sub.columns),
+                            fill_color='#3a416d',
+                            font={'color':'white'},
+                            align=['left', 'center']),
+                cells=dict(values=[stat_sub[i] for i in stat_sub],
+                        fill_color=fill_color_sub.T,
+                        align=['left', 'center'],
+                        )
                 )
-            )
-        color = px.colors.qualitative.Plotly[1]
-        fill_color = f'rgba{hex_to_rgb(color)+(0.3,)}'
-        line_color = f'rgba{hex_to_rgb(color)+(0,)}' 
-        fig_ts.add_trace(
-            go.Scatter(
-                x=mean_df['wspd'],
-                y=mean_df['mean_power'],
-                line=dict(color=color),
-                mode='lines+markers',
-                name='实际功率曲线（中位值及上、下限）'
-                )
-            )   
-        fig_ts.add_trace(
-            go.Scatter(
-                x=upper_df['wspd'],
-                y=upper_df['mean_power'],
-                line=dict(color=line_color),
-                opacity=0.3,
-                mode='lines',
-                showlegend=False
-                )
-            )
-        fig_ts.add_trace(
-            go.Scatter(
-                x=lower_df['wspd'],
-                y=lower_df['mean_power'],
-                mode='lines',
-                fill='tonexty',
-                fillcolor=fill_color,
-                line=dict(color=line_color),
-                showlegend=False
-                )
-            )
-        fig_ts.layout.xaxis.update({'title': '风速 m/s'})
-        fig_ts.layout.yaxis.update({'title': '功率 kW'})
-        fig_ts.update_layout(
-            legend=dict(
-                orientation="h",
-                font=dict(
-                        size=10,
-                        color="black"
-                    ),
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1)
-            )
-        graphs.update({f'机型：{model_name}':fig_ts})
-
-    tids = power_curve['turbine_id'].unique()
-    df = pd.DataFrame({'机组编号': tids,'k值':np.random.random(tids.shape[0])})
-    df = df.round(3).sort_values('k值')
-    fig_tbl = ff.create_table(df, height_constant=50)
+            ])
+            title = f'机型{model_name}_7-10mps风速区间有功功率#{i}'
+            graphs.update({title:[fig, (stat_sub.shape[0]+3)*30]})
         
     rev = []
-    rev.append(Paragraph('3.1 功率曲线', PS_HEADING_2))
-    rev.append(build_graph(fig_tbl, '功率曲线k值排名', '3_1_power_curve_k.jpg', temp_dir))
-    rev.append(Spacer(FRAME_WIDTH_LATER, 10))
+    rev.append(Paragraph('3.1 有功功率', PS_HEADING_2))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
+        rev.append(build_graph(graphs[key_][0], key_, f'{key_}.jpg', height=graphs[key_][1], temp_dir=temp_dir))
     return rev
 
 def chapter_3_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -554,9 +510,9 @@ def chapter_3_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.2 齿轮箱', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '齿轮箱关键参数', temp_dir))
+    rev.append(_build_table(raw_df, bound_df, '齿轮箱关键参数', temp_dir=temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
     return rev
 
 def chapter_3_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -603,9 +559,9 @@ def chapter_3_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.4 发电机', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '发电机关键参数', temp_dir))
+    rev.append(_build_table(raw_df, bound_df, '发电机关键参数', temp_dir=temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
     return rev
 
 def chapter_3_5(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -628,9 +584,9 @@ def chapter_3_5(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.5 变流器', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '变流器关键参数', temp_dir))
+    rev.append(_build_table(raw_df, bound_df, '变流器关键参数', temp_dir=temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
     return rev
 
 def chapter_3_6(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -656,9 +612,9 @@ def chapter_3_6(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.6 叶片同步', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '叶片关键参数', temp_dir))
+    rev.append(_build_table(raw_df, bound_df, '叶片关键参数', temp_dir=temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
     return rev
 
 def chapter_3_7(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -776,10 +732,10 @@ def chapter_3_7(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.7 叶根载荷', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_single, bound_single, '叶根载荷关键参数-单独', temp_dir))
-    rev.append(_build_table(raw_df, bound_df, '叶根载荷关键参数-组合', temp_dir))
+    rev.append(_build_table(raw_single, bound_single, '叶根载荷关键参数-单独', temp_dir=temp_dir))
+    rev.append(_build_table(raw_df, bound_df, '叶根载荷关键参数-组合', temp_dir=temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'3_7_{key_}.jpg', temp_dir))
+        rev.append(build_graph(graphs[key_], key_, f'3_7_{key_}.jpg', temp_dir=temp_dir))
     return rev
 
 
@@ -806,7 +762,7 @@ def chapter_3_8(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     conclution = _conclude(exceed_df)
     exceed_df = exceed_df[exceed_df['var_name'].str.match('var_.*')]
 
-    sub_df = raw_df.sort_values('var_18000_max').tail(3).copy()
+    sub_df = raw_df.sort_values('var_18000_max').head(3).copy()
     sub_df = _standard(set_id, sub_df)
     graphs = []
     for _, row in sub_df.iterrows():
@@ -875,10 +831,10 @@ def chapter_3_8(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     rev.append(Paragraph('3.8 1#叶根摆振弯矩', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '1#叶根摆振弯矩', temp_dir))
+    rev.append(_build_table(raw_df, bound_df, '1#叶根摆振弯矩', temp_dir=temp_dir))
     for i, s_plot, p_plot in graphs:
-        rev.append(build_graph(s_plot, i, f'{i}_scatter.jpg', temp_dir))
-        rev.append(build_graph(p_plot, i, f'{i}_polar.jpg', temp_dir))
+        rev.append(build_graph(s_plot, i, f'{i}_scatter.jpg', temp_dir=temp_dir))
+        rev.append(build_graph(p_plot, i, f'{i}_polar.jpg', temp_dir=temp_dir))
     return rev
 
 # def chapter_3_9(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -900,9 +856,9 @@ def chapter_3_8(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
 #     rev.append(Paragraph('3.9 Pitchkick', PS_HEADING_2))
 #     rev.append(Paragraph('s10010触发PichKick', PS_BODY))
 #     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-#     rev.append(build_graph(fig_tbl, 'Pitchkick触发记录', 'pitchkick_tbl.jpg', temp_dir))
+#     rev.append(build_graph(fig_tbl, 'Pitchkick触发记录', 'pitchkick_tbl.jpg', temp_dir=temp_dir))
 #     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-#     rev.append(build_graph(fig_line, 'Pitchkick触发样例', 'pitchkick_ts.jpg', temp_dir))
+#     rev.append(build_graph(fig_line, 'Pitchkick触发样例', 'pitchkick_ts.jpg', temp_dir=temp_dir))
 #     return rev
 
 
@@ -1014,7 +970,7 @@ def appendix(set_id:str, min_date:Union[str, date], max_date:Union[str, date], t
     rev.append(Paragraph('附录 A', PS_HEADING_1))
     rev.append(Paragraph('A.1 功率曲线', PS_HEADING_2))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
     return rev
 
 def build_brief_report(
@@ -1083,4 +1039,4 @@ def build_brief_report_all(**kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()#
-    pass
+    build_brief_report_all(end_time='', delta=180)

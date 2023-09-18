@@ -59,7 +59,7 @@ class RSDBInterface():
         '''
         >>> _ = RSDBInterface.read_timed_task_log()
         '''
-        tbname = 'timed_task_log'
+        tbname = 'timed_task'
         eq_clause, in_clause = cls.get_in_or_eq_clause(success=success, func=func, status=status)
         return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit) 
 

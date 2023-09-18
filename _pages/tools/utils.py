@@ -11,6 +11,7 @@ import pandas as pd
 from typing import List, Union
 from functools import lru_cache
 
+from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC 
 from wtbonline._db.common import make_sure_list
@@ -262,6 +263,31 @@ def update_cache(*args, **kwargs):
             map_id=map_id,
             columns=_SCATTER_PLOT_VARIABLES
             )
+
+def is_duplicated_task(key_):
+    sql='''
+        select e.id, e.status, e.func, e.setting, f.next_run_time, e.success from apscheduler_jobs f
+        right join 
+        (
+            select * from timed_task c 
+            left join 
+            (
+                select a.task_id, a.success, a.end_time from timed_task_log a
+                right join
+                (select task_id, max(end_time) as end_time from timed_task_log GROUP BY task_id) b
+                on b.task_id=a.task_id and a.end_time=b.end_time
+            ) d
+            on d.task_id=c.id
+            where c.status='start' or c.status='pause'
+        ) e
+        on f.id=e.id
+        '''
+    df = RSDB.read_sql(sql) 
+    df = df[df['func'].str.match(f'.*:{key_}')]
+    is_scheduled = ((df['status']=='start') & (df['next_run_time'].notnull()))
+    is_executing = (df['status']=='start') & (df['success'].isnull())
+    df = df[is_scheduled | is_executing]
+    return len(df)>0
 
 # if __name__ == "__main__":
 #     import doctest

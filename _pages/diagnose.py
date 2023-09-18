@@ -258,14 +258,16 @@ def diagnose_update_prfile_summary(selected_data, set_id):
     sample_id = selected_data['points'][0]['customdata']
     if sample_id is None:
         return ''
-    sr = RSDBInterface.read_statistics_sample(id_=sample_id, columns=_SCATTER_PLOT_VARIABLES).squeeze()
+    cols = ['bin'] + list(_SCATTER_PLOT_VARIABLES)
+    sr = RSDBInterface.read_statistics_sample(id_=sample_id, columns=cols).round(3).squeeze()
     labels = var_name_to_point_name(
         set_id=set_id, 
         var_name=tuple(pd.Series(_SCATTER_PLOT_VARIABLES).str.replace('_mean', ''))
         )
+    labels = ['bin'] + labels
     rev = [html.P(f"样本编号: {sample_id}")]
     for i in range(len(labels)):
-        rev.append(html.P(f"{labels[i]}: {round(sr[_SCATTER_PLOT_VARIABLES[i]], 4)}"))
+        rev.append(html.P(f"{labels[i]}: {sr[cols[i]]}"))
     return rev
 
 

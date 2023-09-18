@@ -21,7 +21,7 @@ from sqlalchemy import create_engine
 from flask_login import LoginManager
 from flask_login import UserMixin  
   
-from wtbonline._db.rsdb.model import User
+from _db.rsdb.model import User
 from wtbonline._db.config import RSDB_URI
 
 # =============================================================================

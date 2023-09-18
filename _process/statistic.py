@@ -188,7 +188,7 @@ def update_statistic_sample(*args, **kwargs):
             del df, stat_df, _
 
 
-#%% main
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+# #%% main
+# if __name__ == "__main__":
+#     import doctest
+#     doctest.testmod()

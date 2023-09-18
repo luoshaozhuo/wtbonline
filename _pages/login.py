@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 
 from wtbonline._db.config import RSDB_URI
-from wtbonline._db.rsdb.model import User
+from _db.rsdb.model import User
 
 # =============================================================================
 # constant
