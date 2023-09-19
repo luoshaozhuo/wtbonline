@@ -14,7 +14,7 @@ from functools import lru_cache
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC 
-from wtbonline._db.common import make_sure_list
+from wtbonline._db.common import make_sure_list, make_sure_datetime
 from wtbonline._process.modelling import data_filter
 from wtbonline._logging import get_logger, log_it
 from wtbonline._pages import _SCATTER_PLOT_VARIABLES
@@ -185,16 +185,39 @@ def read_raw_data(
         end_time:pd.Timestamp,
         sample_cnt:int=20000
         ):
+    point_name = make_sure_list(point_name)
     turbine_id = mapid_to_tid(set_id, map_id)
-    df, desc_df = TDFC.read(
-        set_id=set_id, 
-        turbine_id=turbine_id,
-        start_time=start_time,
-        end_time=end_time,
-        point_name=point_name,
-        limit = sample_cnt
-        )
-    desc_df.set_index('point_name', inplace=True, drop=False)
+    start_time = make_sure_datetime(start_time)
+    end_time = make_sure_datetime(end_time)
+    diff = (end_time - start_time).value/10**9
+    
+    if diff<=sample_cnt:
+        df, desc_df = TDFC.read(
+            set_id=set_id, 
+            turbine_id=turbine_id,
+            start_time=start_time,
+            end_time=end_time,
+            point_name=point_name,
+            limit=sample_cnt,
+            )    
+        desc_df.set_index('point_name', inplace=True, drop=False)
+    else:
+        interval = f'{int(diff/60/20)}m'
+        cnt = min(int(sample_cnt/20), 1000)
+        desc_df = RSDBInterface.read_turbine_model_point(set_id=set_id, point_name=point_name)
+        desc_df['var_name'] = desc_df['var_name'].str.lower() 
+        desc_df.set_index('point_name', inplace=True, drop=False)
+        desc_df['column'] = desc_df['point_name'] + '_' + desc_df['unit']
+        sql = f'''
+            select sample(ts,{cnt}) as ts,{','.join(desc_df['var_name'])} from windfarm.d_{turbine_id}
+            where
+            ts>='{start_time}' and ts<'{end_time}'
+            interval({interval})
+            sliding({interval})
+            '''
+        sql = pd.Series(sql).str.replace('\n *', ' ', regex=True).squeeze().strip()
+        df = TDFC.query(sql, remote=False)
+        df.sort_values('ts', inplace=True)
     return df, desc_df
 
 

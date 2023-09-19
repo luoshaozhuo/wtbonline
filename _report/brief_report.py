@@ -214,11 +214,13 @@ def _stat(set_id, start_time, end_time, cols, funcs, groupby='device', turbine_i
     funcs = make_sure_list(funcs)
     func_dct = {i:funcs for i in cols}
     assert len(func_dct)>0
+    where = 'and workmode=32 '
     df, point_df = TDFC.read(
         set_id=set_id,
         turbine_id=turbine_id,
         start_time=start_time,
         end_time=end_time,
+        where=where,
         func_dct=func_dct,
         groupby=groupby,
         interval=interval,
@@ -268,7 +270,6 @@ def _conclude(exceed_df):
 def _sample(
         set_id:str,
         exceed_df:pd.DataFrame, 
-        func:str, 
         start_time:Union[str, date], 
         end_time:Union[str, date]
         )->list:
@@ -276,46 +277,54 @@ def _sample(
     if len(exceed_df)<1:
         return {}
     exceed_df = _standard(set_id, exceed_df)
-    func = make_sure_list(func)
     start_time = make_sure_datetime(start_time)
     end_time = make_sure_datetime(end_time)
-
+    
     rev = {}
-    for _, grp in exceed_df.groupby('var_name'):
-        tid, var_name, id_ = grp.iloc[0][['device', 'var_name', 'map_id']]
-        temp, _ =  TDFC.read(
-            set_id=set_id,
-            turbine_id=tid,
-            start_time=start_time,
-            end_time=end_time,
-            func_dct={var_name:func},
-            )
-        var_name = (pd.Series(var_name)
-            .str.extractall('(var_\d+)')
-            .iloc[:, 0]
-            .drop_duplicates()
-            .tolist())
-        ts = pd.to_datetime(temp['ts'].iloc[0])
-        df, point_df = TDFC.read(
-            set_id=set_id,
-            turbine_id=tid,
-            start_time=ts-pd.Timedelta('15m'),
-            end_time=ts+pd.Timedelta('15m'),
-            var_name=var_name
-            )
-        df.rename(
-            columns={r['var_name']:r['point_name'] for _,r in point_df.iterrows()}, 
-            inplace=True
-            )
-        point_df.set_index('var_name', inplace=True)
-        fig_ts = line_plot(
-            df, 
-            point_df.loc[var_name, 'point_name'], 
-            point_df.loc[var_name, 'unit'],
-            height=450,
-            )
-        title=id_ + '_'.join(point_df.loc[var_name, 'point_name'])
-        rev.update({title:fig_ts})
+    for func in ['min', 'max']:
+        if func=='min':
+            sub_df = exceed_df[exceed_df['min']<=exceed_df['lower_bound']]
+            title_subfix = '超下限'
+        else:
+            sub_df = exceed_df[exceed_df['max']>=exceed_df['upper_bound']]
+            title_subfix = '超上限'
+        for _, grp in sub_df.groupby('var_name'):
+            idx = getattr(grp[func], f'idx{func}')()
+            tid, var_name, id_ = grp.loc[idx][['device', 'var_name', 'map_id']]
+            temp, _ =  TDFC.read(
+                set_id=set_id,
+                turbine_id=tid,
+                start_time=start_time,
+                end_time=end_time,
+                where='and workmode=32',
+                func_dct={var_name:[func]},
+                )
+            var_name = (pd.Series(var_name)
+                .str.extractall('(var_\d+)')
+                .iloc[:, 0]
+                .drop_duplicates()
+                .tolist())
+            ts = pd.to_datetime(temp['ts'].iloc[0])
+            df, point_df = TDFC.read(
+                set_id=set_id,
+                turbine_id=tid,
+                start_time=ts-pd.Timedelta('15m'),
+                end_time=ts+pd.Timedelta('15m'),
+                var_name=var_name
+                )
+            df.rename(
+                columns={r['var_name']:r['point_name'] for _,r in point_df.iterrows()}, 
+                inplace=True
+                )
+            point_df.set_index('var_name', inplace=True)
+            fig_ts = line_plot(
+                df, 
+                point_df.loc[var_name, 'point_name'], 
+                point_df.loc[var_name, 'unit'],
+                height=450,
+                )
+            title=id_ + '_' + point_df.loc[var_name, 'point_name'].iloc[0] + '_' + title_subfix
+            rev.update({title:fig_ts})
     return rev
 
 
@@ -352,7 +361,6 @@ def chapter_1(set_id:str,
               end_time:Union[str, date],
               min_date,
               max_date,
-              n:int,
               ):
     '''
     >>> set_id = '20835'
@@ -369,6 +377,8 @@ def chapter_1(set_id:str,
     '''
     _LOGGER.info('chapter 1')
     farm_df = RSDBInterface.read_windfarm_configuration(set_id=set_id)
+    df = RSDBInterface.read_statistics_sample(set_id=set_id, unique=True, columns=['turbine_id'])
+    n = df.shape[0]
     text = f'''机组型号：{set_id}<br/>
                机组总数：{farm_df.shape[0]} 台<br/>
                可统计机组：{n} 台<br/>
@@ -482,7 +492,7 @@ def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
                 )
             ])
             title = f'机型{model_name}_7-10mps风速区间有功功率#{i}'
-            graphs.update({title:[fig, (stat_sub.shape[0]+3)*30]})
+            graphs.update({title:[fig, (stat_sub.shape[0]+4)*25]})
         
     rev = []
     rev.append(Paragraph('3.1 有功功率', PS_HEADING_2))
@@ -504,7 +514,7 @@ def chapter_3_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     raw_df, _ = _stat(set_id, min_date, max_date, cols, funcs)
     exceed_df = _exceed(raw_df, bound_df)
     conclution = _conclude(exceed_df)
-    graphs = _sample(set_id, exceed_df, 'max', min_date, max_date)
+    graphs = _sample(set_id, exceed_df, min_date, max_date)
 
     rev = []
     rev.append(Paragraph('3.2 齿轮箱', PS_HEADING_2))
@@ -529,14 +539,14 @@ def chapter_3_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     raw_df, _ = _stat(set_id, min_date, max_date, cols, funcs)
     exceed_df = _exceed(raw_df, bound_df)
     conclution = _conclude(exceed_df)
-    graphs = _sample(set_id, exceed_df, 'max', min_date, max_date)
+    graphs = _sample(set_id, exceed_df, min_date, max_date)
 
     rev = []
     rev.append(Paragraph('3.3 主轴承', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))  
-    rev.append(_build_table(raw_df, bound_df, '主轴承关键参数', temp_dir))
+    rev.append(_build_table(raw_df, bound_df, '主轴承关键参数', temp_dir=temp_dir))
     for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir))
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
     return rev
 
 def chapter_3_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -553,7 +563,7 @@ def chapter_3_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     raw_df, _ = _stat(set_id, min_date, max_date, cols, funcs)
     exceed_df = _exceed(raw_df, bound_df)
     conclution = _conclude(exceed_df)
-    graphs = _sample(set_id, exceed_df, 'max', min_date, max_date)
+    graphs = _sample(set_id, exceed_df, min_date, max_date)
 
     rev = []
     rev.append(Paragraph('3.4 发电机', PS_HEADING_2))
@@ -578,7 +588,7 @@ def chapter_3_5(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     raw_df, _ = _stat(set_id, min_date, max_date, cols, funcs)
     exceed_df = _exceed(raw_df, bound_df)
     conclution = _conclude(exceed_df)
-    graphs = _sample(set_id, exceed_df, 'max', min_date, max_date)
+    graphs = _sample(set_id, exceed_df, min_date, max_date)
 
     rev = []
     rev.append(Paragraph('3.5 变流器', PS_HEADING_2))
@@ -606,7 +616,7 @@ def chapter_3_6(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     raw_df, _ = _stat(set_id, min_date, max_date, cols, funcs)
     exceed_df = _exceed(raw_df, bound_df)
     conclution = _conclude(exceed_df)
-    graphs = _sample(set_id, exceed_df, 'max', min_date, max_date)
+    graphs = _sample(set_id, exceed_df, min_date, max_date)
 
     rev = []
     rev.append(Paragraph('3.6 叶片同步', PS_HEADING_2))
@@ -631,7 +641,7 @@ def chapter_3_7(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     bound_single = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=org_cols)
     raw_single, _ = _stat(set_id, min_date, max_date, org_cols, funcs)
     exceed_single = _exceed(raw_single, bound_single)
-    graphs = _sample(set_id, exceed_single, 'max', min_date, max_date)
+    graphs = _sample(set_id, exceed_single, min_date, max_date)
     # 绝对差
     columns = []
     agg = []
@@ -935,43 +945,43 @@ def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
 
 
 
-def appendix(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
-    '''
-    >>> set_id='20835'
-    >>> min_date='2023-01-01'
-    >>> max_date=None
-    >>> _ = appendix(set_id, min_date, max_date)
-    '''
-    _LOGGER.info('appendix')
-    conf_df =  RSDBInterface.read_windfarm_configuration(set_id=set_id)
-    df = _read_power_curve(set_id, None, min_date, max_date)
-    wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)
-    df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
-    power_curve = df.groupby(['wspd', 'turbine_id'])['mean_power'].median().reset_index()
-    power_curve = _standard(set_id, power_curve)
-    graphs = {}
-    for map_id, grp in power_curve.groupby('map_id'):
-        model_name = conf_df[conf_df['map_id']==map_id]['model_name'].iloc[0]
-        ref_df = RSDBInterface.read_windfarm_power_curve(model_name=model_name)
-        ref_df.rename(columns={'mean_speed':'wspd'}, inplace=True)
-        graphs.update({
-            f'{map_id}':line_plot(
-                df=grp, 
-                ycols='mean_power', 
-                units='kW', 
-                xcol='wspd', 
-                xtitle='风速 m/s',
-                refx = ref_df['wspd'],
-                refy = ref_df['mean_power'],
-                height = 200
-                )
-            })          
-    rev = []
-    rev.append(Paragraph('附录 A', PS_HEADING_1))
-    rev.append(Paragraph('A.1 功率曲线', PS_HEADING_2))
-    for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
-    return rev
+# def appendix(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
+#     '''
+#     >>> set_id='20835'
+#     >>> min_date='2023-01-01'
+#     >>> max_date=None
+#     >>> _ = appendix(set_id, min_date, max_date)
+#     '''
+#     _LOGGER.info('appendix')
+#     conf_df =  RSDBInterface.read_windfarm_configuration(set_id=set_id)
+#     df = _read_power_curve(set_id, None, min_date, max_date)
+#     wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)
+#     df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
+#     power_curve = df.groupby(['wspd', 'turbine_id'])['mean_power'].median().reset_index()
+#     power_curve = _standard(set_id, power_curve)
+#     graphs = {}
+#     for map_id, grp in power_curve.groupby('map_id'):
+#         model_name = conf_df[conf_df['map_id']==map_id]['model_name'].iloc[0]
+#         ref_df = RSDBInterface.read_windfarm_power_curve(model_name=model_name)
+#         ref_df.rename(columns={'mean_speed':'wspd'}, inplace=True)
+#         graphs.update({
+#             f'{map_id}':line_plot(
+#                 df=grp, 
+#                 ycols='mean_power', 
+#                 units='kW', 
+#                 xcol='wspd', 
+#                 xtitle='风速 m/s',
+#                 refx = ref_df['wspd'],
+#                 refy = ref_df['mean_power'],
+#                 height = 200
+#                 )
+#             })          
+#     rev = []
+#     rev.append(Paragraph('附录 A', PS_HEADING_1))
+#     rev.append(Paragraph('A.1 功率曲线', PS_HEADING_2))
+#     for key_ in graphs:
+#         rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
+#     return rev
 
 def build_brief_report(
         *, 
@@ -990,19 +1000,17 @@ def build_brief_report(
     df = pd.concat(df, axis=1)
     min_date = df['ts_first'].min()
     max_date = df['ts_last'].max()
-    n = df.shape[0]
 
     doc = BRDocTemplate(pathname)
     add_page_templates(doc)
     with TemporaryDirectory(dir=TEMP_DIR.as_posix()) as temp_dir:
         _LOGGER.info(f'temp directory:{temp_dir}')
         doc.build([
-            *chapter_1(set_id, start_time, end_time, min_date, max_date, n),
+            *chapter_1(set_id, start_time, end_time, min_date, max_date),
             *chapter_2(set_id, min_date, max_date, temp_dir),
             *chapter_3(set_id, min_date, max_date, temp_dir),
             *chapter_4(set_id, min_date, max_date, temp_dir),
-            PageBreak(),
-            *appendix(set_id, min_date, max_date, temp_dir),
+            # PageBreak(),
             ])
 
 # main

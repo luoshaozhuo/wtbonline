@@ -204,6 +204,8 @@ class RSDBInterface():
         stat_sample:Optional[int]=None,
         stat_operation:Optional[int]=None,
         select:Optional[int]=1,
+        point_name:Optional[Union[List[str], str]]=None,
+        var_name:Optional[Union[List[str], str]]=None,    
         columns:Optional[Union[List[str], str]]=None,
         )->pd.DataFrame:
         '''
@@ -212,7 +214,7 @@ class RSDBInterface():
         tbname = 'turbine_model_points'
         eq_clause, in_clause = cls.get_in_or_eq_clause(
             set_id=set_id, stat_sample=stat_sample, stat_operation=stat_operation,
-            select=select
+            select=select, point_name=point_name, var_name=var_name
             )
         return RSDB.query(tbname, columns=columns, eq_clause=eq_clause, in_clause=in_clause)
 

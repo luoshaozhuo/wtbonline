@@ -243,7 +243,7 @@ class TDEngine_FACADE():
             cols += ['ts', 'device']
         else:
             cols = ['*']
-
+            
         cols = pd.Series(cols).str.lower()
         cols_org = cols.tolist()
         cols_org += [] if len(groupby)==0 else groupby
@@ -264,12 +264,14 @@ class TDEngine_FACADE():
             var_name:Optional[List[str]]=None,
             limit:Optional[int]=None,
             groupby:Optional[List[str]]=None,
+            where:str=None,
             orderby:Optional[List[str]]=None,
             interval:Optional[str]=None,
             sliding:Optional[str]=None,
             func_dct:Optional[Mapping[str,List[str]]]=None,
             remote:bool=False,
             remove_tz:bool=True,
+            sample:int=-1,
             ):
         ''' 从tsdb读取数据，同时返回相应的字段说明 
         >>> set_id = RSDBInterface.read_windfarm_infomation()['set_id'].iloc[0]
@@ -330,12 +332,12 @@ class TDEngine_FACADE():
         assert interval is None if len(groupby)>0 else True, '不能同时指定interval及groupby'
         # 选定查询变量
         cols, cols_org, point_df = self._select_variable(
-            set_id = set_id,
-            point_name = point_name,
-            var_name = var_name,
-            groupby = groupby,
-            func_dct = func_dct,
-            remote = remote,
+            set_id=set_id,
+            point_name=point_name,
+            var_name=var_name,
+            groupby=groupby,
+            func_dct=func_dct,
+            remote=remote,
             )
         # 查询
         ## 查询列过多
@@ -344,18 +346,21 @@ class TDEngine_FACADE():
         limit = 1000000 if limit is None else limit
         dbname =get_td_remote_restapi()['database'] if remote==True else get_td_local_connector()['database']
         tbname = f's_{set_id}' if turbine_id is None else f'd_{turbine_id}'
+        select_clause = 'select' if sample<1  else f'select sample(ts, {sample}),'
         sql = f'''
-            select {','.join(cols)} from {dbname}.{tbname}
+            {select_clause} {','.join(cols)} from {dbname}.{tbname}
             where
             ts>="{start_time}" and
             ts<"{end_time}"
             '''
+        sql = sql if where is None else sql+' '+where
         if len(func_dct)>0:
             sql = (sql+' group by '+','.join(groupby)) if len(groupby)>0 else sql
         sql = (sql+f' INTERVAL({interval})') if interval is not None else sql
         sql = (sql+f' SLIDING({sliding})') if sliding is not None and interval is not None else sql 
         sql = (sql+f' order by {orderby}') if orderby is not None else sql
         sql = (sql+f' limit {limit}') if limit is not None else sql 
+        sql = pd.Series(sql).str.replace('\n *', ' ', regex=True).squeeze().strip()
         df = self.query(sql, remote=remote)
         assert isinstance(df, pd.DataFrame), f'\n查询失败:\n{sql},\n 失败信息:\n{df}'
         # 后处理
@@ -420,6 +425,6 @@ class TDEngine_FACADE():
 TDFC = TDEngine_FACADE()
 
 #%%
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+# if __name__ == "__main__":
+#     import doctest
+#     doctest.testmod()

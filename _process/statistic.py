@@ -158,10 +158,10 @@ def update_statistic_sample(*args, **kwargs):
         df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
         if len(df)>0:
             break
-        _LOGGER.warning('update_tsdb: windfarm_configuration 查询失败，重试')
+        _LOGGER.warning('update_statistic_sample: windfarm_configuration 查询失败，重试')
         time.sleep(2)
     if len(df)==0:
-        raise ValueError('update_tsdb: windfarm_configuration 查询失败')
+        raise ValueError('update_statistic_sample: windfarm_configuration 查询失败')
     for _, (set_id, turbine_id) in df.iterrows():
         _LOGGER.info(f'update_statistic_sample: {set_id}, {turbine_id}')
         # 本地tsdb已存在的数据日期
@@ -170,7 +170,7 @@ def update_statistic_sample(*args, **kwargs):
         # statistics_sample表
         candidates = tsdb_dates[~tsdb_dates.isin(statistics_dates)]
         for dt in candidates:
-            _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {turbine_id}, {dt}')
+            _LOGGER.info(f'task_id={task_id} update_statistic_sample: {set_id}, {turbine_id}, {dt}')
             dt = make_sure_datetime(dt)
             df, _ = TDFC.read(
                 set_id=set_id,
