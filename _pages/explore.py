@@ -25,7 +25,8 @@ from wtbonline._pages.tools.utils import mapid_to_tid, read_raw_data
 # =============================================================================
 _PREFIX = 'explore' 
 _ACCORDION_ITEMS = {
-    '时序图':{'y轴坐标':f'{_PREFIX}_dropdown_timeseries_y'},
+    '时序图':{'y轴坐标':f'{_PREFIX}_dropdown_timeseries_y',
+           'y2轴坐标':f'{_PREFIX}_dropdown_timeseries_y2'},
     '散点图':{'x轴坐标':f'{_PREFIX}_dropdown_scatter_x', 
            'y轴坐标':f'{_PREFIX}_dropdown_scatter_y'},
     '雷达图':{'θ轴坐标':f'{_PREFIX}_dropdown_radar_theta',
@@ -343,6 +344,7 @@ def on_change_explore_dropdown_map_id(map_id, set_id):
        
 @callback(
     Output(f'{_PREFIX}_dropdown_timeseries_y', 'options'),
+    Output(f'{_PREFIX}_dropdown_timeseries_y2', 'options'),
     Output(f'{_PREFIX}_dropdown_scatter_x', 'options'),
     Output(f'{_PREFIX}_dropdown_scatter_y', 'options'),
     Output(f'{_PREFIX}_dropdown_radar_theta', 'options'),
@@ -373,9 +375,9 @@ def on_change_explore_table(data_dct):
             ]
         radar_r = model_point_df[model_point_df['datatype']=='F']['point_name']
         spectrum_y = model_point_df[model_point_df['datatype']=='F']['point_name']
-        return timeseries_y, scatter_x, scatter_y, radar_theta, radar_r, spectrum_y
+        return timeseries_y, timeseries_y, scatter_x, scatter_y, radar_theta, radar_r, spectrum_y
     else:
-        return [None]*6
+        return [None]*7
 
 @callback(
     Output(f'{_PREFIX}_plot', 'figure'),
@@ -386,6 +388,7 @@ def on_change_explore_table(data_dct):
     State(f'{_PREFIX}_datatable', 'data'),
     State(f'{_PREFIX}_accordion', 'active_item'),
     State(f'{_PREFIX}_dropdown_timeseries_y', 'value'),
+    State(f'{_PREFIX}_dropdown_timeseries_y2', 'value'),
     State(f'{_PREFIX}_dropdown_scatter_x', 'value'),
     State(f'{_PREFIX}_dropdown_scatter_y', 'value'),
     State(f'{_PREFIX}_dropdown_radar_theta', 'value'),
@@ -394,27 +397,30 @@ def on_change_explore_table(data_dct):
     prevent_initial_call=True
     )
 @_on_error
-def on_explore_btn_refresh(n1, table_lst, item, ts_y, sct_x, sct_y, rad_th,
+def on_explore_btn_refresh(n1, table_lst, item, ts_y, ts_y2, sct_x, sct_y, rad_th,
                             rad_r, spc_y):
     ''' 点击刷新按钮，绘制图形 '''
     if table_lst is None or len(table_lst)<1:
         return [no_update]*3
     plot_type = list(_ACCORDION_ITEMS.keys())[int(item.split('-')[1])]
-    _type = 'scatter'
     rev_error = [no_update, '未指定绘图变量', True, 'danger']
     xtitle=''
+    y2col=None
     if plot_type=='时序图':
         if ts_y is None:
             return rev_error
         xcol = 'ts'
         ycol = ts_y
+        y2col = ts_y2
         mode = 'markers+lines'
+        _type = 'line'
         xtitle = '时间'
     elif plot_type=='散点图':
         if sct_x is None or sct_y is None:
             return rev_error
         xcol = sct_x
         ycol = sct_y
+        _type = 'scatter'
         mode = 'markers'
     elif plot_type=='雷达图':
         if rad_th is None or rad_r is None:
@@ -434,10 +440,13 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, sct_x, sct_y, rad_th,
     
     x_lst=[]    
     y_lst=[]
+    y2_lst=[]
     name_lst=[]
     ref_freqs=[]
     ytitle=''
-    point_name = tuple(pd.Series([xcol, ycol]).replace('ts', None).dropna())
+    y2title=''
+    point_name = tuple(pd.Series([xcol, ycol, y2col]).replace('ts', None).dropna())
+    sample_cnt = int(10000/len(table_lst))
     for dct in table_lst:
         df, desc_df = read_raw_data(
             set_id=dct['机型编号'], 
@@ -445,6 +454,7 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, sct_x, sct_y, rad_th,
             point_name=point_name, 
             start_time=dct['开始日期'],
             end_time=dct['结束日期'],
+            sample_cnt=sample_cnt,
             )
         if len(df)<1:
             continue
@@ -459,12 +469,22 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, sct_x, sct_y, rad_th,
                 ytitle = ycol + f"_({desc_df.loc[ycol, 'unit']})^2"
             else:
                 ytitle = desc_df.loc[ycol, 'column']
+        if y2col is not None:
+            y2 = df[desc_df.loc[y2col, 'var_name']].tolist()
+            y2_lst.append(y2)
+            if y2title=='':
+                if _type == 'spectrum':
+                    y2title = ycol + f"_({desc_df.loc[y2col, 'unit']})^2"
+                else:
+                    y2title = desc_df.loc[y2col, 'column']
         
     fig = simple_plot(
         x_lst=x_lst, 
         y_lst=y_lst, 
+        y2_lst=y2_lst,
         xtitle=xtitle, 
         ytitle=ytitle,
+        y2title=y2title,
         name_lst=name_lst,
         mode=mode,
         _type=_type,

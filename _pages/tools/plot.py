@@ -293,35 +293,36 @@ def spc_plot_multiple_y(df=None, ycols=None, units=None, ytitles=None, x='ts', x
                 df[y] = df[y] - df[y].mean()
                 x_fft, y_fft = _power_spectrum(df[y], sample_spacing=sample_spacing)
                 df[y] = y_fft
-                if 'x' in (df.columns) or ref_col is None:
-                    continue
-                freq_ref = df[ref_col].abs().mean()
-                freq_ref = freq_ref/60 if freq_ref>0 else 1
-                df['x'] = x_fft if ref_col is None else x_fft/freq_ref
+                if 'x' not in df.columns:
+                    df['x'] = x_fft
     if 'x' in (df.columns):
         df = df[df['x']>0]
     else:
         df = pd.DataFrame(columns=df.columns.tolist()+['x'])
-    xtitle = '转频倍率'
+    xtitle = '频率_Hz'
     fig = ts_plot_multiple_y(df, ycols, [f'({i})^2' for i in units], ytitles=ytitles, x='x', xtitle=xtitle)
-    if 'x' in (df.columns) and df.shape[0]>1:
-        for i in range(int(min(df['x'].max(), 10))):
-            fig.add_vline(
-                x=i+1, 
-                annotation_text=f"{i+1}倍频",
-                annotation_font_size=10, 
-                line_width=1, 
-                line_dash="dash", 
-                line_color="green"
-                )
+    if (ref_col is not None) and df.shape[0]>1:
+        freq_ref = df[ref_col].abs().mean() / 60.0
+        if freq_ref>0:
+            for i in range(int(min(df['x'].max()/freq_ref, 10))):
+                fig.add_vline(
+                    x=(i+1)*freq_ref, 
+                    annotation_text=f"{i+1}倍频",
+                    annotation_font_size=10, 
+                    line_width=1, 
+                    line_dash="dash", 
+                    line_color="green"
+                    )
     return fig
 
 def simple_plot(
         *, 
         x_lst:List[List[float]]=[],
         y_lst:List[List[float]]=[], 
+        y2_lst:List[List[float]]=[],
         xtitle:str='', 
         ytitle:str='', 
+        y2title:str='',
         name_lst:List[str]=[],
         mode:str='markers+lines',
         _type:str='scatter',
@@ -329,7 +330,7 @@ def simple_plot(
         ):
     name_lst = make_sure_list(name_lst)
     ref_freqs = make_sure_list(ref_freqs)
-    fig = go.Figure()
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
     for i, name in enumerate(name_lst):
         if _type=='polar':
             trace = go.Scatterpolar(
@@ -340,6 +341,7 @@ def simple_plot(
                 showlegend=True,
                 marker=dict(size=3, opacity=0.5)
                 )
+            fig.add_trace(trace)
         elif _type=='spectrum':
             x, y = _power_spectrum(y_lst[i])
             df = pd.DataFrame({'x':x, 'y':y})
@@ -351,7 +353,8 @@ def simple_plot(
                 mode=mode,
                 showlegend=True,
                 marker=dict(size=3, opacity=0.5)
-                )            
+                )
+            fig.add_trace(trace)   
         elif _type=='scatter':
             trace = go.Scatter(
                 x=x_lst[i], 
@@ -361,7 +364,19 @@ def simple_plot(
                 showlegend=True,
                 marker=dict(size=3, opacity=0.5)
                 )
-        fig.add_trace(trace)
+            fig.add_trace(trace)
+        elif _type=='line':
+            for y, secondary_y in zip([y_lst[i], y2_lst[i]], [False, True]):
+                suffix = 'y' if secondary_y==False else 'y2'
+                trace = go.Scatter(
+                    x=x_lst[i], 
+                    y=y, 
+                    name='_'.join([name, suffix]),
+                    mode=mode,
+                    showlegend=True,
+                    marker=dict(size=3, opacity=0.5)
+                    )
+                fig.add_trace(trace, secondary_y=secondary_y)
     for i in ref_freqs:
         fig.add_vline(
             x=i, 
@@ -373,6 +388,8 @@ def simple_plot(
             )
     fig.update_xaxes(title_text=xtitle)
     fig.update_yaxes(title_text=ytitle)
+    if y2title not in (None, ''):
+        fig.update_yaxes(title_text=y2title, secondary_y=True)
     fig.update_layout(
         height=700,
         margin=dict(l=20, r=20, t=20, b=20),

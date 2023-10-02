@@ -261,7 +261,7 @@ class StatisticsSample(db.Model):
     limitpowbool_unique = db.Column(db.String(20, 'utf8mb4_general_ci'))
     limitpowbool_nunique = db.Column(db.Integer)
     workmode_mode = db.Column(db.String(20, 'utf8mb4_general_ci'))
-    workmode_unique = db.Column(db.String(50, 'utf8mb4_general_ci'))
+    workmode_unique = db.Column(db.String(150, 'utf8mb4_general_ci'))
     workmode_nunique = db.Column(db.Integer)
     totalfaultbool_mode = db.Column(db.String(10, 'utf8mb4_general_ci'))
     totalfaultbool_unique = db.Column(db.String(20, 'utf8mb4_general_ci'))

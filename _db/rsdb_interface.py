@@ -149,6 +149,22 @@ class RSDBInterface():
         '''
         tbname = 'windfarm_infomation'
         return RSDB.query(tbname, limit=limit)  
+    
+    
+    @classmethod
+    def read_windfarm_turbine_model(
+            cls, 
+            *, 
+            set_id:Optional[Union[str, List[str]]],
+            limit=None,
+            )->pd.DataFrame:
+        '''
+        >>> _ = RSDBInterface.read_windfarm_turbine_model()
+        '''
+        tbname = 'windfarm_turbine_model'
+        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id)
+        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit) 
+    
 
     @classmethod
     def read_model(

@@ -288,7 +288,7 @@ def _sample(
         else:
             sub_df = exceed_df[exceed_df['max']>=exceed_df['upper_bound']]
             title_subfix = '超上限'
-        for _, grp in sub_df.groupby('var_name'):
+        for grp_name, grp in sub_df.groupby('var_name'):
             idx = getattr(grp[func], f'idx{func}')()
             tid, var_name, id_ = grp.loc[idx][['device', 'var_name', 'map_id']]
             temp, _ =  TDFC.read(
@@ -323,7 +323,8 @@ def _sample(
                 point_df.loc[var_name, 'unit'],
                 height=450,
                 )
-            title=id_ + '_' + point_df.loc[var_name, 'point_name'].iloc[0] + '_' + title_subfix
+            # title=id_ + '_' + point_df.loc[var_name, 'point_name'].iloc[0] + '_' + title_subfix
+            title=id_ + '_' + grp['name'].iloc[0] + '_' + title_subfix
             rev.update({title:fig_ts})
     return rev
 
@@ -451,6 +452,10 @@ def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
     '''
     _LOGGER.info('chapter 3-1')
     conf_df =  RSDBInterface.read_windfarm_configuration(set_id=set_id)
+    model_name = RSDBInterface.read_windfarm_turbine_model(set_id=set_id)['model_name'].iloc[0]
+    ref_df = RSDBInterface.read_windfarm_power_curve(model_name=model_name)
+    ref_df['mean_power'] = ref_df['mean_power'].astype(int)
+    ref_df.set_index('mean_speed', inplace=True)
    
     graphs = {}
     for model_name, grp in conf_df.groupby('model_name'):
@@ -461,7 +466,7 @@ def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
             row['turbine_id']:row['map_id'] for _,row in temp.iterrows()
             })
         df = df.sort_values(by=['turbine_id'])
-        wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26, 0.25)- 0.125)
+        wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26, 0.5)- 0.25)
         df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
         df = df[(df['wspd']>=7) & (df['wspd']<=10)]
         
@@ -475,6 +480,10 @@ def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
         fill_color_df.iloc[1::2, :] = '#f9fafe'
         fill_color_df = fill_color_df.where(isnormal_df, '#FF4500')
         
+        columns = [f'{i} ({ref_df.loc[i, "mean_power"]})' for i in stat_df.columns[1:]]
+        stat_df.columns = [f'{stat_df.columns[0]}'] + columns
+        
+        
         k = 10
         n = int(np.ceil(stat_df.shape[0]/k))
         for i in range(n):
@@ -484,10 +493,10 @@ def chapter_3_1(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
                 header=dict(values=list(stat_sub.columns),
                             fill_color='#3a416d',
                             font={'color':'white'},
-                            align=['left', 'center']),
+                            align=['center']),
                 cells=dict(values=[stat_sub[i] for i in stat_sub],
                         fill_color=fill_color_sub.T,
-                        align=['left', 'center'],
+                        align=['center'],
                         )
                 )
             ])
@@ -736,7 +745,7 @@ def chapter_3_7(set_id:str, min_date:Union[str, date], max_date:Union[str, date]
                 x=1
                 )
             )
-        graphs.update({sr['map_id']:fig})
+        graphs.update({'_'.join(sr[['map_id', 'name']])+'_超限':fig})
 
     rev = []
     rev.append(Paragraph('3.7 叶根载荷', PS_HEADING_2))
@@ -877,10 +886,10 @@ def chapter_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
     return [
         Paragraph('3 运行一致性', PS_HEADING_1),
         *chapter_3_1(set_id, min_date, max_date, temp_dir),
-        *chapter_3_2(set_id, min_date, max_date, temp_dir),
-        *chapter_3_3(set_id, min_date, max_date, temp_dir),
-        *chapter_3_4(set_id, min_date, max_date, temp_dir),
-        *chapter_3_5(set_id, min_date, max_date, temp_dir),
+        # *chapter_3_2(set_id, min_date, max_date, temp_dir),
+        # *chapter_3_3(set_id, min_date, max_date, temp_dir),
+        # *chapter_3_4(set_id, min_date, max_date, temp_dir),
+        # *chapter_3_5(set_id, min_date, max_date, temp_dir),
         *chapter_3_6(set_id, min_date, max_date, temp_dir),
         *chapter_3_7(set_id, min_date, max_date, temp_dir),
         *chapter_3_8(set_id, min_date, max_date, temp_dir),
@@ -1047,4 +1056,4 @@ def build_brief_report_all(**kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()#
-    build_brief_report_all(end_time='', delta=180)
+    build_brief_report_all(end_time='2023-09-19', delta=180)
