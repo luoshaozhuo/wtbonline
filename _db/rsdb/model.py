@@ -382,6 +382,7 @@ class WindfarmInfomation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     farm_name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='风场名')
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, server_default=db.FetchedValue(), info='对应tdengine里的set_id')
+    rated_power = db.Column(db.Float, nullable=False, info='额定功率，单位kW')
 
 
 
