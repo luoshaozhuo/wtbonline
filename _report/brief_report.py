@@ -48,6 +48,8 @@ from wtbonline._db.common import make_sure_dataframe
 from wtbonline._db.common import make_sure_list, make_sure_datetime
 from wtbonline._process.modelling import data_filter, scater_matrix_anormaly
 from wtbonline._logging import get_logger, log_it
+import wtbonline._plot as plt
+
 
 #%% constant
 pdfmetrics.registerFont(TTFont('Simsun', 'simsun.ttc'))
@@ -249,30 +251,35 @@ def _build_table(df, bound_df, title, temp_dir):
     fig_tbl = ff.create_table(stat_df, height_constant=50)
     return build_graph(fig_tbl, title, f'{title}.jpg', temp_dir=temp_dir)
 
-def _exceed(raw_df, bound_df):
-    rev = []
-    cols = ['var_name', 'name', 'lower_bound','upper_bound']
-    for i, (var_name,name,lob,upb) in bound_df[cols].iterrows():
-        col_upb = f'{var_name}_max'
-        col_lo = f'{var_name}_min'
-        sub = []
-        if col_upb in raw_df.columns:
-            sub.append(raw_df[raw_df[col_upb]>upb])
-        if col_lo in raw_df.columns:
-            sub.append(raw_df[raw_df[col_lo]<lob])
-        sub = pd.concat(sub, ignore_index=True)     
-        for _,row in sub.iterrows():
-            entry = [var_name, name, lob, upb, row['map_id'], row['device']]
-            if col_lo in raw_df.columns:
-                entry.append(row[col_lo])
-            else:
-                entry.append(None)
-            if col_upb in raw_df.columns:
-                entry.append(row[col_upb])
-            else:
-                entry.append(None)
-            rev.append(entry)
-    rev = pd.DataFrame(rev, columns=cols+['map_id', 'device', 'min', 'max'])
+def _exceed(raw_df, bound_df, set_id=None):
+    value_vars_max = raw_df.filter(axis=1, regex='.*_max$').columns.tolist()
+    value_vars_min = raw_df.filter(axis=1, regex='.*_min$').columns.tolist()
+    value_vars = value_vars_max + value_vars_min
+    id_vars = raw_df.columns[~raw_df.columns.isin(value_vars)]
+    raw_melt = raw_df.melt(id_vars, value_vars)
+    
+    bound_df = bound_df.rename(columns={'lower_bound':'_min', 'upper_bound':'_max'})
+    value_vars = bound_df.filter(axis=1, regex='.*_(max|min)$').columns
+    id_vars = bound_df.columns[~bound_df.columns.isin(value_vars)]
+    bound_melt = bound_df.melt(id_vars, value_vars, value_name='bound')
+    bound_melt['variable'] = bound_melt['var_name']+bound_melt['variable']
+    
+    rev = pd.merge(raw_melt, bound_melt[['variable', 'name', 'bound']], how='inner', on='variable')
+    idxs = []
+    temp = rev[rev['variable'].isin(value_vars_max)].index
+    if len(temp)>0:
+        sub = rev.loc[temp]
+        idxs += sub[sub['value']>sub['bound']].index.tolist()    
+    temp = rev[rev['variable'].isin(value_vars_min)].index
+    if len(temp)>0:
+        sub = rev.loc[temp]
+        idxs += sub[sub['value']<sub['bound']].index.tolist()     
+    rev = rev.iloc[idxs]
+    if rev.shape[0]>0: 
+        rev = rev.sort_values('map_id').reset_index(drop=True)
+        if set_id is not None:
+            rev['set_id'] = set_id
+    
     return rev
 
 def _conclude(exceed_df):
@@ -281,7 +288,8 @@ def _conclude(exceed_df):
     else:
         conclution = ''
         for key_, grp in exceed_df.groupby('name'):
-            conclution += f"{key_}超限：{','.join(grp['map_id'])}<br />\n"
+            map_ids = grp['map_id'].drop_duplicates().sort_values()
+            conclution += f"{key_}超限：{','.join(map_ids)}<br />\n"
     return conclution
 
 def _sample(
@@ -392,12 +400,6 @@ def _tight_layout(fig):
             x=1)
         )
 
-def _amplitude_spectrum(y_t, sample_spacing=1):
-    N = len(y_t)
-    x_fft = np.fft.fftfreq(N, sample_spacing)
-    y_fft = np.abs(np.fft.fft(y_t))*2.0/N # 单边幅度谱    
-    return x_fft, y_fft
-
 def _blade_load_plot(exceed_df, min_date, max_date):
     graphs = []
     for _, row in exceed_df.head(1).iterrows():
@@ -486,6 +488,22 @@ def _blade_load_plot(exceed_df, min_date, max_date):
             )
         _tight_layout(fig)
         graphs.append((f'''{row['device']}_叶片1摆振弯矩极坐标图''', fig))
+    return graphs
+
+def _construct_graph(exceed_df, delta, cls, samples=1):
+    exceed_df = exceed_df.copy()
+    graphs = []
+    if exceed_df.shape[0]>0:
+        ts = pd.to_datetime(exceed_df['ts'].dt.date)
+        exceed_df['start_time'] = ts - pd.Timedelta(delta)
+        exceed_df['end_time'] = ts + pd.Timedelta(delta)
+        sub_df = exceed_df.head(samples)
+        # for test
+        sub_df['turbine_id']='s10002'
+        sub_df['map_id']='A02'
+        #
+        bul = cls(sub_df)
+        graphs = [(title, fig) for title,fig in zip(sub_df['map_id'], bul.figs)]
     return graphs
 
 # report function
@@ -766,112 +784,19 @@ def unbalent_blade_load(set_id:str, min_date:Union[str, date], max_date:Union[st
         df = df.loc[indexs, col_sel]
         raw_df.append(df)
     raw_df = pd.concat(raw_df, ignore_index=True)
+    
     raw_df = _standard(set_id, raw_df)
     bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=['blade_flapwise_diff', 'blade_edgewise_diff'])
-    exceed_df = _exceed(raw_df, bound_df)
+    exceed_df = _exceed(raw_df, bound_df, set_id)
     exceed_df.fillna(0, inplace=True)
     conclution =  _conclude(exceed_df)
-    # 绘图
-    graphs = []
-    # for _, row in exceed_df.head(1).iterrows():
-    for _, row in exceed_df[exceed_df['device']=='s10003'].head(1).iterrows():
-        col = row['var_name']+'_max'
-        entry = raw_df[(raw_df['device']==row['device']) & (raw_df[col]==row['max'])]
-        dt = pd.to_datetime(pd.to_datetime(entry['ts']).dt.date).iloc[0]
-        ts_start = dt
-        ts_end = dt+pd.Timedelta('1d')
-        # tdengine restapi默认最多传输10240条数据，所需需要多次请求
-        data_df = []
-        for i in range(20):
-            sql = f'''
-                select 
-                    ts, var_382, var_18000, var_18001, var_18002, var_18003, var_18004, var_18005, var_18008, var_18009, var_18010, var_18011 
-                from
-                    {DBNAME}.d_{row['device']}
-                where
-                    ts > '{ts_start}'
-                    and ts < '{ts_end}'
-                '''
-            sql = _concise(sql)
-            temp = TDFC.query(sql, remote=True)
-            if temp.shape[0]==0:
-                break
-            ts_start = temp['ts'].max()
-            data_df.append(temp)
-        data_df = pd.concat(data_df, ignore_index=True)
-        data_df['ts'] = pd.to_datetime(data_df['ts'])
-        data_df.set_index('ts', drop=False, inplace=True)
-        cols = ['var_18000', 'var_18001', 'var_18002', 'var_18003', 'var_18004', 'var_18005']
-        mean_df = data_df[cols].rolling('180s').mean()
-        x_fft, y_fft = _amplitude_spectrum(data_df['var_382'], 1)
-        fft_df = pd.DataFrame({'x':x_fft, 'y':y_fft})
-        fft_df = fft_df[fft_df['x']>=0]
-        
-        count = 5000
-        data_df.reset_index(drop=True, inplace=True)
-        data_df = data_df if data_df.shape[0]<count else data_df.sample(count).sort_values('ts')
-        mean_df.reset_index(drop=False, inplace=True)
-        mean_df = mean_df if mean_df.shape[0]<count else mean_df.sample(count).sort_values('ts')
-        fft_df = fft_df if fft_df.shape[0]<count else fft_df.sample(count).sort_values('x')
-        # 弯矩
-        comb = [
-            ('摆振', ['var_18000', 'var_18001', 'var_18002']), 
-            ('挥舞', ['var_18003', 'var_18004', 'var_18005'])
-            ]
-        for key_,cols in comb:
-            for suffix,df in [('瞬时', data_df), ('180s平均', mean_df)]:
-                fig = go.Figure()
-                for i, col in enumerate(cols):
-                    fig.add_trace(
-                        go.Scatter(
-                            x=df['ts'],
-                            y=df[col],
-                            mode='lines',
-                            opacity=0.5,
-                            name=f'叶片{i+1}',
-                            )
-                        )
-                fig.update_xaxes(title_text='时间')
-                fig.update_yaxes(title_text='弯矩 Nm')
-                _tight_layout(fig)
-                graphs.append((f'叶片{key_}弯矩_{suffix}', fig))
-        # 机舱加速度
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                x=fft_df['x'],
-                y=fft_df['y'],
-                mode='lines',
-                name=f'X方向',
-                )
-            )
-        fig.update_xaxes(title_text='Hz')
-        fig.update_yaxes(title_text='加速度 m/s')
-        _tight_layout(fig)
-        graphs.append((f'机舱加速度幅度谱', fig))
-        # 载荷检测系统波长
-        cols = ['var_18008', 'var_18009', 'var_18010', 'var_18011']
-        fig = go.Figure()
-        for i, col in enumerate(cols):
-            fig.add_trace(
-                go.Scatter(
-                    x=data_df['ts'],
-                    y=data_df[col],
-                    mode='lines',
-                    opacity=0.5,
-                    name=f'系统波长{i+1}',
-                    )
-                )
-        fig.update_xaxes(title_text='时间')
-        fig.update_yaxes(title_text='系统波长')
-        _tight_layout(fig)
-        graphs.append((f'叶根载荷检测系统波长', fig))
+    graphs = _construct_graph(exceed_df, '12h', plt.BladeUnblacedLoad)
             
     rev = []
     rev.append(Paragraph(f'{chapter} 叶根载荷不平衡', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     for title, plot in graphs:
-        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir))
+        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir, height=1000))
     return rev
 
 
@@ -882,38 +807,72 @@ def blade_load_mx(set_id:str, min_date:Union[str, date], max_date:Union[str, dat
     # |Mx1|，|Mx2|，|Mx3|（三支叶片摆振载荷取绝对值）
     # 当任一|Mx|>23000kNM，则判定为Mx超限。
     # My超上限：发电工况下，三支叶片任一My大于42000kNM；
-    cols = ['var_18000', 'var_18001', 'var_18002']
-    vars = [f'max(abs({col})) as {col}' for col in cols]
-    sql = f'''
-        select
-            device, 
-            {', '.join(vars)}
-        from 
-            s_{set_id} 
-        where 
-            ongrid=1
-            and workmode=32 
-            and ts>='{min_date}' 
-            and ts<'{max_date}'
-        group by 
-            device
-        '''
-    sql = _concise(sql)
-    raw_df = _standard(set_id, TDFC.query(sql))
-    raw_df['blade_edgewise_max'] = raw_df[cols].max(axis=1)
-    raw_df['blade_edgewise_min'] = raw_df[cols].min(axis=1)
     bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name='blade_edgewise')
-    exceed_df = _exceed(raw_df, bound_df)
-    conclution = _conclude(exceed_df)
-    graphs = _blade_load_plot(exceed_df, min_date, max_date)
+    bound = bound_df.loc[0, 'upper_bound']*0.1
+    sql = f'''
+        select 
+            {set_id} as set_id,
+            device,
+            ts,
+            max(torque) as blade_edgewise_max,
+            {bound} as upper_bound
+        from
+            (
+                select
+                    ts,
+                    device,
+                    CASE 
+                        WHEN (CASE WHEN x < y THEN y ELSE x END) < z
+                        THEN z
+                        ELSE (CASE WHEN x < y THEN y ELSE x END)
+                        END AS torque
+                from
+                    (
+                        select
+                            ts,
+                            device,
+                            abs(var_18000) as x,
+                            abs(var_18001) as y,
+                            abs(var_18002) as z
+                        from 
+                            s_{set_id}       
+                        where 
+                            ongrid=1
+                            and workmode=32
+                            and ts>='{min_date}'
+                            and ts<'{max_date}'        
+                        )
+                )
+        where
+            torque > {bound}
+        group by
+            device
+        order by
+            device
+        ''' 
+    sql = _concise(sql)
+    exceed_df = _standard(set_id, TDFC.query(sql))
+    if exceed_df.shape[0]>0:
+        conclution = f'''叶根摆振弯矩超限：{', '.join(exceed_df['device'].unique())}<br />'''
+    else:
+        conclution = '无故障'
+    
+    cols = ['set_id', 'map_id', 'ts', 'blade_edgewise_max', 'upper_bound']
+    tbl_df = exceed_df[cols].copy()
+    tbl_df.columns = ['机型编号', '机组编号', '发生时间', '最大摆振弯矩', '限值']
+    fig_tbl = ff.create_table(exceed_df[cols].head(10), height_constant=50)
+    title = '叶根摆振弯矩超限'
+    graphs = _construct_graph(exceed_df.iloc[2:4,:], '30m', plt.BladeOverload)
     
     rev = []
     rev.append(Paragraph(f'{chapter} 叶根载荷超限-摆振弯矩', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '叶根载荷关键参数', temp_dir=temp_dir))
+    rev.append(
+        build_graph(fig_tbl, f'{title}_仅列出10条记录', f'{chapter}_{title}.jpg', temp_dir=temp_dir)
+        )
     for title, plot in graphs:
-        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir))
+        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir, height=1000))
     return rev
 
 
@@ -924,23 +883,36 @@ def blade_load_my(set_id:str, min_date:Union[str, date], max_date:Union[str, dat
     # 三支叶片挥舞载荷180s均值最小值小于-4500kNm持续5min
     # 重叠率取30s
     # 查询所有数据库里存在的tubine_id
-    sql = f'''select last(ts) as ts, device from s_{set_id} where faultCode=30011 group by device'''
-    pos_df = devices = TDFC.query(sql)
-    sql = f'''select last(ts) as ts, device from s_{set_id} where faultCode=30018 group by device'''
-    neg_df = devices = TDFC.query(sql)
-    raw_df = _standard(set_id, pd.concat([pos_df, neg_df], ignore_index=True)).drop_duplicates('device')
-    if raw_df.shape[0]>0:
-        conclution = f'''叶根挥舞弯矩超限：{', '.join(raw_df['device'].unique())}<br />'''
+    sql = f'''
+        select 
+            {set_id} as set_id,
+            last(ts) as ts, 
+            device 
+        from 
+            s_{set_id} 
+        where 
+            faultCode=30011
+            or faultCode=30018
+            and ts>"{min_date}"
+            and ts<"{max_date}"
+        group by 
+            device
+        order by 
+            device
+        '''
+    exceed_df = _standard(set_id, TDFC.query(sql))
+    if exceed_df.shape[0]>0:
+        conclution = f'''叶根挥舞弯矩超限：{', '.join(exceed_df['device'].unique())}<br />'''
     else:
         conclution = '无故障'
-    graphs = _blade_load_plot(raw_df, min_date, max_date)
+    graphs = _construct_graph(exceed_df.iloc[2:4,:], '30m', plt.BladeOverload)
         
     rev = []
     rev.append(Paragraph(f'{chapter} 叶根载荷超限-挥舞弯矩', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
     for title, plot in graphs:
-        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir))
+        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir, height=1000))
     return rev
 
 
@@ -952,7 +924,7 @@ def pitchkick(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
         select 
             first(ts) as ts
         from
-            {dbname}.s_{set_id}
+            s_{set_id}
         where 
             var_23569=true
             and ts>"{min_date}"
@@ -960,104 +932,59 @@ def pitchkick(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
         group by 
             device
         '''
-    raw_df = _standard(set_id, TDFC.query(sql, remote=True))
-    # 绘图
-    var_names = ['var_101', 'var_102', 'var_103', 'var_246', 'var_94']
-    graphs = []
-    for _, row in raw_df.iterrows():
-        plot_df, point_df = TDFC.read(
-            set_id=set_id,
-            turbine_id=row['turbine_id'],
-            var_name=var_names,
-            start_time=pd.to_datetime(row['ts']) - pd.Timedelta('5m'),
-            end_time=pd.to_datetime(row['ts']) + pd.Timedelta('5m')
-            )
-        if plot_df.shape[0]<100:
-            continue
-        point_df.set_index('var_name', inplace=True)
-        fig = make_subplots(3, 1, shared_xaxes=True)
-        # 桨距角
-        for col in ['var_101', 'var_102', 'var_103']:
-            fig.add_trace(
-                go.Scatter(
-                    x=plot_df['ts'],
-                    y=plot_df[col],
-                    mode='lines',
-                    opacity=0.5,
-                    name=point_df.loc[col, 'point_name'],
-                    ),
-                row=1,
-                col=1,
-                )
-        fig.update_yaxes(title_text='桨距角_°', row=1, col=1)
-        # 转速
-        fig.add_trace(
-            go.Scatter(
-                x=plot_df['ts'],
-                y=plot_df['var_246'],
-                mode='lines',
-                name=point_df.loc['var_246', 'point_name'],
-                ),
-            row=2,
-            col=1,
-            )
-        fig.update_yaxes(title_text='功率 kW', row=2, col=1)
-        # 功率
-        fig.add_trace(
-            go.Scatter(
-                x=plot_df['ts'],
-                y=plot_df['var_94'],
-                mode='lines',
-                name=point_df.loc['var_94', 'point_name'],
-                ),
-            row=3,
-            col=1,
-            )
-        fig.update_xaxes(title_text='时间', row=3, col=1)
-        fig.update_yaxes(title_text='转速 RPM', row=3, col=1)
-        
-        fig.update_layout(
-            legend=dict(
-                orientation="h",
-                font=dict(
-                        size=10,
-                        color="black"
-                    ),
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1)
-            )
-        graphs.append((row['map_id'], fig))
+    exceed_df = _standard(set_id, TDFC.query(sql, remote=True))
+    if exceed_df.shape[0]>0:
+        conclution = f'''触发pitchkick{', '.join(exceed_df['device'].unique())}<br />'''
+    else:
+        conclution = '无故障'
     
+    if exceed_df.shape[0]>0:
+        exceed_df['set_id'] = set_id
+    graphs = _construct_graph(exceed_df, '5m', plt.BladePitchkick)        
+        
     rev = []
-    rev.append(Paragraph(f'{chapter} PitchKick触发记录', PS_HEADING_2))
-    rev.append(Paragraph(f'以下设备触发了pitchkick：{", ".join(raw_df["map_id"])}', PS_BODY))
+    rev.append(Paragraph(f'{chapter} PitchKick触发记录：', PS_HEADING_2))
+    rev.append(Paragraph(conclution, PS_BODY))
     for title,fig in graphs:
         rev.append(build_graph(fig, title, f'{chapter}_{title}_.jpg', temp_dir=temp_dir))
     return rev
 
 
 def blade_asynchrony(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
+    # faultcode = 4128
     _LOGGER.info(f'chapter {chapter}')
-    cols = ['var_246', 
-            'var_104', 'var_105', 'var_106', 
-            'abs(var_104-var_105)', 'abs(var_104-var_106)', 'abs(var_105-var_106)',
-            ]
-    bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=cols)
-    funcs = ['min', 'max']
-    raw_df, _ = _stat(set_id, min_date, max_date, cols, funcs)
-    exceed_df = _exceed(raw_df, bound_df)
-    conclution = _conclude(exceed_df)
-    graphs = _sample(set_id, exceed_df, min_date, max_date)
+    sql = f'''
+        select 
+            last(ts) as ts, 
+            device 
+        from 
+            s_{set_id} 
+        where 
+            faultcode=4128 
+            and ts > '{min_date}'
+            and ts < '{max_date}'
+        group by 
+            device
+        order by
+            device
+        '''
+    sql = _concise(sql)
+    exceed_df = _standard(set_id, TDFC.query(sql)).drop_duplicates('device')
+    if exceed_df.shape[0]>0:
+        conclution = f'''变桨角度不同步{', '.join(exceed_df['device'].unique())}<br />'''
+    else:
+        conclution = '无故障'
+    
+    if exceed_df.shape[0]>0:
+        exceed_df['set_id'] = set_id
+    graphs = _construct_graph(exceed_df, '5m', plt.BladeAsynchronous)    
 
     rev = []
-    rev.append(Paragraph(f'{chapter} 叶片不同步', PS_HEADING_2))
+    rev.append(Paragraph(f'{chapter} 变桨角度不同步', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(_build_table(raw_df, bound_df, '叶片关键参数', temp_dir=temp_dir))
-    for key_ in graphs:
-        rev.append(build_graph(graphs[key_], key_, f'{chapter}_{key_}.jpg', temp_dir=temp_dir))
+    for title, plot in graphs:
+        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir))
     return rev
 
 
@@ -1069,12 +996,19 @@ def energy_difference(set_id:str, min_date:Union[str, date], max_date:Union[str,
     funcs = ['first', 'last']
     vars = [f'{f}({v}) as {v}_{f}' for v, f in itertools.product(cols, funcs)]
     sql = f'''
-        select {', '.join(vars)} from {dbname}.s_{set_id} 
+        select 
+            device,
+            {', '.join(vars)} 
+        from 
+            s_{set_id} 
         where 
-        ongrid=1 and ts>='{min_date}' and ts<'{max_date}'
-        group by device
+            ongrid=1 
+            and ts>='{min_date}' 
+            and ts<'{max_date}'
+        group by 
+            device
         '''
-    raw_df = _standard(set_id, TDFC.query(sql, remote=True))
+    raw_df = _standard(set_id, TDFC.query(sql))
     raw_df['totalenergy'] = raw_df['totalenergy_last'] - raw_df['totalenergy_first']
     raw_df.sort_values('totalenergy', ascending=True, inplace=True)
     raw_df = pd.concat([raw_df.head(2), raw_df.tail(2)], ignore_index=True).drop_duplicates('map_id')
@@ -1089,9 +1023,11 @@ def energy_difference(set_id:str, min_date:Union[str, date], max_date:Union[str,
             statistics_sample 
         WHERE
             workmode_unique = 32 
-            AND ongrid_unique = 'True' 
-            AND totalfaultbool_unique = 'False' 
-            AND limitpowbool_unique = 'False'
+            and ongrid_unique = 'True' 
+            and totalfaultbool_unique = 'False' 
+            and limitpowbool_unique = 'False'
+            and bin>='{min_date}' 
+            and bin<'{max_date}'
         '''
     x = '并网有功功率（kWh）'
     y = '叶片实际角均值（°）'
@@ -1148,43 +1084,33 @@ def rotor_azimuth(set_id:str, min_date:Union[str, date], max_date:Union[str, dat
     # var_18000，叶片1摆振弯矩
     # ongrid=true， 并网
     # workmode=32， 发电工况
-    sql = f'''select last(ts) as ts, device from s_{set_id} where faultcode=30017 group by device'''
-    raw_df = _standard(set_id, TDFC.query(sql)).drop_duplicates('device')
-    if raw_df.shape[0]>0:
-        conclution = f'''风轮方位角异常：{', '.join(raw_df['device'].unique())}<br />'''
+    # faultcode = 30017
+    sql = f'''
+        select 
+            last(ts) as ts, 
+            device 
+        from 
+            s_{set_id} 
+        where 
+            faultcode=30017 
+            and ts > '{min_date}'
+            and ts < '{max_date}'
+        group by 
+            device
+        order by
+            device
+        '''
+    sql = _concise(sql)
+    exceed_df = _standard(set_id, TDFC.query(sql)).drop_duplicates('device')
+    if exceed_df.shape[0]>0:
+        conclution = f'''风轮方位角异常：{', '.join(exceed_df['device'].unique())}<br />'''
     else:
         conclution = '无故障'
-    graphs = []
-    for _,row in raw_df.head(3).iterrows():
-        ts = pd.to_datetime(row['ts'].date())
-        sql = f'''
-            select 
-                var_18000,
-                var_18006
-            from
-                d_{row['device']}
-            where
-                ts > '{ts}'
-                and ts < '{ts + pd.Timedelta('1d')}'
-            '''
-        sql = _concise(sql) 
-        plot_df = TDFC.query(sql)
-        cnt = 5000
-        plot_df = plot_df.sample(cnt) if plot_df.shape[0]>cnt else plot_df
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                x=plot_df['var_18006'], 
-                y=plot_df['var_18000'], 
-                mode='markers',
-                marker=dict(size=3,opacity=0.5), 
-                )
-            )
-        fig.layout.xaxis.update({'title': '风轮方位角 °'})
-        fig.layout.yaxis.update({'title': '叶片1摆振弯矩 Nm'})
-        _tight_layout(fig)
-        graphs.append([f'''{row['device']}''', fig])
-        
+    
+    if exceed_df.shape[0]>0:
+        exceed_df['set_id'] = set_id
+    graphs = _construct_graph(exceed_df, '12h', plt.HubAzimuth)    
+    
     rev = []
     rev.append(Paragraph(f'{chapter} 风轮方位角', PS_HEADING_2))
     rev.append(Paragraph(conclution, PS_BODY))
@@ -1195,25 +1121,40 @@ def rotor_azimuth(set_id:str, min_date:Union[str, date], max_date:Union[str, dat
 
 
 def over_power(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
+    # faultcode = 24010
     _LOGGER.info(f'chapter {chapter}')
-    sql = f'''select last(ts) as ts, device from s_{set_id} where faultCode=24010 group by device'''
-    raw_df = _standard(set_id, TDFC.query(sql)).drop_duplicates('device')
-    if raw_df.shape[0]>0:
-        conclution = f'''超额定功率：{', '.join(raw_df['device'].unique())}<br />'''
+    sql = f'''
+        select 
+            last(ts) as ts, 
+            device 
+        from 
+            s_{set_id} 
+        where 
+            faultcode=24010 
+            and ts > '{min_date}'
+            and ts < '{max_date}'
+        group by 
+            device
+        order by
+            device
+        '''
+    exceed_df = _standard(set_id, TDFC.query(sql)).drop_duplicates('device')
+    if exceed_df.shape[0]>0:
+        conclution = f'''超额定功率：{', '.join(exceed_df['device'].unique())}<br />'''
     else:
         conclution = '无故障'
     graphs = []
-    for _,row in raw_df.head(3).iterrows():
-        ts = pd.to_datetime(row['ts'].date())
+    for _,row in exceed_df.head(1).iterrows():
+        ts = row['ts']
         sql = f'''
             select 
                 ts,
-                var_246,
+                var_246
             from
                 d_{row['device']}
             where
-                ts > '{ts}'
-                and ts < '{ts + pd.Timedelta('1d')}'
+                ts >= '{ts - pd.Timedelta('30m')}'
+                and ts < '{ts + pd.Timedelta('30m')}'
             '''
         sql = _concise(sql) 
         plot_df = TDFC.query(sql)
@@ -1247,19 +1188,19 @@ def chapter_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
     params = dict(set_id=set_id, min_date=min_date, max_date=max_date, temp_dir=temp_dir)
     return [
         Paragraph('3 运行一致性', PS_HEADING_1),        
-        # *active_power(**params, chapter='3-1'),
-        # *gearbox(**params, chapter='3-2'),
-        # *generator(**params, chapter='3-3'),
-        # *converter(**params, chapter='3-4'),
-        # *main_bearing(**params, chapter='3-5'),
+        *active_power(**params, chapter='3-1'),
+        *gearbox(**params, chapter='3-2'),
+        *generator(**params, chapter='3-3'),
+        *converter(**params, chapter='3-4'),
+        *main_bearing(**params, chapter='3-5'),
         *unbalent_blade_load(**params, chapter='3-6'),
-        # *blade_load_mx(**params, chapter='3-7'),
-        # *blade_load_my(**params, chapter='3-8'),
-        # *pitchkick(**params, chapter='3-9'),
-        # *blade_asynchrony(**params, chapter='3-10'),
-        # *energy_difference(**params, chapter='3-11'),
-        # *rotor_azimuth(**params, chapter='3-12'),
-        # *over_power(**params, chapter='3-12'),
+        *blade_load_mx(**params, chapter='3-7'),
+        *blade_load_my(**params, chapter='3-8'),
+        *pitchkick(**params, chapter='3-9'),
+        *blade_asynchrony(**params, chapter='3-10'),
+        *energy_difference(**params, chapter='3-11'),
+        *rotor_azimuth(**params, chapter='3-12'),
+        *over_power(**params, chapter='3-13'),
         ]
 
 
@@ -1322,43 +1263,43 @@ def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
 
 
 
-# def appendix(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
-#     '''
-#     >>> set_id='20835'
-#     >>> min_date='2023-01-01'
-#     >>> max_date=None
-#     >>> _ = appendix(set_id, min_date, max_date)
-#     '''
-#     _LOGGER.info('appendix')
-#     conf_df =  RSDBInterface.read_windfarm_configuration(set_id=set_id)
-#     df = _read_power_curve(set_id, None, min_date, max_date)
-#     wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)
-#     df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
-#     power_curve = df.groupby(['wspd', 'turbine_id'])['mean_power'].median().reset_index()
-#     power_curve = _standard(set_id, power_curve)
-#     graphs = {}
-#     for map_id, grp in power_curve.groupby('map_id'):
-#         model_name = conf_df[conf_df['map_id']==map_id]['model_name'].iloc[0]
-#         ref_df = RSDBInterface.read_windfarm_power_curve(model_name=model_name)
-#         ref_df.rename(columns={'mean_speed':'wspd'}, inplace=True)
-#         graphs.update({
-#             f'{map_id}':line_plot(
-#                 df=grp, 
-#                 ycols='mean_power', 
-#                 units='kW', 
-#                 xcol='wspd', 
-#                 xtitle='风速 m/s',
-#                 refx = ref_df['wspd'],
-#                 refy = ref_df['mean_power'],
-#                 height = 200
-#                 )
-#             })          
-#     rev = []
-#     rev.append(Paragraph('附录 A', PS_HEADING_1))
-#     rev.append(Paragraph('A.1 功率曲线', PS_HEADING_2))
-#     for key_ in graphs:
-#         rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
-#     return rev
+def appendix(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
+    '''
+    >>> set_id='20835'
+    >>> min_date='2023-01-01'
+    >>> max_date=None
+    >>> _ = appendix(set_id, min_date, max_date)
+    '''
+    _LOGGER.info('appendix')
+    conf_df =  RSDBInterface.read_windfarm_configuration(set_id=set_id)
+    df = _read_power_curve(set_id, None, min_date, max_date)
+    wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)
+    df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
+    power_curve = df.groupby(['wspd', 'turbine_id'])['mean_power'].median().reset_index()
+    power_curve = _standard(set_id, power_curve)
+    graphs = {}
+    for map_id, grp in power_curve.groupby('map_id'):
+        model_name = conf_df[conf_df['map_id']==map_id]['model_name'].iloc[0]
+        ref_df = RSDBInterface.read_windfarm_power_curve(model_name=model_name)
+        ref_df.rename(columns={'mean_speed':'wspd'}, inplace=True)
+        graphs.update({
+            f'{map_id}':line_plot(
+                df=grp, 
+                ycols='mean_power', 
+                units='kW', 
+                xcol='wspd', 
+                xtitle='风速 m/s',
+                refx = ref_df['wspd'],
+                refy = ref_df['mean_power'],
+                height = 200
+                )
+            })          
+    rev = []
+    rev.append(Paragraph('附录 A', PS_HEADING_1))
+    rev.append(Paragraph('A.1 功率曲线', PS_HEADING_2))
+    for key_ in graphs:
+        rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir))
+    return rev
 
 def build_brief_report(
         *, 
@@ -1383,11 +1324,11 @@ def build_brief_report(
     with TemporaryDirectory(dir=TEMP_DIR.as_posix()) as temp_dir:
         _LOGGER.info(f'temp directory:{temp_dir}')
         doc.build([
-            # *chapter_1(set_id, start_time, end_time, min_date, max_date),
-            # *chapter_2(set_id, min_date, max_date, temp_dir),
+            *chapter_1(set_id, start_time, end_time, min_date, max_date),
+            *chapter_2(set_id, min_date, max_date, temp_dir),
             *chapter_3(set_id, min_date, max_date, temp_dir),
-            # *chapter_4(set_id, min_date, max_date, temp_dir),
-            # PageBreak(),
+            *chapter_4(set_id, min_date, max_date, temp_dir),
+            PageBreak(),
             ])
 
 # main

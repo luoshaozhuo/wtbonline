@@ -53,7 +53,7 @@ class TDEngine_Base():
 class TDEngine_RestAPI(TDEngine_Base):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        url = f"http://{self.host}:{self.port}/rest/sql"
+        url = f"http://{self.host}:{self.port}/rest/sql/{self.database}"
         if self.database==None:
             url += '/?tz=Asia/Shanghai'
         else:

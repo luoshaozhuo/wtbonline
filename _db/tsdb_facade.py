@@ -150,6 +150,8 @@ class TDEngine_FACADE():
         if kwargs==None:
             kwargs = get_td_remote_restapi() if remote==True else get_td_local_connector()
         df = connector(**kwargs).query(sql)
+        if 'ts' in df.columns:
+            df['ts'] = pd.to_datetime(df['ts'])
         return df
 
     def _select_variable(

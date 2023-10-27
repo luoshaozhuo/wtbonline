@@ -29,6 +29,16 @@ class AppServer(db.Model):
     database = db.Column(db.String(20, 'utf8mb4_general_ci'))
 
 
+
+class ApschedulerJob(db.Model):
+    __tablename__ = 'apscheduler_jobs'
+
+    id = db.Column(db.String(191, 'utf8mb4_general_ci'), primary_key=True)
+    next_run_time = db.Column(db.Double(asdecimal=True), index=True)
+    job_state = db.Column(db.LargeBinary, nullable=False)
+
+
+
 class Model(db.Model):
     __tablename__ = 'model'
     __table_args__ = (
@@ -87,6 +97,19 @@ class ModelLabel(db.Model):
 
     set = db.relationship('WindfarmConfiguration', primaryjoin='and_(ModelLabel.set_id == WindfarmConfiguration.set_id, ModelLabel.turbine_id == WindfarmConfiguration.turbine_id)', backref='model_labels')
     user = db.relationship('User', primaryjoin='ModelLabel.username == User.username', backref='model_labels')
+
+
+
+class StatisticsDaily(db.Model):
+    __tablename__ = 'statistics_daily'
+
+    id = db.Column(db.Integer, primary_key=True)
+    set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
+    turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
+    date = db.Column(db.DateTime, nullable=False)
+    count_sample = db.Column(db.Integer, nullable=False, info='当前日local tdengine记录数')
+    energy_ouput = db.Column(db.Float, nullable=False, info='累积发电量')
+    fault_codes = db.Column(db.VARBINARY(150), nullable=False, info='出现的故障号')
 
 
 
@@ -360,8 +383,8 @@ class WindfarmConfiguration(db.Model):
     __tablename__ = 'windfarm_configuration'
     __table_args__ = (
         db.ForeignKeyConstraint(['set_id', 'model_name'], ['windfarm_turbine_model.set_id', 'windfarm_turbine_model.model_name'], ondelete='RESTRICT', onupdate='CASCADE'),
-        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name'),
-        db.Index('set_id_2', 'set_id', 'turbine_id')
+        db.Index('set_id_2', 'set_id', 'turbine_id'),
+        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name')
     )
 
     id = db.Column(db.Integer, primary_key=True, nullable=False)
@@ -380,7 +403,7 @@ class WindfarmInfomation(db.Model):
     __tablename__ = 'windfarm_infomation'
 
     id = db.Column(db.Integer, primary_key=True)
-    farm_name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='风场名')
+    farm_name = db.Column(db.String(20, 'utf8mb4_0900_ai_ci'), nullable=False, info='风场名')
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, server_default=db.FetchedValue(), info='对应tdengine里的set_id')
     rated_power = db.Column(db.Float, nullable=False, info='额定功率，单位kW')
 

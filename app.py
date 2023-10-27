@@ -13,7 +13,7 @@ import dash_bootstrap_components as dbc
 
 from wtbonline._pages.tools.login_manager import login_manager
 from wtbonline.config import Default
-from _db.rsdb.model import db
+from wtbonline._db.rsdb.model import db
 
 # =============================================================================
 # global
