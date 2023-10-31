@@ -12,7 +12,7 @@ from wtbonline._plot.base import BaseFigure
 
 
 class BladeUnblacedLoad(BaseFigure):
-    def read_data(self, turbine_id, start_time, end_time):
+    def _read_data(self, turbine_id, start_time, end_time):
         data_df = []
         for i in range(20):
             sql = f'''
@@ -24,7 +24,7 @@ class BladeUnblacedLoad(BaseFigure):
                     ts >= '{start_time}'
                     and ts < '{end_time}'
                 '''
-            sql = self.concise(sql)
+            sql = self._concise(sql)
             temp = TDFC.query(sql, remote=True)
             if temp.shape[0]==0:
                 break
@@ -35,7 +35,7 @@ class BladeUnblacedLoad(BaseFigure):
         data_df.set_index('ts', drop=False, inplace=True)
         cols = ['var_18000', 'var_18001', 'var_18002', 'var_18003', 'var_18004', 'var_18005']
         mean_df = data_df[cols].rolling('180s').mean()
-        x_fft, y_fft = self.amplitude_spectrum(data_df['var_382'], 1)
+        x_fft, y_fft = self._amplitude_spectrum(data_df['var_382'], 1)
         fft_df = pd.DataFrame({'x':x_fft, 'y':y_fft})
         fft_df = fft_df[fft_df['x']>=0]
         
@@ -47,7 +47,7 @@ class BladeUnblacedLoad(BaseFigure):
         fft_df = fft_df if fft_df.shape[0]<count else fft_df.sample(count).sort_values('x')
         return data_df, mean_df, fft_df
     
-    def initialize(self):
+    def _initialize(self):
         '''
         >>> bul = BladeUnblacedLoad({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-05-02'})
         >>> bul.plot()
@@ -60,7 +60,7 @@ class BladeUnblacedLoad(BaseFigure):
         for _,entity in  self.target_df.iterrows():
             showlegend = True
             fig = make_subplots(3, 2)
-            data_df, mean_df, fft_df = self.read_data(
+            data_df, mean_df, fft_df = self._read_data(
                 turbine_id=entity['turbine_id'],
                 start_time=entity['start_time'],
                 end_time=entity['end_time']
@@ -119,7 +119,7 @@ class BladeUnblacedLoad(BaseFigure):
                     )
             fig.update_xaxes(title_text='时间', row=nrow, col=2)
             fig.update_yaxes(title_text='系统波长', row=nrow, col=2)
-            self.tight_layout(fig)
+            self._tight_layout(fig)
                     
             self.figs.append(fig)
         

@@ -11,10 +11,10 @@ from plotly.subplots import make_subplots
 from wtbonline._plot.base import BaseFigure
 
 
-class BladeOverload(BaseFigure):
-    def initialize(self):
+class BladeOverloaded(BaseFigure):
+    def _initialize(self):
         '''
-        >>> bo = BladeOverload({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-05-02'})
+        >>> bo = BladeOverloaded({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-05-02'})
         >>> bo.plot()
         '''
         comb = [
@@ -33,13 +33,13 @@ class BladeOverload(BaseFigure):
         colors = px.colors.qualitative.Plotly
         for _,entity in  self.target_df.iterrows():
             showlegend = True
-            df = self.read_data(
+            df = self._read_data(
                 turbine_id=entity['turbine_id'],
                 start_time=entity['start_time'],
                 end_time=entity['end_time'],
                 var_names=var_names
                 )
-            point_df = self.read_model_point(entity['set_id'], var_names)
+            point_df = self._read_model_point(entity['set_id'], var_names)
             
             fig = make_subplots(
                 rows=3, 
@@ -99,7 +99,7 @@ class BladeOverload(BaseFigure):
                 row=3,
                 col=2
                 )
-            self.tight_layout(fig)
+            self._tight_layout(fig)
                     
             self.figs.append(fig)
         

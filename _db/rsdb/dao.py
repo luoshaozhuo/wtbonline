@@ -153,7 +153,7 @@ class RSDBDAO():
             query = query.filter(getattr(model, key_)<lt_clause[key_])
         return query 
 
-    def query(self, 
+    def _query(self, 
               tbname:str,
               *, 
               columns:Optional[List[str]]=None,
@@ -211,6 +211,17 @@ class RSDBDAO():
                 except Exception as e:
                     raise ValueError(f'查询失败{query.statement} {e}')
         return rev
+    
+    def query(self, *args, **kwargs):
+        error = None
+        for i in range(3):
+            try:
+                return self._query(*args, **kwargs)
+            except Exception as e:
+                error = e
+                import time
+                time.sleep(2)
+        raise error
     
     def insert(self, df:Union[dict, pd.DataFrame], tbname:str):
         df = make_sure_dataframe(df)

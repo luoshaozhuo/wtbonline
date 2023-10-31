@@ -12,7 +12,7 @@ from wtbonline._plot.base import BaseFigure
 
 
 class PowerCurve(BaseFigure):
-    def read_data(self, set_id, turbine_id, start_time, end_time):
+    def _read_data(self, set_id, turbine_id, start_time, end_time):
         df = RSDBInterface.read_statistics_sample(
             set_id=set_id,
             turbine_id=turbine_id,
@@ -43,7 +43,7 @@ class PowerCurve(BaseFigure):
         df = df.sample(self.samples) if df.shape[0]>self.samples else df
         return df, mean_df
     
-    def initialize(self):
+    def _initialize(self):
         '''
         >>> fig = PowerCurve({'set_id':'20835', 'map_id':'A01', 'start_time':'2023-05-01', 'end_time':'2023-06-01'})
         >>> fig.plot()
@@ -51,7 +51,7 @@ class PowerCurve(BaseFigure):
         fig = go.Figure()
         for i,row in  self.target_df.iterrows():
             color = px.colors.qualitative.Plotly[i]
-            df, mean_df = self.read_data(row['set_id'], row['turbine_id'], row['start_time'], row['end_time'])
+            df, mean_df = self._read_data(row['set_id'], row['turbine_id'], row['start_time'], row['end_time'])
             fig.add_trace(
                 go.Scatter(
                     x=mean_df['wspd'],
@@ -72,7 +72,7 @@ class PowerCurve(BaseFigure):
                 ) 
         fig.layout.xaxis.update({'title': '10分钟平均风速 m/s'})
         fig.layout.yaxis.update({'title': '10分钟平均电网有功功率 kW'})
-        self.tight_layout(fig)
+        self._tight_layout(fig)
         
         self.figs.append(fig)
         

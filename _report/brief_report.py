@@ -656,7 +656,7 @@ def active_power(set_id:str, min_date:Union[str, date], max_date:Union[str, date
 
 def gearbox(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
     _LOGGER.info(f'chapter {chapter}')
-    cols = ['var_171', 'var_172', 'var_175', 'var_182', 'var_2713', 'var_2714', 'var_2715']
+    cols = ['var_175', 'var_182', 'var_2713', 'var_2714', 'var_2715']
     bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=cols)
     funcs = ['min', 'max']
     raw_df, _ = _stat(set_id, min_date, max_date, cols, funcs)
@@ -891,8 +891,8 @@ def blade_load_my(set_id:str, min_date:Union[str, date], max_date:Union[str, dat
         from 
             s_{set_id} 
         where 
-            faultCode=30011
-            or faultCode=30018
+            (faultcode=30011
+            or faultcode=30018)
             and ts>"{min_date}"
             and ts<"{max_date}"
         group by 
@@ -1071,19 +1071,6 @@ def energy_difference(set_id:str, min_date:Union[str, date], max_date:Union[str,
 
 def rotor_azimuth(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
     _LOGGER.info(f'chapter {chapter}')
-    # 发电工况
-    # 并网180s后
-    # 180s均值
-    # Mx_mean = 叶片1摆振弯矩绝对值，180s均值
-    # Mx90 = 叶片1摆振弯矩绝对值，方位角90±3
-    # Mx270 = 叶片1摆振弯矩绝对值，方位角270±3
-    # count = 1 if Mx90<Mx_mean 且 Mx270>Mx_mean else 0
-    # 异常 = rolling(count)>=5
-    # 绘制一整天散点图：叶片1Mx vs 叶轮方位角
-    # var_18006, 叶根载荷监测风轮方位角
-    # var_18000，叶片1摆振弯矩
-    # ongrid=true， 并网
-    # workmode=32， 发电工况
     # faultcode = 30017
     sql = f'''
         select 
@@ -1092,7 +1079,8 @@ def rotor_azimuth(set_id:str, min_date:Union[str, date], max_date:Union[str, dat
         from 
             s_{set_id} 
         where 
-            faultcode=30017 
+            (faultcode=30014
+            or faultcode=30024)
             and ts > '{min_date}'
             and ts < '{max_date}'
         group by 
@@ -1188,19 +1176,19 @@ def chapter_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
     params = dict(set_id=set_id, min_date=min_date, max_date=max_date, temp_dir=temp_dir)
     return [
         Paragraph('3 运行一致性', PS_HEADING_1),        
-        *active_power(**params, chapter='3-1'),
-        *gearbox(**params, chapter='3-2'),
-        *generator(**params, chapter='3-3'),
-        *converter(**params, chapter='3-4'),
-        *main_bearing(**params, chapter='3-5'),
+        # *active_power(**params, chapter='3-1'),
+        # *gearbox(**params, chapter='3-2'),
+        # *generator(**params, chapter='3-3'),
+        # *converter(**params, chapter='3-4'),
+        # *main_bearing(**params, chapter='3-5'),
         *unbalent_blade_load(**params, chapter='3-6'),
-        *blade_load_mx(**params, chapter='3-7'),
-        *blade_load_my(**params, chapter='3-8'),
-        *pitchkick(**params, chapter='3-9'),
-        *blade_asynchrony(**params, chapter='3-10'),
-        *energy_difference(**params, chapter='3-11'),
-        *rotor_azimuth(**params, chapter='3-12'),
-        *over_power(**params, chapter='3-13'),
+        # *blade_load_mx(**params, chapter='3-7'),
+        # *blade_load_my(**params, chapter='3-8'),
+        # *pitchkick(**params, chapter='3-9'),
+        # *blade_asynchrony(**params, chapter='3-10'),
+        # *energy_difference(**params, chapter='3-11'),
+        # *rotor_azimuth(**params, chapter='3-12'),
+        # *over_power(**params, chapter='3-13'),
         ]
 
 

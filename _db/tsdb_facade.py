@@ -424,6 +424,12 @@ class TDEngine_FACADE():
         _ = self.query(sql, driver_kwargs=kwargs)
         pathname.unlink()
 
+    def get_table_tags(self, set_id, remote=False):
+        sql = f'SHOW TABLE TAGS FROM s_{set_id}'
+        devices = self.query(sql, remote=remote)['device']
+        return devices
+
+
 TDFC = TDEngine_FACADE()
 
 #%%

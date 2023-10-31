@@ -5,9 +5,13 @@ from typing import Union
 import pandas as pd
 import numpy as np
 
+from plotly.subplots import make_subplots
+import plotly.express as px 
+import plotly.graph_objects as go
+
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
-
+from wtbonline._process.tools.common import concise, standard
 
 class BaseFigure():     
     def __init__(self, target_df:Union[pd.DataFrame, dict], samples:int=5000):
@@ -24,30 +28,29 @@ class BaseFigure():
         '''
         self.figs = []
         self.samples = samples
-        self.target_df = self.check_target(target_df)
-        self.initialize()
+        self.target_df = self._check_target(target_df)
+        self.var_names = []
+        self._init()
+        self._initialize()
     
-    def concise(self, sql):
-        ''' 去除多余的换行、空格字符 '''
-        sql = pd.Series(sql).str.replace('\n', '').str.replace(' {2,}', ' ', regex=True)
-        sql = sql.str.strip().squeeze()
-        return sql
+    def _init(self):
+        pass
     
-    def amplitude_spectrum(self, y_t, sample_spacing=1):
+    def _concise(self, sql):
+        return concise(sql)
+    
+    def _amplitude_spectrum(self, y_t, sample_spacing=1):
         ''' 计算幅度谱 '''
         N = len(y_t)
         x_fft = np.fft.fftfreq(N, sample_spacing)
         y_fft = np.abs(np.fft.fft(y_t))*2.0/N # 单边幅度谱    
         return x_fft, y_fft
     
-    def standard(self, set_id, df):
+    def _standard(self, set_id, df):
         ''' 按需增加turbine_id、测点名称、设备编号 '''
-        cols = ['map_id', 'turbine_id']
-        conf_df = RSDBInterface.read_windfarm_configuration(set_id=set_id, columns=cols)
-        df = pd.merge(df, conf_df, how='inner')
-        return df 
+        return standard(set_id, df)
     
-    def check_target(self, target_df):
+    def _check_target(self, target_df):
         if not isinstance(target_df, (pd.DataFrame, dict)) :
             raise ValueError('target_df必须是DataFrame或dict')
         if isinstance(target_df, dict):
@@ -72,7 +75,7 @@ class BaseFigure():
         
         ret = []
         for set_id,grp in target_df.groupby('set_id'):
-            ret.append(self.standard(set_id, grp))
+            ret.append(self._standard(set_id, grp))
         ret = pd.concat(ret, ignore_index=True)
         if ret.shape[0]<1:
             raise ValueError('target_df经过标准化处理后为空')
@@ -84,7 +87,7 @@ class BaseFigure():
         
         return ret
     
-    def read_data(self, turbine_id, start_time, end_time, var_names):
+    def _read_data(self, turbine_id, start_time, end_time, var_names):
         var_names = var_names.copy()
         if 'ts' not in var_names:
             var_names.append('ts')
@@ -100,7 +103,7 @@ class BaseFigure():
                     ts >= '{start_time}'
                     and ts < '{end_time}'
                 '''
-            sql = self.concise(sql)
+            sql = self._concise(sql)
             temp = TDFC.query(sql, remote=True)
             if temp.shape[0]==0:
                 break
@@ -112,7 +115,7 @@ class BaseFigure():
         assert df.shape[0]>0, f'查无数据:{sql}'
         return df
     
-    def read_model_point(self, set_id, var_names):
+    def _read_model_point(self, set_id, var_names):
         point_df = RSDBInterface.read_turbine_model_point(
             set_id=set_id, 
             var_name=var_names,
@@ -124,14 +127,38 @@ class BaseFigure():
         point_df['name'] = point_df['point_name']+'_'+point_df['unit']
         return point_df
     
-    def initialize(self):
-        raise NotImplemented() 
+    def _initialize(self):
+        N = len(self.var_names)
+        for set_id,grp in self.target_df.groupby('set_id'):
+            point_df = self._read_model_point(set_id, self.var_names)
+            for _,row in  grp.iterrows():
+                df = self._read_data(row['turbine_id'], row['start_time'], row['end_time'], self.var_names)
+                if df.shape[0]<1:
+                    continue
+                fig = make_subplots(N, 1, shared_xaxes=True)
+                for i, col in enumerate(self.var_names):
+                    color = px.colors.qualitative.Plotly[i]
+                    fig.add_trace(
+                        go.Scatter(
+                            x=df['ts'],
+                            y=df[col],
+                            mode='lines',
+                            showlegend=False,
+                            line=dict(color=color)
+                            ),
+                        row=(i+1),
+                        col=1,
+                        )
+                    fig.update_yaxes(title_text=point_df.loc[col,'name'], row=(i+1), col=1) 
+                fig.update_xaxes(title_text='时间', row=N, col=1)
+                self._tight_layout(fig)
+                self.figs.append(fig) 
     
     def plot(self, renderer=None):
         for fig in self.figs:
             fig.show(renderer=renderer)
         
-    def tight_layout(self, fig):
+    def _tight_layout(self, fig):
         fig.update_layout(
             legend=dict(
                 orientation="h",

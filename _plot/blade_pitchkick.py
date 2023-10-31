@@ -9,13 +9,13 @@ from wtbonline._plot.base import BaseFigure
 
 
 class BladePitchkick(BaseFigure):
-    def initialize(self):
+    def _initialize(self):
         '''
         >>> bp = BladePitchkick({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-05-02'})
         >>> bp.plot()
         '''
         for _,entity in  self.target_df.iterrows():
-            df = self.read_data(
+            df = self._read_data(
                 turbine_id=entity['turbine_id'],
                 start_time=entity['start_time'],
                 end_time=entity['end_time'],
@@ -61,7 +61,7 @@ class BladePitchkick(BaseFigure):
                 )
             fig.update_xaxes(title_text='时间', row=3, col=1)
             fig.update_yaxes(title_text='转速 RPM', row=3, col=1)
-            self.tight_layout(fig)
+            self._tight_layout(fig)
             self.figs.append(fig)
 
         

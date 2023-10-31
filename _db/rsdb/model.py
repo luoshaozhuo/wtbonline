@@ -102,14 +102,34 @@ class ModelLabel(db.Model):
 
 class StatisticsDaily(db.Model):
     __tablename__ = 'statistics_daily'
+    __table_args__ = (
+        db.Index('set_id', 'set_id', 'turbine_id', 'date'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
     turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
     date = db.Column(db.DateTime, nullable=False)
     count_sample = db.Column(db.Integer, nullable=False, info='当前日local tdengine记录数')
-    energy_ouput = db.Column(db.Float, nullable=False, info='累积发电量')
-    fault_codes = db.Column(db.VARBINARY(150), nullable=False, info='出现的故障号')
+    energy_output = db.Column(db.Float, nullable=False, info='累积发电量')
+    fault_codes = db.Column(db.Text(collation='utf8mb4_general_ci'), nullable=False, info='出现的故障号')
+    create_time = db.Column(db.DateTime, nullable=False, info='本条记录写入/更新时间')
+
+
+
+class StatisticsFault(db.Model):
+    __tablename__ = 'statistics_fault'
+    __table_args__ = (
+        db.Index('set_id', 'set_id', 'turbine_id', 'date'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
+    turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
+    date = db.Column(db.Date, nullable=False, info='故障日期')
+    fault_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='故障类型')
+    timestamp = db.Column(db.DateTime, nullable=False, info='当日首次故障时间')
+    create_time = db.Column(db.DateTime, nullable=False, info='本条记录生成时间')
 
 
 
@@ -327,6 +347,14 @@ class TimedTaskLog(db.Model):
 
 
 
+class TurbineFaultType(db.Model):
+    __tablename__ = 'turbine_fault_type'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50, 'utf8mb4_general_ci'), nullable=False)
+
+
+
 class TurbineModelPoint(db.Model):
     __tablename__ = 'turbine_model_points'
 
@@ -383,8 +411,8 @@ class WindfarmConfiguration(db.Model):
     __tablename__ = 'windfarm_configuration'
     __table_args__ = (
         db.ForeignKeyConstraint(['set_id', 'model_name'], ['windfarm_turbine_model.set_id', 'windfarm_turbine_model.model_name'], ondelete='RESTRICT', onupdate='CASCADE'),
-        db.Index('set_id_2', 'set_id', 'turbine_id'),
-        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name')
+        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name'),
+        db.Index('set_id_2', 'set_id', 'turbine_id')
     )
 
     id = db.Column(db.Integer, primary_key=True, nullable=False)

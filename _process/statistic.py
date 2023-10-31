@@ -11,14 +11,18 @@ Created on Mon Apr 24 10:19:56 2023
 import pandas as pd
 import time
 import numpy as np
+import inspect
 
 from wtbonline._db.common import make_sure_datetime, make_sure_dataframe
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.rsdb.dao import RSDB
+import wtbonline._db.rsdb.model as model
 from wtbonline._process.tools.time import bin
+from wtbonline._process.tools.common import concise, get_all_table_tags
 from wtbonline._process.tools.statistics import (
     numeric_statistics, category_statistics, stationarity, agg)
+from wtbonline._process.tools import inspector as insp
 from wtbonline._process.preprocess import get_dates_tsdb
 
 from wtbonline._logging import get_logger, log_it
@@ -148,6 +152,99 @@ def dates_in_statistic_sample(set_id, turbine_id):
         '''
     return RSDB.read_sql(sql)['dt']
 
+def statistic_daily(set_id, turbine_id, date):
+    dt = pd.to_datetime(date)
+    sql = f'''
+        select 
+            UNIQUE(faultcode) as faultcode
+        from
+            d_{turbine_id}
+        where
+            ts>='{dt}'
+            and ts<'{dt+pd.Timedelta('1d')}'
+        '''
+    sql = concise(sql)
+    faultcode = ','.join(TDFC.query(sql)['faultcode'].astype(str))
+    sql = f'''
+        select 
+            '{set_id}',
+            '{turbine_id}',
+            '{date}',
+            COUNT(ts),
+            last(totalenergy)-first(totalenergy) as energy_output,
+            '{faultcode}'
+        from
+            d_{turbine_id}
+        where
+            ts>='{dt}'
+            and ts<'{dt+pd.Timedelta('1d')}'
+        '''
+    sql = concise(sql)
+    return TDFC.query(sql)
+
+
+@log_it(_LOGGER, True)
+def udpate_statistic_daily():
+    columns = ['set_id', 'turbine_id', 'date', 'count_sample', 'energy_output', 'fault_codes']
+    conf_df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
+    for _, (set_id, turbine_id) in conf_df.iterrows(): 
+        exist_dates = RSDBInterface.read_statistics_daily(set_id=set_id, turbine_id=turbine_id, columns='date')['date']
+        tsdb_dates = get_dates_tsdb(turbine_id, remote=False)
+        tsdb_dates.index =  tsdb_dates
+        date_lst = tsdb_dates.drop(exist_dates, errors='ignore')
+        if len(date_lst)<1:
+            continue
+        
+        df = []    
+        for date in date_lst:
+            df.append(statistic_daily(set_id, turbine_id, date).iloc[0].tolist())
+        df = pd.DataFrame(df, columns=columns)
+        df['create_time'] = pd.Timestamp.now()
+        RSDBInterface.insert(df, 'statistics_daily')
+ 
+            
+@log_it(_LOGGER, True)
+def udpate_statistic_fault():
+    candidate_df = get_all_table_tags()
+    objs = []
+    for i,j in inspect.getmembers(insp, inspect.isclass):
+        if str(j).find('Inspector')>-1 and str(j).find('Base')==-1:
+            objs.append(j())
+    if candidate_df.shape[0]<1 or len(objs)<1:
+        return
+    replace_dct = RSDBInterface.read_turbine_fault_type()
+    replace_dct = {row['name']:row['id'] for _,row in replace_dct.iterrows()}
+    
+    table_columns = ['set_id', 'turbine_id', 'date', 'timestamp', 'fault_id', 'create_time']
+    columns = ['set_id', 'turbine_id', 'timestamp', 'type']
+    sql_tsdb = f"select first(ts) as ts from d_%s"
+    sql_rsdb = "select max(date) as date from statistics_fault where turbine_id='%s'"
+    for _, (set_id, turbine_id) in candidate_df[['set_id','device']].iterrows():  
+        start_time = RSDB.read_sql(sql_rsdb%turbine_id)['date'].iloc[0]
+        if start_time is not None:
+            start_time = pd.to_datetime(pd.to_datetime(start_time).date()) + pd.Timedelta('1d')
+        else:
+            start_time = TDFC.query(sql_tsdb%turbine_id)['ts'].iloc[0]
+        end_time = pd.to_datetime((pd.Timestamp.now()-pd.Timedelta('1d')).date())
+        
+        df = []    
+        for obj in objs:
+            temp = obj.inspect(set_id, turbine_id, start_time, end_time)
+            if temp.shape[0]>0:
+                temp['type'] = obj.name
+                temp.rename(columns={'ts':'timestamp'}, inplace=True)
+                df += temp[columns].to_dict('split')['data']
+        if len(df)<1:
+            continue
+        
+        df = pd.DataFrame(df, columns=columns)
+        df['fault_id'] = df['type'].replace(replace_dct)
+        df['date'] = df['timestamp'].dt.strftime('%Y-%m-%d')
+        df['create_time'] = pd.Timestamp.now()
+        df.sort_values('date', inplace=True)
+        RSDBInterface.insert(df[table_columns], 'statistics_fault')
+        
+
 @log_it(_LOGGER, True)
 def update_statistic_sample(*args, **kwargs):
     ''' 本地sample查缺 
@@ -158,7 +255,7 @@ def update_statistic_sample(*args, **kwargs):
         df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
         if len(df)>0:
             break
-        _LOGGER.warning('update_statistic_sample: windfarm_configuration 查询失败，重试')
+        _LOGGER.warning('update_statistic_sample: windfarm_configuration 查询失败，2秒后重试')
         time.sleep(2)
     if len(df)==0:
         raise ValueError('update_statistic_sample: windfarm_configuration 查询失败')
@@ -188,7 +285,7 @@ def update_statistic_sample(*args, **kwargs):
             del df, stat_df, _
 
 
-# #%% main
+#%% main
 # if __name__ == "__main__":
 #     import doctest
 #     doctest.testmod()

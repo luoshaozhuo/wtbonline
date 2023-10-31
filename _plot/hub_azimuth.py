@@ -7,13 +7,13 @@ from wtbonline._plot.base import BaseFigure
 
 
 class HubAzimuth(BaseFigure):
-    def initialize(self):
+    def _initialize(self):
         '''
         >>> ha = HubAzimuth({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-05-02'})
         >>> ha.plot()
         '''
         for _,entity in  self.target_df.iterrows():
-            df = self.read_data(
+            df = self._read_data(
                 turbine_id=entity['turbine_id'],
                 start_time=entity['start_time'],
                 end_time=entity['end_time'],
@@ -30,7 +30,7 @@ class HubAzimuth(BaseFigure):
                 )
             fig.layout.xaxis.update({'title': '风轮方位角 °'})
             fig.layout.yaxis.update({'title': '叶片1摆振弯矩 Nm'})
-            self.tight_layout(fig)
+            self._tight_layout(fig)
             self.figs.append(fig)
 
         

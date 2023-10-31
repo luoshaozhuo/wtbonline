@@ -14,6 +14,7 @@ from typing import List, Optional, Union, Mapping, Any
 
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.common import (make_sure_list, make_sure_datetime)
+from wtbonline._db.rsdb import model
 
 #%% class
 class RSDBInterface():
@@ -46,6 +47,43 @@ class RSDBInterface():
                 in_clause.update({key_:values})
         return eq_clause, in_clause
 
+    @classmethod
+    def read_statistics_daily(
+            cls, 
+            *, 
+            set_id:Optional[Union[str, List[str]]]=None,
+            turbine_id:Optional[Union[str, List[str]]]=None,
+            columns:Optional[Union[List[str], str]]=None,
+            limit=None,
+            )->pd.DataFrame:
+        tbname = model.StatisticsDaily.__tablename__
+        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, turbine_id=turbine_id)
+        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, columns=columns) 
+
+    @classmethod
+    def read_turbine_fault_type(
+            cls, 
+            *, 
+            set_id:Optional[Union[str, List[str]]]=None,
+            limit=None,
+            )->pd.DataFrame:
+        tbname = model.TurbineFaultType.__tablename__
+        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id)
+        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit) 
+
+
+    @classmethod
+    def read_statistics_fault(
+            cls, 
+            *, 
+            set_id:Optional[Union[str, List[str]]]=None,
+            turbine_id:Optional[Union[str, List[str]]]=None,
+            columns:Optional[Union[List[str], str]]=None,
+            limit=None,
+            )->pd.DataFrame:
+        tbname = model.StatisticsFault.__tablename__
+        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, turbine_id=turbine_id)
+        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, columns=columns) 
 
     @classmethod
     def read_timed_task(
@@ -344,8 +382,3 @@ class RSDBInterface():
         return RSDB.query(tbname, columns=columns, eq_clause=eq_clause, 
                           in_clause=in_clause, limit=limit)  
     
-
-#%% main        
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
