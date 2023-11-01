@@ -127,7 +127,7 @@ class BaseFigure():
         point_df['name'] = point_df['point_name']+'_'+point_df['unit']
         return point_df
     
-    def _initialize(self):
+    def _initialize(self, xasix='ts', mode='lines', opacity=0.5):
         N = len(self.var_names)
         for set_id,grp in self.target_df.groupby('set_id'):
             point_df = self._read_model_point(set_id, self.var_names)
@@ -140,11 +140,12 @@ class BaseFigure():
                     color = px.colors.qualitative.Plotly[i]
                     fig.add_trace(
                         go.Scatter(
-                            x=df['ts'],
+                            x=df[xasix],
                             y=df[col],
-                            mode='lines',
+                            mode=mode,
                             showlegend=False,
-                            line=dict(color=color)
+                            line=dict(color=color),
+                            marker=dict(opacity=opacity, color=color),
                             ),
                         row=(i+1),
                         col=1,

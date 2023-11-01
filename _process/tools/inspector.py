@@ -11,12 +11,17 @@ from wtbonline._process.tools.common import make_sure_list, concise
 
 class BaseInspector():
     def __init__(self):
-        self.columns = []
+        # 故障统计字段名
+        self.var_names = []
+        # 故障统计字段名对应的限值表内的字段名
         self.vars_bound = []
+        # 统计函数
         self.funcs = []
         self.sliding = None
         self.interval = None
+        # 故障名
         self.name = None
+        # 输出字段名
         self.columns = ['map_id', 'turbine_id', 'device', 'date', 'ts', 'var_name', 'name', 'value', 'bound']
         self._initalize()
     
@@ -80,7 +85,7 @@ class BaseInspector():
         '''
         from_clause = f's_{set_id}' if turbine_id is None else f'd_{turbine_id}'
         sql = []
-        for col,func in product(self.columns, self.funcs):
+        for col,func in product(self.var_names, self.funcs):
             temp = f'''
                 select 
                     device, 
@@ -130,35 +135,41 @@ class GearBoxInspector(BaseInspector):
     >>> GearBoxInspector().inspect('20835', 's10002', '2023-08-01', '2023-09-01')
     '''
     def _initalize(self):
-        self.columns = ['var_175', 'var_182', 'var_2713', 'var_2714', 'var_2715']
-        self.vars_bound = self.columns
+        self.var_names = ['var_175', 'var_182', 'var_2713', 'var_2714', 'var_2715']
+        self.vars_bound = self.var_names
         self.funcs = ['max', 'min']
         self.name = '齿轮箱关键参数超限'
         
 class MainBearingInspector(BaseInspector):
     def _initalize(self):
-        self.columns = ['var_171', 'var_172', 'abs(var_171-var_172)']
-        self.vars_bound = self.columns
+        self.var_names = ['var_171', 'var_172', 'abs(var_171-var_172)']
+        self.vars_bound = self.var_names
         self.funcs = ['max', 'min']
         self.name = '主轴承关键参数超限'
 
 class GeneratorInspector(BaseInspector):
     def _initalize(self):
-        self.columns = ['var_206', 'var_207', 'var_208', 'var_209', 'var_210', 'var_211']
-        self.vars_bound = self.columns
+        self.var_names = ['var_206', 'var_207', 'var_208', 'var_209', 'var_210', 'var_211']
+        self.vars_bound = self.var_names
         self.funcs = ['max', 'min']
         self.name = '发电机关键参数超限'
 
 class ConvertorInspector(BaseInspector):
+    '''
+    >>> ConvertorInspector().inspect('20835', 's10001', '2023-08-01', '2023-09-01')
+    '''
     def _initalize(self):
-        self.columns = ['var_15004', 'var_15005', 'var_15006', 'var_12016']
-        self.vars_bound = self.columns
+        self.var_names = ['var_15004', 'var_15005', 'var_15006', 'var_12016']
+        self.vars_bound = self.var_names
         self.funcs = ['max', 'min']
         self.name = '变流器关键参数超限'   
 
+df = ConvertorInspector().inspect('20835', 's10002', '2023-08-01', '2023-09-01')
+pass
+
 class BladeUnbalanceLoadInspector(BaseInspector):
     '''
-    >>> BladeUnbalanceLoadInspector().inspect('20835', 's10001', '2023-08-01', '2023-09-01')
+    >>> BladeUnbalanceLoadInspector().inspect('20835', 's10002', '2023-08-01', '2023-09-01')
     '''
     
     def _initalize(self):
@@ -227,21 +238,16 @@ class BladeUnbalanceLoadInspector(BaseInspector):
         raw_df = self._standard(set_id, raw_df)
         return raw_df
 
-class BladeOverLoadedInspector(BaseInspector):
+class BladeEdgewiseOverLoadedInspector(BaseInspector):
     '''
-    >>> BladeOverLoadedInspector().inspect('20835', 's10002', '2023-08-01', '2023-09-01')
+    >>> BladeEdgewiseOverLoadedInspector().inspect('20835', 's10002', '2023-08-01', '2023-09-01')
     '''
     
     def _initalize(self):
-        self.name = '叶根载荷超限'
+        self.name = '叶根摆振弯矩超限'
     
     def _inspect(self, set_id, turbine_id, start_time, end_time):
-        rev = []
-        for func in [self._stat_flapwise, self._stat_edgewise]:
-            df = func(set_id, turbine_id, start_time, end_time)
-            if df.shape[0]>0:
-                rev.append(df)
-        rev = pd.concat(rev, ignore_index=True) if len(rev)>0 else pd.DataFrame(columns=self.columns)
+        rev = self._stat_edgewise(set_id, turbine_id, start_time, end_time)
         rev.insert(0, 'set_id', set_id)
         return rev
     
@@ -297,6 +303,20 @@ class BladeOverLoadedInspector(BaseInspector):
         rev['bound'] = bound
         rev['name'] = row['name']
         return rev[self.columns]
+
+
+class BladeFlapwiseOverLoadedInspector(BaseInspector):
+    '''
+    >>> BladeFlapwiseOverLoadedInspector().inspect('20835', 's10002', '2023-08-01', '2023-09-01')
+    '''
+    
+    def _initalize(self):
+        self.name = '叶根摆挥舞矩超限'
+    
+    def _inspect(self, set_id, turbine_id, start_time, end_time):
+        rev = self._stat_flapwise(set_id, turbine_id, start_time, end_time)
+        rev.insert(0, 'set_id', set_id)
+        return rev
     
     def _stat_flapwise(self, set_id, turbine_id, start_time, end_time):
         from_clause = f's_{set_id}' if turbine_id is None else f'd_{turbine_id}'
@@ -513,7 +533,8 @@ def inpector_fatory(name):
            'convertor':ConvertorInspector,
            'blade_unbalance_load':BladeUnbalanceLoadInspector,
            'blade_asynchronous':BladeAsynchronousInspector,
-           'blade_overloaded':BladeOverLoadedInspector,
+           'blade_edgewise_overloaded':BladeEdgewiseOverLoadedInspector,
+           'blade_flapwise_overloaded':BladeFlapwiseOverLoadedInspector,
            'blade_pitchkick':BladePitchkickInspector,
            'hub_azimuth':HubAzimuthInspector,
            'over_power':OverPowerInspector}

@@ -49,7 +49,7 @@ from wtbonline._db.common import make_sure_list, make_sure_datetime
 from wtbonline._process.modelling import data_filter, scater_matrix_anormaly
 from wtbonline._logging import get_logger, log_it
 import wtbonline._plot as plt
-
+import wtbonline._process.tools.inspector as insp
 
 #%% constant
 pdfmetrics.registerFont(TTFont('Simsun', 'simsun.ttc'))
@@ -498,13 +498,49 @@ def _construct_graph(exceed_df, delta, cls, samples=1):
         exceed_df['start_time'] = ts - pd.Timedelta(delta)
         exceed_df['end_time'] = ts + pd.Timedelta(delta)
         sub_df = exceed_df.head(samples)
-        # for test
-        sub_df['turbine_id']='s10002'
-        sub_df['map_id']='A02'
-        #
         bul = cls(sub_df)
         graphs = [(title, fig) for title,fig in zip(sub_df['map_id'], bul.figs)]
     return graphs
+
+
+def build_chapter(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter_index,
+                  chapter_title, table_title, inspector, grapher, fig_height, delta):
+    _LOGGER.info(f'chapter {chapter_index} {chapter_title}')
+    candidates_df = RSDBInterface.read_statistics_fault(set_id=set_id, fault_id=10, start_time=min_date, end_time=max_date)
+    candidates_df = candidates_df.loc[candidates_df.groupby('turbine_id')['timestamp'].idxmax()]
+    
+    exceed_df = []
+    for _,row in candidates_df.iterrows():
+        start_time = pd.to_datetime(row['date'])
+        exceed_df.append(
+            inspector().inspect(
+                set_id=set_id,
+                turbine_id=row['turbine_id'],
+                start_time=start_time,
+                end_time=start_time+pd.Timedelta('1d'),
+                )
+            )
+    exceed_df = pd.concat(exceed_df, ignore_index=True)
+    
+    columns = ['set_id', 'map_id', 'ts', 'value', 'bound']
+    fig_tbl = ff.create_table(exceed_df[columns], height_constant=50)
+    
+    graphs = _construct_graph(exceed_df.iloc[2:4,:], delta, grapher)
+    
+    rev = []
+    rev.append(Paragraph(f'{chapter_index} {chapter_title}', PS_HEADING_2))
+    rev.append(Spacer(FRAME_WIDTH_LATER, 10))
+    if len(exceed_df)<1:
+        rev.append(Paragraph('无故障', PS_BODY))
+    else:
+        title = chapter_title
+        rev.append(
+            build_graph(fig_tbl, f'{table_title}_最新记录', f'{chapter_index}_{title}_table.jpg', temp_dir=temp_dir)
+            )
+        for i, (title, plot) in enumerate(graphs):
+            rev.append(build_graph(plot, title, f'{chapter_index}-{i}_{title}.jpg', temp_dir=temp_dir, height=fig_height))
+    return rev 
+
 
 # report function
 def chapter_1(set_id:str, 
@@ -732,262 +768,6 @@ def converter(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
         rev.append(build_graph(graphs[key_], key_, f'{chapter}_{key_}.jpg', temp_dir=temp_dir))
     return rev
 
-
-def unbalent_blade_load(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
-    _LOGGER.info(f'chapter {chapter}')
-    sql = f'SHOW TABLE TAGS FROM s_{set_id}'
-    devices = TDFC.query(sql)['device']
-    cols = ['var_18000', 'var_18001', 'var_18002',  'var_18003',  'var_18004',  'var_18005', 'workmode']
-    funcs = ['AVG']
-    vars = [f'{f}({v}) as {v}_{f}' for v, f in itertools.product(cols, funcs)]
-    vars += ['min(cast(ongrid AS INT)) as ongrid']
-    col_sel = ['ts', 'device', 'blade_edgewise_diff_max', 'blade_flapwise_diff_max']
-    raw_df = []
-    for turbine_id in devices:
-        sql = f'''
-            select 
-                a.ts,
-                a.device,
-                abs(a.var_18000_avg-a.var_18001_avg) as blade_edgewise_diff12,
-                abs(a.var_18000_avg-a.var_18002_avg) as blade_edgewise_diff13,
-                abs(a.var_18001_avg-a.var_18002_avg) as blade_edgewise_diff23,
-                abs(a.var_18003_avg-a.var_18004_avg) as blade_flapwise_diff12,
-                abs(a.var_18003_avg-a.var_18005_avg) as blade_flapwise_diff13,
-                abs(a.var_18004_avg-a.var_18005_avg) as blade_flapwise_diff23
-            from
-                (
-                    select
-                        last(ts) as ts, 
-                        count(ts) as cnt, 
-                        first(device) as device, 
-                        {', '.join(vars)} 
-                    from 
-                        d_{turbine_id} 
-                    where 
-                        ts>='{min_date}' 
-                        and ts<'{max_date}'
-                    INTERVAL(3m)
-                    SLIDING(1m)
-                ) a
-            where
-                a.cnt>150
-                and a.workmode_avg=32
-                and a.ongrid=1
-            '''
-        sql = _concise(sql)
-        df = _standard(set_id, TDFC.query(sql))
-        if df.shape[0]<1:
-            continue
-        df['blade_edgewise_diff_max'] = df[['blade_edgewise_diff12', 'blade_edgewise_diff13', 'blade_edgewise_diff23']].max(axis=1)
-        df['blade_flapwise_diff_max'] = df[['blade_flapwise_diff12', 'blade_flapwise_diff13', 'blade_flapwise_diff23']].max(axis=1)
-        indexs = [df['blade_edgewise_diff_max'].idxmax(), df['blade_flapwise_diff_max'].idxmax()]
-        df = df.loc[indexs, col_sel]
-        raw_df.append(df)
-    raw_df = pd.concat(raw_df, ignore_index=True)
-    
-    raw_df = _standard(set_id, raw_df)
-    bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=['blade_flapwise_diff', 'blade_edgewise_diff'])
-    exceed_df = _exceed(raw_df, bound_df, set_id)
-    exceed_df.fillna(0, inplace=True)
-    conclution =  _conclude(exceed_df)
-    graphs = _construct_graph(exceed_df, '12h', plt.BladeUnblacedLoad)
-            
-    rev = []
-    rev.append(Paragraph(f'{chapter} 叶根载荷不平衡', PS_HEADING_2))
-    rev.append(Paragraph(conclution, PS_BODY))
-    for title, plot in graphs:
-        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir, height=1000))
-    return rev
-
-
-def blade_load_mx(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
-    _LOGGER.info(f'chapter {chapter}')
-    # Mx（摆振弯矩）超限
-    # Mx数据筛选：发电工况。
-    # |Mx1|，|Mx2|，|Mx3|（三支叶片摆振载荷取绝对值）
-    # 当任一|Mx|>23000kNM，则判定为Mx超限。
-    # My超上限：发电工况下，三支叶片任一My大于42000kNM；
-    bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name='blade_edgewise')
-    bound = bound_df.loc[0, 'upper_bound']*0.1
-    sql = f'''
-        select 
-            {set_id} as set_id,
-            device,
-            ts,
-            max(torque) as blade_edgewise_max,
-            {bound} as upper_bound
-        from
-            (
-                select
-                    ts,
-                    device,
-                    CASE 
-                        WHEN (CASE WHEN x < y THEN y ELSE x END) < z
-                        THEN z
-                        ELSE (CASE WHEN x < y THEN y ELSE x END)
-                        END AS torque
-                from
-                    (
-                        select
-                            ts,
-                            device,
-                            abs(var_18000) as x,
-                            abs(var_18001) as y,
-                            abs(var_18002) as z
-                        from 
-                            s_{set_id}       
-                        where 
-                            ongrid=1
-                            and workmode=32
-                            and ts>='{min_date}'
-                            and ts<'{max_date}'        
-                        )
-                )
-        where
-            torque > {bound}
-        group by
-            device
-        order by
-            device
-        ''' 
-    sql = _concise(sql)
-    exceed_df = _standard(set_id, TDFC.query(sql))
-    if exceed_df.shape[0]>0:
-        conclution = f'''叶根摆振弯矩超限：{', '.join(exceed_df['device'].unique())}<br />'''
-    else:
-        conclution = '无故障'
-    
-    cols = ['set_id', 'map_id', 'ts', 'blade_edgewise_max', 'upper_bound']
-    tbl_df = exceed_df[cols].copy()
-    tbl_df.columns = ['机型编号', '机组编号', '发生时间', '最大摆振弯矩', '限值']
-    fig_tbl = ff.create_table(exceed_df[cols].head(10), height_constant=50)
-    title = '叶根摆振弯矩超限'
-    graphs = _construct_graph(exceed_df.iloc[2:4,:], '30m', plt.BladeOverload)
-    
-    rev = []
-    rev.append(Paragraph(f'{chapter} 叶根载荷超限-摆振弯矩', PS_HEADING_2))
-    rev.append(Paragraph(conclution, PS_BODY))
-    rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    rev.append(
-        build_graph(fig_tbl, f'{title}_仅列出10条记录', f'{chapter}_{title}.jpg', temp_dir=temp_dir)
-        )
-    for title, plot in graphs:
-        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir, height=1000))
-    return rev
-
-
-def blade_load_my(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
-    _LOGGER.info(f'chapter {chapter}')
-    # My超上限：发电工况下，三支叶片任一My大于42000kNM；
-    # My超下限：机组在并网180s后开始判断，当180s平均功率大于25%*额定时，
-    # 三支叶片挥舞载荷180s均值最小值小于-4500kNm持续5min
-    # 重叠率取30s
-    # 查询所有数据库里存在的tubine_id
-    sql = f'''
-        select 
-            {set_id} as set_id,
-            last(ts) as ts, 
-            device 
-        from 
-            s_{set_id} 
-        where 
-            (faultcode=30011
-            or faultcode=30018)
-            and ts>"{min_date}"
-            and ts<"{max_date}"
-        group by 
-            device
-        order by 
-            device
-        '''
-    exceed_df = _standard(set_id, TDFC.query(sql))
-    if exceed_df.shape[0]>0:
-        conclution = f'''叶根挥舞弯矩超限：{', '.join(exceed_df['device'].unique())}<br />'''
-    else:
-        conclution = '无故障'
-    graphs = _construct_graph(exceed_df.iloc[2:4,:], '30m', plt.BladeOverload)
-        
-    rev = []
-    rev.append(Paragraph(f'{chapter} 叶根载荷超限-挥舞弯矩', PS_HEADING_2))
-    rev.append(Paragraph(conclution, PS_BODY))
-    rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    for title, plot in graphs:
-        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir, height=1000))
-    return rev
-
-
-def pitchkick(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
-    _LOGGER.info(f'chapter {chapter}')
-    dbname = RSDBInterface.read_app_server(remote=1)['database'].iloc[0]
-    # 搜索首次触发pitchkick时间
-    sql = f'''
-        select 
-            first(ts) as ts
-        from
-            s_{set_id}
-        where 
-            var_23569=true
-            and ts>"{min_date}"
-            and ts<"{max_date}"
-        group by 
-            device
-        '''
-    exceed_df = _standard(set_id, TDFC.query(sql, remote=True))
-    if exceed_df.shape[0]>0:
-        conclution = f'''触发pitchkick{', '.join(exceed_df['device'].unique())}<br />'''
-    else:
-        conclution = '无故障'
-    
-    if exceed_df.shape[0]>0:
-        exceed_df['set_id'] = set_id
-    graphs = _construct_graph(exceed_df, '5m', plt.BladePitchkick)        
-        
-    rev = []
-    rev.append(Paragraph(f'{chapter} PitchKick触发记录：', PS_HEADING_2))
-    rev.append(Paragraph(conclution, PS_BODY))
-    for title,fig in graphs:
-        rev.append(build_graph(fig, title, f'{chapter}_{title}_.jpg', temp_dir=temp_dir))
-    return rev
-
-
-def blade_asynchrony(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
-    # faultcode = 4128
-    _LOGGER.info(f'chapter {chapter}')
-    sql = f'''
-        select 
-            last(ts) as ts, 
-            device 
-        from 
-            s_{set_id} 
-        where 
-            faultcode=4128 
-            and ts > '{min_date}'
-            and ts < '{max_date}'
-        group by 
-            device
-        order by
-            device
-        '''
-    sql = _concise(sql)
-    exceed_df = _standard(set_id, TDFC.query(sql)).drop_duplicates('device')
-    if exceed_df.shape[0]>0:
-        conclution = f'''变桨角度不同步{', '.join(exceed_df['device'].unique())}<br />'''
-    else:
-        conclution = '无故障'
-    
-    if exceed_df.shape[0]>0:
-        exceed_df['set_id'] = set_id
-    graphs = _construct_graph(exceed_df, '5m', plt.BladeAsynchronous)    
-
-    rev = []
-    rev.append(Paragraph(f'{chapter} 变桨角度不同步', PS_HEADING_2))
-    rev.append(Paragraph(conclution, PS_BODY))
-    rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    for title, plot in graphs:
-        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir))
-    return rev
-
-
 def energy_difference(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
     _LOGGER.info(f'chapter {chapter}')
     dbname = RSDBInterface.read_app_server(remote=1)['database'].iloc[0]
@@ -1069,108 +849,6 @@ def energy_difference(set_id:str, min_date:Union[str, date], max_date:Union[str,
     return rev
 
 
-def rotor_azimuth(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
-    _LOGGER.info(f'chapter {chapter}')
-    # faultcode = 30017
-    sql = f'''
-        select 
-            last(ts) as ts, 
-            device 
-        from 
-            s_{set_id} 
-        where 
-            (faultcode=30014
-            or faultcode=30024)
-            and ts > '{min_date}'
-            and ts < '{max_date}'
-        group by 
-            device
-        order by
-            device
-        '''
-    sql = _concise(sql)
-    exceed_df = _standard(set_id, TDFC.query(sql)).drop_duplicates('device')
-    if exceed_df.shape[0]>0:
-        conclution = f'''风轮方位角异常：{', '.join(exceed_df['device'].unique())}<br />'''
-    else:
-        conclution = '无故障'
-    
-    if exceed_df.shape[0]>0:
-        exceed_df['set_id'] = set_id
-    graphs = _construct_graph(exceed_df, '12h', plt.HubAzimuth)    
-    
-    rev = []
-    rev.append(Paragraph(f'{chapter} 风轮方位角', PS_HEADING_2))
-    rev.append(Paragraph(conclution, PS_BODY))
-    rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    for title, plot in graphs:
-        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir))
-    return rev
-
-
-def over_power(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter):
-    # faultcode = 24010
-    _LOGGER.info(f'chapter {chapter}')
-    sql = f'''
-        select 
-            last(ts) as ts, 
-            device 
-        from 
-            s_{set_id} 
-        where 
-            faultcode=24010 
-            and ts > '{min_date}'
-            and ts < '{max_date}'
-        group by 
-            device
-        order by
-            device
-        '''
-    exceed_df = _standard(set_id, TDFC.query(sql)).drop_duplicates('device')
-    if exceed_df.shape[0]>0:
-        conclution = f'''超额定功率：{', '.join(exceed_df['device'].unique())}<br />'''
-    else:
-        conclution = '无故障'
-    graphs = []
-    for _,row in exceed_df.head(1).iterrows():
-        ts = row['ts']
-        sql = f'''
-            select 
-                ts,
-                var_246
-            from
-                d_{row['device']}
-            where
-                ts >= '{ts - pd.Timedelta('30m')}'
-                and ts < '{ts + pd.Timedelta('30m')}'
-            '''
-        sql = _concise(sql) 
-        plot_df = TDFC.query(sql)
-        cnt = 5000
-        plot_df = plot_df.sample(cnt) if plot_df.shape[0]>cnt else plot_df
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                x=plot_df['ts'], 
-                y=plot_df['var_246'], 
-                mode='markers',
-                marker=dict(size=3,opacity=0.5), 
-                )
-            )
-        fig.layout.xaxis.update({'title': '时间'})
-        fig.layout.yaxis.update({'title': '电网有功功率 kW'})
-        _tight_layout(fig)
-        graphs.append([f'''{row['device']}''', fig])
-        
-    rev = []
-    rev.append(Paragraph(f'{chapter} 超功率', PS_HEADING_2))
-    rev.append(Paragraph(conclution, PS_BODY))
-    rev.append(Spacer(FRAME_WIDTH_LATER, 10))
-    for title, plot in graphs:
-        rev.append(build_graph(plot, title, f'{chapter}_{title}.jpg', temp_dir=temp_dir))
-    return rev
-
-
 def chapter_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
     _LOGGER.info('chapter 3')
     params = dict(set_id=set_id, min_date=min_date, max_date=max_date, temp_dir=temp_dir)
@@ -1181,14 +859,21 @@ def chapter_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
         # *generator(**params, chapter='3-3'),
         # *converter(**params, chapter='3-4'),
         # *main_bearing(**params, chapter='3-5'),
-        *unbalent_blade_load(**params, chapter='3-6'),
-        # *blade_load_mx(**params, chapter='3-7'),
-        # *blade_load_my(**params, chapter='3-8'),
-        # *pitchkick(**params, chapter='3-9'),
-        # *blade_asynchrony(**params, chapter='3-10'),
-        # *energy_difference(**params, chapter='3-11'),
-        # *rotor_azimuth(**params, chapter='3-12'),
-        # *over_power(**params, chapter='3-13'),
+        *build_chapter(**params, chapter_index='3-6', chapter_title='叶根载荷不平衡', table_title='叶根弯矩不平衡超限', 
+                       inspector=insp.BladeUnbalanceLoadInspector, grapher=plt.BladeUnblacedLoad, fig_height=1000, delta='12h'),
+        *build_chapter(**params, chapter_index='3-7', chapter_title='叶根摆振弯矩', table_title='叶根摆振弯矩超限', 
+                       inspector=insp.BladeEdgewiseOverLoadedInspector, grapher=plt.BladeOverloaded, fig_height=1000, delta='30m'),
+        *build_chapter(**params, chapter_index='3-8', chapter_title='叶根挥舞弯矩', table_title='叶根挥舞弯矩超限', 
+                inspector=insp.BladeFlapwiseOverLoadedInspector, grapher=plt.BladeOverloaded, fig_height=1000, delta='30m'),
+        *build_chapter(**params, chapter_index='3-9', chapter_title='Pitchkick', table_title='触发Pitchkick', 
+                inspector=insp.BladePitchkickInspector, grapher=plt.BladePitchkick, fig_height=None, delta='10m'),
+        *build_chapter(**params, chapter_index='3-10', chapter_title='叶片不同步', table_title='叶片不同步事件', 
+                inspector=insp.BladeAsynchronousInspector, grapher=plt.BladeAsynchronous, fig_height=None, delta='10m'),
+        *energy_difference(**params, chapter='3-11'),
+        *build_chapter(**params, chapter_index='3-12', chapter_title='风轮方位角', table_title='风轮方位角异常事件', 
+                inspector=insp.HubAzimuthInspector, grapher=plt.HubAzimuth, fig_height=None, delta='12h'),
+        *build_chapter(**params, chapter_index='3-13', chapter_title='发电机超功率', table_title='发电机超功率事件', 
+                inspector=insp.OverPowerInspector, grapher=plt.GeneratorOverloaded, fig_height=None, delta='12h'),
         ]
 
 
@@ -1312,10 +997,10 @@ def build_brief_report(
     with TemporaryDirectory(dir=TEMP_DIR.as_posix()) as temp_dir:
         _LOGGER.info(f'temp directory:{temp_dir}')
         doc.build([
-            *chapter_1(set_id, start_time, end_time, min_date, max_date),
-            *chapter_2(set_id, min_date, max_date, temp_dir),
+            # *chapter_1(set_id, start_time, end_time, min_date, max_date),
+            # *chapter_2(set_id, min_date, max_date, temp_dir),
             *chapter_3(set_id, min_date, max_date, temp_dir),
-            *chapter_4(set_id, min_date, max_date, temp_dir),
+            # *chapter_4(set_id, min_date, max_date, temp_dir),
             PageBreak(),
             ])
 

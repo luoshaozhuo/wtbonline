@@ -78,12 +78,22 @@ class RSDBInterface():
             *, 
             set_id:Optional[Union[str, List[str]]]=None,
             turbine_id:Optional[Union[str, List[str]]]=None,
+            fault_id:Optional[Union[str, List[str]]]=None,
             columns:Optional[Union[List[str], str]]=None,
+            start_time:Union[str, pd.Timestamp, date] = None,
+            end_time:Union[str, pd.Timestamp, date] = None,
             limit=None,
             )->pd.DataFrame:
         tbname = model.StatisticsFault.__tablename__
-        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, turbine_id=turbine_id)
-        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, columns=columns) 
+        
+        start_time = make_sure_datetime(start_time)
+        lge_clause = {} if start_time is None else {'timestamp':start_time}
+        end_time = make_sure_datetime(end_time)  
+        lt_clause = {} if end_time is None else {'timestamp':end_time}
+        
+        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, turbine_id=turbine_id, fault_id=fault_id)
+        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, 
+                          lge_clause=lge_clause, lt_clause=lt_clause ,columns=columns) 
 
     @classmethod
     def read_timed_task(
