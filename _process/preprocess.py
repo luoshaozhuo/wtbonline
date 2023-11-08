@@ -16,14 +16,6 @@ from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
 _LOGGER = get_logger('preprocess')
 
 #%% function
-def statistic_accumulation(df):
-    ''' 计算统计量 '''
-    return pd.DataFrame([df.max()])
-
-def statistic_operation(df):
-    ''' 计算统计量 '''
-    pass
-
 def extract(set_id:str, turbine_id:str, dt:Union[str, pd.Timestamp, date], 
             offset:str='1min', rule:str='1s', limit:int=2)->pd.DataFrame:
     ''' 按天从源数据库读入数据，重采样
@@ -148,7 +140,13 @@ def heart_beat(*args, **kwargs):
      _LOGGER.info('heart_beat')
 
 
-# #%% main
-# if __name__ == "__main__":
-#     import doctest
-#     doctest.testmod()
+@log_it(_LOGGER, True)
+def update_ibox_files(*args, **kwargs):
+    ''' Download ibox-----.txt files from plcs through ftp. '''
+    
+
+
+#%% main
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

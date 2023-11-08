@@ -422,6 +422,7 @@ class WindfarmConfiguration(db.Model):
     model_name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='windfarm_turbine_model键值')
     gearbox_ratio = db.Column(db.Float, nullable=False, info='齿轮箱速比')
     on_grid_date = db.Column(db.DateTime, info='并网日期')
+    ip_address = db.Column(db.String(39, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue())
 
     set = db.relationship('WindfarmTurbineModel', primaryjoin='and_(WindfarmConfiguration.set_id == WindfarmTurbineModel.set_id, WindfarmConfiguration.model_name == WindfarmTurbineModel.model_name)', backref='windfarm_configurations')
 
