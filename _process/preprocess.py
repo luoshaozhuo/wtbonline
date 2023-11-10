@@ -140,12 +140,6 @@ def heart_beat(*args, **kwargs):
      _LOGGER.info('heart_beat')
 
 
-@log_it(_LOGGER, True)
-def update_ibox_files(*args, **kwargs):
-    ''' Download ibox-----.txt files from plcs through ftp. '''
-    
-
-
 #%% main
 if __name__ == "__main__":
     import doctest

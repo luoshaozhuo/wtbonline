@@ -24,4 +24,3 @@ click
 scikit-learn
 matplotlib
 ipykernel
-ftplib

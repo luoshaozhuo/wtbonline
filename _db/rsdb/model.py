@@ -411,8 +411,8 @@ class WindfarmConfiguration(db.Model):
     __tablename__ = 'windfarm_configuration'
     __table_args__ = (
         db.ForeignKeyConstraint(['set_id', 'model_name'], ['windfarm_turbine_model.set_id', 'windfarm_turbine_model.model_name'], ondelete='RESTRICT', onupdate='CASCADE'),
-        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name'),
-        db.Index('set_id_2', 'set_id', 'turbine_id')
+        db.Index('set_id_2', 'set_id', 'turbine_id'),
+        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name')
     )
 
     id = db.Column(db.Integer, primary_key=True, nullable=False)
@@ -423,6 +423,9 @@ class WindfarmConfiguration(db.Model):
     gearbox_ratio = db.Column(db.Float, nullable=False, info='齿轮箱速比')
     on_grid_date = db.Column(db.DateTime, info='并网日期')
     ip_address = db.Column(db.String(39, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue())
+    ftp_port = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue())
+    ftp_username = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue())
+    ftp_password = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue())
 
     set = db.relationship('WindfarmTurbineModel', primaryjoin='and_(WindfarmConfiguration.set_id == WindfarmTurbineModel.set_id, WindfarmConfiguration.model_name == WindfarmTurbineModel.model_name)', backref='windfarm_configurations')
 
