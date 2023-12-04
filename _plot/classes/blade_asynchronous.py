@@ -1,18 +1,12 @@
 # author luosz
 # created on 10.23.2023
 
-from ast import pattern
 import pandas as pd
 
 import plotly.graph_objects as go
-import plotly.express as px 
 from plotly.subplots import make_subplots
 
-
-from wtbonline._db.rsdb_interface import RSDBInterface
-from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._plot.base import BaseFigure
-from wtbonline._report.brief_report import darw_footer
+from wtbonline._plot.classes.base import BaseFigure
 
 
 class BladeAsynchronous(BaseFigure):

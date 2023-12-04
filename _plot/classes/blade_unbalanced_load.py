@@ -8,7 +8,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._plot.base import BaseFigure
+from wtbonline._plot.classes.base import BaseFigure
 
 
 class BladeUnblacedLoad(BaseFigure):

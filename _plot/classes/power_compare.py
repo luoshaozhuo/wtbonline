@@ -1,12 +1,13 @@
 # author luosz
 # created on 10.23.2023
 
+import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px 
 from plotly.subplots import make_subplots
 
 from wtbonline._db.rsdb_interface import RSDBInterface
-from wtbonline._plot.base import BaseFigure
+from wtbonline._plot.classes.base import BaseFigure
 
 
 class PowerCompare(BaseFigure):
@@ -37,7 +38,8 @@ class PowerCompare(BaseFigure):
     
     def _initialize(self):
         '''
-        >>> pc = PowerCompare({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-06-01'})
+        >>> df = pd.DataFrame({'set_id':['20835','20835'], 'map_id':['A02', 'A03'], 'start_time':['2023-05-01', '2023-05-01'], 'end_time':['2023-06-01', '2023-06-01']})
+        >>> pc = PowerCompare(df)
         >>> pc.plot()
         '''
         conf_df = RSDBInterface.read_windfarm_configuration().set_index('turbine_id')
@@ -75,8 +77,7 @@ class PowerCompare(BaseFigure):
         self._tight_layout(fig)
         
         self.figs.append(fig)
-        
-        
+            
 if __name__ == "__main__":
     import doctest
     doctest.testmod()

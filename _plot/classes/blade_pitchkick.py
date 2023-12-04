@@ -5,7 +5,7 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from wtbonline._plot.base import BaseFigure
+from wtbonline._plot.classes.base import BaseFigure
 
 
 class BladePitchkick(BaseFigure):

@@ -1,7 +1,7 @@
 # author luosz
 # created on 10.23.2023
 
-from wtbonline._plot.base import BaseFigure
+from wtbonline._plot.classes.base import BaseFigure
 
 
 class Convertor(BaseFigure):

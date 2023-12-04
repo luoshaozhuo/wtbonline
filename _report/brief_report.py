@@ -8,12 +8,10 @@ Created on Thu May 11 06:01:43 2023
 """
 #%% import
 from pathlib import Path
-from matplotlib.figure import Figure
 import pandas as pd
 import numpy as np
 from platform import platform
-from xlwings.utils import hex_to_rgb
-from typing import List, Optional, Union, Mapping
+from typing import List, Union
 from datetime import date
 import itertools
 from tempfile import TemporaryDirectory
@@ -24,32 +22,30 @@ from reportlab.lib.units import cm
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.platypus import (BaseDocTemplate, Paragraph, PageBreak, Image,
-                                Frame, PageTemplate, Spacer, Table, TableStyle)
+                                Frame, PageTemplate, Spacer)
 from reportlab.platypus.doctemplate import _doNothing
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
-import plotly.express as px 
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import matplotlib.pyplot as plt
-from plotly.subplots import make_subplots
 plt.rcParams['font.family']='sans-serif'        
 plt.rcParams['font.sans-serif']=['SimHei']
 plt.rcParams['axes.unicode_minus']=False 
 
-from wtbonline._db.config import get_td_local_connector
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._pages.tools.plot import line_plot 
 from wtbonline._db.common import make_sure_dataframe
 from wtbonline._db.common import make_sure_list, make_sure_datetime
-from wtbonline._process.modelling import data_filter, scater_matrix_anormaly
 from wtbonline._logging import get_logger, log_it
+from wtbonline._plot.functions import line_plot, scatter_matrix_anormaly
 import wtbonline._plot as plt
 import wtbonline._process.tools.inspector as insp
+from wtbonline._process.tools.filter import filter_for_modeling
+from wtbonline._process.model.anormlay.predict import load_model
 
 #%% constant
 pdfmetrics.registerFont(TTFont('Simsun', 'simsun.ttc'))
@@ -348,7 +344,6 @@ def _sample(
                 point_df.loc[var_name, 'unit'],
                 height=450,
                 )
-            # title=id_ + '_' + point_df.loc[var_name, 'point_name'].iloc[0] + '_' + title_subfix
             title=id_ + '_' + grp['name'].iloc[0] + '_' + title_subfix
             rev.update({title:fig_ts})
     return rev
@@ -399,96 +394,6 @@ def _tight_layout(fig):
             xanchor="right",
             x=1)
         )
-
-def _blade_load_plot(exceed_df, min_date, max_date):
-    graphs = []
-    for _, row in exceed_df.head(1).iterrows():
-        # 找到事件发生时间
-        ts = getattr(row, 'ts', None)
-        if ts is None:
-            sql = f'''
-                select 
-                    ts, 
-                    max(abs(var_18000))
-                from 
-                    d_{row['device']}
-                where 
-                    ongrid=1 
-                    and workmode=32 
-                    and ts>='{min_date}' 
-                    and ts<'{max_date}'
-                '''
-            sql = _concise(sql)
-            ts = TDFC.query(sql).squeeze()['ts']
-        # 拉取绘图数据
-        cols = ['var_18000', 'var_18001', 'var_18002', 'var_18003', 'var_18004', 'var_18005']
-        sql = f'''
-            select 
-                ts,
-                var_382, 
-                var_383, 
-                var_18006,
-                {', '.join(cols)}
-            from 
-                d_{row['device']}
-            where 
-                ts>='{ts - pd.Timedelta('30m')}' 
-                and ts<'{ts + pd.Timedelta('30m')}'
-            '''
-        sql = _concise(sql)
-        plot_df = TDFC.query(sql)
-        plot_df.set_index('ts', drop=False, inplace=True)
-        # 瞬时弯矩
-        comb = [['摆振弯矩', ['var_18000', 'var_18001', 'var_18002']], ['挥舞弯矩', ['var_18003', 'var_18004', 'var_18005']]]
-        for key_,cols in comb:
-            mean_df = plot_df[cols].rolling('180s').mean().reset_index(drop=False)
-            data_lst = [[f'''{row['device']}_{key_}瞬时值''', plot_df], [f'''{row['device']}_{key_}180s平均值''', mean_df]]
-            for title, df in data_lst:
-                fig = go.Figure()
-                for i,col in enumerate(cols):
-                    fig.add_trace(
-                        go.Scatter(
-                            x=df['ts'], 
-                            y=df[col], 
-                            mode='lines',
-                            opacity=0.5,
-                            name=f'叶片{i+1}' 
-                            )
-                        )
-                fig.layout.xaxis.update({'title': '时间'})
-                fig.layout.yaxis.update({'title': '弯矩 Nm'})
-                _tight_layout(fig)
-                graphs.append((title, fig))
-        # 机舱振动
-        comb = [['x方向', 'var_382'],['y方向', 'var_383']]
-        fig = go.Figure()
-        for name, col in comb:
-            fig.add_trace(
-                go.Scatter(
-                    x=plot_df['ts'], 
-                    y=plot_df[col],
-                    mode='lines',
-                    opacity=0.5,
-                    name=name
-                    )
-                )
-        fig.layout.xaxis.update({'title': '时间'})
-        fig.layout.yaxis.update({'title': '加速度 m/s'})
-        _tight_layout(fig)
-        graphs.append((f'''{row['device']}_机舱加速度''', fig))        
-        # 极坐标图
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatterpolar(
-                theta=plot_df['var_18006'], 
-                r=plot_df['var_18000']-plot_df['var_18000'].mean(), 
-                mode='markers',
-                marker=dict(size=3, opacity=0.5)
-                )
-            )
-        _tight_layout(fig)
-        graphs.append((f'''{row['device']}_叶片1摆振弯矩极坐标图''', fig))
-    return graphs
 
 def _construct_graph(exceed_df, delta, cls, samples=1):
     exceed_df = exceed_df.copy()
@@ -854,11 +759,11 @@ def chapter_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
     params = dict(set_id=set_id, min_date=min_date, max_date=max_date, temp_dir=temp_dir)
     return [
         Paragraph('3 运行一致性', PS_HEADING_1),        
-        # *active_power(**params, chapter='3-1'),
-        # *gearbox(**params, chapter='3-2'),
-        # *generator(**params, chapter='3-3'),
-        # *converter(**params, chapter='3-4'),
-        # *main_bearing(**params, chapter='3-5'),
+        *active_power(**params, chapter='3-1'),
+        *gearbox(**params, chapter='3-2'),
+        *generator(**params, chapter='3-3'),
+        *converter(**params, chapter='3-4'),
+        *main_bearing(**params, chapter='3-5'),
         *build_chapter(**params, chapter_index='3-6', chapter_title='叶根载荷不平衡', table_title='叶根弯矩不平衡超限', 
                        inspector=insp.BladeUnbalanceLoadInspector, grapher=plt.BladeUnblacedLoad, fig_height=1000, delta='12h'),
         *build_chapter(**params, chapter_index='3-7', chapter_title='叶根摆振弯矩', table_title='叶根摆振弯矩超限', 
@@ -891,41 +796,35 @@ def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
     if len(anormaly_df)<1:
         rev = []
         rev.append(Paragraph('4 离群数据', PS_HEADING_2))
-        rev.append(Paragraph('无离群值识别记录', PS_BODY))
+        rev.append(Paragraph('指定时间范围内无离群值识别记录', PS_BODY))
         return rev
     
     label_df = RSDBInterface.read_model_label(set_id=set_id).drop_duplicates('sample_id')
     total = anormaly_df.shape[0]
     left = total - label_df.shape[0]
 
-    model_uuid = anormaly_df.sort_values('create_time').tail(1)
-    model_uuid = model_uuid.squeeze()['model_uuid']
-    uuid_lst = make_sure_list(model_uuid.split(','))
-    model_df = RSDBInterface.read_model(uuid=uuid_lst)
-    all_df = RSDBInterface.read_statistics_sample(
-        set_id=model_df['set_id'].iloc[0],
-        turbine_id=model_df['turbine_id'].iloc[0],
-        start_time=model_df['start_time'].iloc[0],
-        end_time=model_df['end_time'].iloc[0],
-        ).set_index('id')
-    anormaly_df = RSDBInterface.read_model_anormaly(
-        set_id=model_df['set_id'].iloc[0],
-        model_uuid=model_uuid,
-        turbine_id=model_df['turbine_id'].iloc[0],
-        start_time=model_df['start_time'].iloc[0],
-        end_time=model_df['end_time'].iloc[0],
-        )
-    all_df = data_filter(all_df)
-    all_df['is_anormaly'] = False
-    all_df.loc[anormaly_df['sample_id'], 'is_anormaly'] = True
-    a = all_df[all_df['is_anormaly']==False]
-    a = a if len(a)<4001 else a.sample(4000)
-    b = all_df[all_df['is_anormaly']==True]
-    sub_df = all_df.loc[a.index.tolist() + b.index.tolist()]
-    fig = scater_matrix_anormaly(sub_df)
+    # 取最后一个样本点
+    turbine_id, uuids = anormaly_df.sort_values('create_time').tail(1).squeeze()[['turbine_id', 'model_uuid']]
+    sub_anormaly = anormaly_df[(anormaly_df['set_id']==set_id) & (anormaly_df['turbine_id']==turbine_id)]
+    stat_df = RSDBInterface.read_statistics_sample(
+                set_id=set_id,
+                turbine_id=turbine_id,
+                start_time=min_date,
+                end_time=max_date
+                )
+    # 利用模型里的filter函数筛选样本
+    _, trainer = load_model(uuids.split(',')[0], return_trainer=True)
+    stat_df = trainer.data_filter(stat_df).set_index('id', drop=True)
+    # 正常样本抽样，异常样本全部保留
+    stat_df['is_anormaly'] = False
+    stat_normal = stat_df if len(stat_df)<4001 else stat_df.sample(4000)
+    stat_abnormal = stat_df.loc[sub_anormaly['sample_id']]
+    stat_abnormal['is_anormaly'] = True
+    plot_df = pd.concat([stat_abnormal, stat_normal], axis=0, ignore_index=True).drop_duplicates('bin', keep='first')
+    columns = ['var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean', 'var_382_mean', 'var_383_mean']
+    fig = scatter_matrix_anormaly(plot_df, set_id=set_id, columns=columns)
 
-    model_df = _standard(set_id, model_df)
-    map_id = model_df['map_id'].iloc[0]
+    map_id = _standard(set_id, plot_df.head(1)).squeeze()['map_id']
 
     rev = []
     rev.append(Paragraph('4 离群数据', PS_HEADING_1))
@@ -933,7 +832,6 @@ def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
     rev.append(Spacer(FRAME_WIDTH_LATER, 10))
     rev.append(build_graph(fig, f'{map_id}离群值散点矩阵', '4_anormaly.jpg', height=1000, temp_dir=temp_dir))
     return rev
-
 
 
 def appendix(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir):
@@ -997,10 +895,10 @@ def build_brief_report(
     with TemporaryDirectory(dir=TEMP_DIR.as_posix()) as temp_dir:
         _LOGGER.info(f'temp directory:{temp_dir}')
         doc.build([
-            # *chapter_1(set_id, start_time, end_time, min_date, max_date),
-            # *chapter_2(set_id, min_date, max_date, temp_dir),
+            *chapter_1(set_id, start_time, end_time, min_date, max_date),
+            *chapter_2(set_id, min_date, max_date, temp_dir),
             *chapter_3(set_id, min_date, max_date, temp_dir),
-            # *chapter_4(set_id, min_date, max_date, temp_dir),
+            *chapter_4(set_id, min_date, max_date, temp_dir),
             PageBreak(),
             ])
 
@@ -1036,6 +934,4 @@ def build_brief_report_all(**kwargs):
 
 #%% main
 if __name__ == "__main__":
-    # import doctest
-    # doctest.testmod()#
     build_brief_report_all(end_time='2023-09-19', delta=30)

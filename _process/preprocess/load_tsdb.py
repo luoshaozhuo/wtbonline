@@ -4,16 +4,12 @@ from typing import Union
 from datetime import date
 import time 
 
-
-from wtbonline._db.common import make_sure_datetime
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.time import resample
-from wtbonline._logging import get_logger, log_it
-from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
-
-#%% constant
-_LOGGER = get_logger('preprocess')
+from wtbonline._logging import log_it
+from wtbonline._process.preprocess import _LOGGER
+from wtbonline._process.tools.common import get_dates_tsdb
 
 #%% function
 def extract(set_id:str, turbine_id:str, dt:Union[str, pd.Timestamp, date], 
@@ -71,19 +67,18 @@ def extract(set_id:str, turbine_id:str, dt:Union[str, pd.Timestamp, date],
    
     return rev
 
-def get_dates_tsdb(turbine_id, remote=True):
-    ''' 获取指定机组在时许数据库中的所有唯一日期
-    >>> turbine_id = 's10001'
-    >>> len(get_dates_tsdb(turbine_id, remote=True))>0
-    True
-    '''
-    # sql = f'select distinct(timetruncate(ts, 1d)) as date from d_{turbine_id}'
-    db =get_td_remote_restapi()['database'] if remote==True else get_td_local_connector()['database']
-    sql = f'select first(ts) as date from {db}.d_{turbine_id} interval(1d) sliding(1d)'
-    sr = TDFC.query(sql=sql, remote=remote)['date']
-    sr = pd.to_datetime(sr).dt.date
-    sr = sr.drop_duplicates().sort_values()
-    return sr
+# def get_dates_tsdb(turbine_id, remote=True):
+#     ''' 获取指定机组在时许数据库中的所有唯一日期
+#     >>> turbine_id = 's10001'
+#     >>> len(get_dates_tsdb(turbine_id, remote=True))>0
+#     True
+#     '''
+#     db = get_td_remote_restapi()['database'] if remote==True else get_td_local_connector()['database']
+#     sql = f'select first(ts) as date from {db}.d_{turbine_id} interval(1d) sliding(1d)'
+#     sr = TDFC.query(sql=sql, remote=remote)['date']
+#     sr = pd.to_datetime(sr).dt.date
+#     sr = sr.drop_duplicates().sort_values()
+#     return sr
 
 def load_tsdb(set_id, turbine_id, date):
     ''' 抽取数据到本地TSDB
@@ -116,8 +111,12 @@ def update_tsdb(*args, **kwargs):
         raise ValueError('update_tsdb: windfarm_configuration 查询失败')
     for _, (set_id, turbine_id) in df.iterrows():
         _LOGGER.info(f'update_tsdb: {set_id}, {turbine_id}')
-        dtrm = get_dates_tsdb(turbine_id, remote=True) 
-        dtlc = get_dates_tsdb(turbine_id, remote=False)
+        try:
+            dtrm = get_dates_tsdb(turbine_id, remote=True) 
+            dtlc = get_dates_tsdb(turbine_id, remote=False)
+        except  Exception as e:
+            _LOGGER.error(f'failed to update_tsdb: {set_id}, {turbine_id}. \n Error msg: {e}')
+            continue
         dts = dtrm[~dtrm.isin(dtlc)]
         for date in dts:
             # 不更新当天数据
@@ -130,17 +129,7 @@ def update_tsdb(*args, **kwargs):
             except:
                 _LOGGER.error(f'failed to update_tsdb: {set_id}, {turbine_id}, {date}')
                 raise 
-
-@log_it(_LOGGER, True)
-def init_tdengine(*args, **kwargs):
-    TDFC.init_database()
-    
-@log_it(_LOGGER, True)
-def heart_beat(*args, **kwargs):
-     _LOGGER.info('heart_beat')
-
-
-#%% main
+            
+#%%
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+    update_tsdb()

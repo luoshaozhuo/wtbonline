@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import plotly.express as px 
 
 from wtbonline._db.rsdb_interface import RSDBInterface
-from wtbonline._plot.base import BaseFigure
+from wtbonline._plot.classes.base import BaseFigure
 
 
 class PowerCurve(BaseFigure):

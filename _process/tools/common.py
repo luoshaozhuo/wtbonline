@@ -3,6 +3,8 @@ import numpy as np
 
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.rsdb_interface import RSDBInterface
+from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
+from wtbonline._process.model.anormlay import OUTPATH
 
 EPS = np.finfo(np.float32).eps
 
@@ -37,6 +39,7 @@ def get_all_table_tags(set_id=None, remote=False):
         temp.insert(0, 'set_id', i)
         rev.append(temp)
     rev = pd.concat(rev, ignore_index=True)
+    rev.sort_values(['set_id', 'device'], inplace=True)
     return rev
 
 def standard(set_id, df):
@@ -50,3 +53,16 @@ def standard(set_id, df):
     df = pd.merge(df, conf_df[['set_id', 'turbine_id', 'map_id']], how='inner')
     df['device'] = df['turbine_id']     
     return df 
+
+def get_dates_tsdb(turbine_id, remote=True):
+    ''' 获取指定机组在时许数据库中的所有唯一日期
+    >>> turbine_id = 's10001'
+    >>> len(get_dates_tsdb(turbine_id, remote=True))>0
+    True
+    '''
+    db = get_td_remote_restapi()['database'] if remote==True else get_td_local_connector()['database']
+    sql = f'select first(ts) as date from {db}.d_{turbine_id} interval(1d) sliding(1d)'
+    sr = TDFC.query(sql=sql, remote=remote)['date']
+    sr = pd.to_datetime(sr).dt.date
+    sr = sr.drop_duplicates().sort_values()
+    return sr

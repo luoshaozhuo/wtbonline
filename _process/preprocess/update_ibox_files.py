@@ -9,9 +9,10 @@ from wtbonline._common.utils import make_sure_list, make_sure_series
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._logging import get_logger, log_it
+from wtbonline._process.preprocess import _LOGGER
 
 #%% constant
-_LOGGER = get_logger('preprocess')
+# _LOGGER = get_logger('preprocess')
 OUTPATH = Path('/var/local/wtbonline/ibox')
 FILE_REGX = '^ibox.*\.txt$'
 REMOTE_DIR = Path('/ram0')

@@ -72,7 +72,7 @@ def log_it(logger, is_timed_task=False):
     >>> @log_it(logger)
     ... def test():
     ...     pass
-    >>> test() 
+    >>> test()
     '''
     import os
     import pandas as pd

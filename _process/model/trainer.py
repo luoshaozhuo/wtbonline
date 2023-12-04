@@ -36,7 +36,7 @@ class BaseTrainer():
             self.outpath = os.path.dirname(os.path.abspath(__file__))+'/model'
         else:
             self.outpath = outpath
-        self.data_filter = self._data_filter if data_filter is None else data_filter
+        self._data_filter = data_filter
         self.get_XY = self._get_XY if get_XY is None else get_XY
         self.train_test_split = self._train_test_split if train_test_split is None else train_test_split
         self.test_size = test_size
@@ -50,8 +50,10 @@ class BaseTrainer():
         self.X_test = None
         self.y_test = None  
     
-    def _data_filter(self,df:pd.DataFrame)->pd.DataFrame:
+    def data_filter(self,df:pd.DataFrame)->pd.DataFrame:
         ''' 过滤用于训练模型的数据 '''
+        if self._data_filter is not None:
+            return self._data_filter(df)
         return df
     
     def _get_XY(self,df:pd.DataFrame)->List[pd.DataFrame]:
@@ -132,7 +134,7 @@ class BaseTrainer():
                 logger.warn(f'at least {minimum} entities need for trainning after filtering')
             return
         df = df.copy()
-        df = self.data_filter(df)
+        df = self.data_filter(df, reset_index=False)
         if len(df)<minimum and only_value==False:
             if logger is not None:
                 logger.warn(f'at least {minimum} entities need for trainning after filtering')

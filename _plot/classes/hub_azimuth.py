@@ -3,7 +3,7 @@
 
 
 import plotly.graph_objects as go
-from wtbonline._plot.base import BaseFigure
+from wtbonline._plot.classes.base import BaseFigure
 
 
 class HubAzimuth(BaseFigure):

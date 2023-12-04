@@ -15,7 +15,7 @@ from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC 
 from wtbonline._db.common import make_sure_list, make_sure_datetime
-from wtbonline._process.modelling import data_filter
+from wtbonline._process.tools.filter import filter_for_modeling
 from wtbonline._logging import get_logger, log_it
 from wtbonline._pages import _SCATTER_PLOT_VARIABLES
 
@@ -128,7 +128,7 @@ def read_scatter_matrix_anormaly(
     df = RSDBInterface.read_statistics_sample(
         set_id=set_id, turbine_id=turbine_id, columns=columns+columns_aug,
         ).set_index('id', drop=False)
-    df = data_filter(df).loc[:, columns+ tuple(['id'])]
+    df = filter_for_modeling(df).loc[:, columns+ tuple(['id'])]
     
     df.insert(0, 'is_anormaly', 0)
     idx = RSDBInterface.read_model_anormaly(
