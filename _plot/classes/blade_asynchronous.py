@@ -24,7 +24,7 @@ class BladeAsynchronous(BaseFigure):
                 var_names=var_names
                 )
             point_df = self._read_model_point(entity['set_id'], var_names)
-            fig = make_subplots(2,1,vertical_spacing=0.05)
+            fig = make_subplots(2,1,vertical_spacing=0.05, shared_xaxes=True)
             for i,col in enumerate(var_names):
                 fig.add_trace(
                     go.Scatter(

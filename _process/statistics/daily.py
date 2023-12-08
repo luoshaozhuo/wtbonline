@@ -42,7 +42,7 @@ def statistic_daily(set_id, turbine_id, date):
 
 
 @log_it(_LOGGER, True)
-def udpate_statistic_daily():
+def udpate_statistic_daily(*args, **kwargs):
     columns = ['set_id', 'turbine_id', 'date', 'count_sample', 'energy_output', 'fault_codes']
     conf_df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
     for _, (set_id, turbine_id) in conf_df.iterrows(): 

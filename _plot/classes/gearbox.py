@@ -11,7 +11,8 @@ class Gearbox(BaseFigure):
     '''
     def _init(self):
         self.var_names = ['var_175', 'var_182', 'var_2713', 'var_2714', 'var_2715']
-         
+        self.height = 900
+        
 if __name__ == "__main__":
     import doctest
     doctest.testmod()

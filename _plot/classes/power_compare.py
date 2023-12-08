@@ -11,6 +11,10 @@ from wtbonline._plot.classes.base import BaseFigure
 
 
 class PowerCompare(BaseFigure):
+    def _init(self):
+        ''' 定制的初始化过程 '''
+        self.height = 600
+    
     def _read_data(self, set_id, turbine_id, start_time, end_time):
         df = RSDBInterface.read_statistics_sample(
             set_id=set_id,

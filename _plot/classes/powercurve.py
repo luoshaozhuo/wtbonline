@@ -12,6 +12,10 @@ from wtbonline._plot.classes.base import BaseFigure
 
 
 class PowerCurve(BaseFigure):
+    def _init(self):
+        ''' 定制的初始化过程 '''
+        self.height = 600
+    
     def _read_data(self, set_id, turbine_id, start_time, end_time):
         df = RSDBInterface.read_statistics_sample(
             set_id=set_id,
@@ -69,7 +73,7 @@ class PowerCurve(BaseFigure):
                     name=row['name'],
                     marker=dict(opacity=0.1, color=color)
                     )
-                ) 
+                )
         fig.layout.xaxis.update({'title': '10分钟平均风速 m/s'})
         fig.layout.yaxis.update({'title': '10分钟平均电网有功功率 kW'})
         self._tight_layout(fig)

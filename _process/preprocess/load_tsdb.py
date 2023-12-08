@@ -67,19 +67,6 @@ def extract(set_id:str, turbine_id:str, dt:Union[str, pd.Timestamp, date],
    
     return rev
 
-# def get_dates_tsdb(turbine_id, remote=True):
-#     ''' 获取指定机组在时许数据库中的所有唯一日期
-#     >>> turbine_id = 's10001'
-#     >>> len(get_dates_tsdb(turbine_id, remote=True))>0
-#     True
-#     '''
-#     db = get_td_remote_restapi()['database'] if remote==True else get_td_local_connector()['database']
-#     sql = f'select first(ts) as date from {db}.d_{turbine_id} interval(1d) sliding(1d)'
-#     sr = TDFC.query(sql=sql, remote=remote)['date']
-#     sr = pd.to_datetime(sr).dt.date
-#     sr = sr.drop_duplicates().sort_values()
-#     return sr
-
 def load_tsdb(set_id, turbine_id, date):
     ''' 抽取数据到本地TSDB
     >>> set_id='20835'

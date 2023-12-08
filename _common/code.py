@@ -1,0 +1,4 @@
+SCHEDULER_CONNECTION_FAILED = '无法连接scheduler'
+SCHEDULER_MANIPULATION_FAILED = '操作scheduler失败'
+
+MYSQL_QUERY_FAILED = 'mysql操作失败'

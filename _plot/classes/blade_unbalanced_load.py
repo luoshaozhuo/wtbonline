@@ -12,6 +12,9 @@ from wtbonline._plot.classes.base import BaseFigure
 
 
 class BladeUnblacedLoad(BaseFigure):
+    def _init(self):
+        self.height = 800
+    
     def _read_data(self, turbine_id, start_time, end_time):
         data_df = []
         for i in range(20):

@@ -11,6 +11,9 @@ from wtbonline._plot.classes.base import BaseFigure
 
 
 class BladeOverloaded(BaseFigure):
+    def _init(self):
+        self.height = 900
+    
     def _initialize(self):
         '''
         >>> bo = BladeOverloaded({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-05-02'})

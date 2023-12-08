@@ -17,7 +17,8 @@ from matplotlib.pyplot import cla
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px 
+import plotly.express as px
+from wtbonline._db.common import make_sure_datetime 
 
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._pages.tools._decorator import _on_error
@@ -34,15 +35,15 @@ SIDEBAR_DF = pd.DataFrame(
     [
         ['性能', '功率曲线', 'powercurve', 1, 1, plt.PowerCurve],
         ['性能', '功率差异', 'power_difference', 1, 2, plt.PowerCompare],
-        ['故障', '齿轮箱关键参超限', 'gearbox', 2, 1, plt.Gearbox],
-        ['故障', '发电机关键参超限', 'generator', 2, 2, plt.GeneratorOverloaded],
-        ['故障', '变流器关键参超限', 'converter', 2, 3, plt.Convertor],
-        ['故障', '叶轮方位角异常', 'hub', 2, 4, plt.HubAzimuth],
-        ['故障', '叶片桨距角不同步', 'blade_asynchronous', 2, 5, plt.BladeAsynchronous],
-        ['故障', '叶根摆振弯矩超限', 'blade_edgewise_overloaded', 2, 6, plt.BladeOverloaded],
-        ['故障', '叶根挥舞弯矩超限', 'blade_flapwise_overloaded', 2, 6, plt.BladeOverloaded],
-        ['故障', '叶根载荷不平衡', 'blade_unbalanced_load', 2, 7, plt.BladeUnblacedLoad],
-        ['故障', '叶片pitchkick', 'blade_pitchkick', 2, 8, plt.BladePitchkick],
+        ['故障', '齿轮箱关键参数超限', '齿轮箱关键参数超限', 2, 1, plt.Gearbox],
+        ['故障', '发电机关键参数超限', '发电机关键参数超限', 2, 2, plt.GeneratorOverloaded],
+        ['故障', '变流器关键参数超限', '变流器关键参数超限', 2, 3, plt.Convertor],
+        ['故障', '风轮方位角异常', '风轮方位角异常', 2, 4, plt.HubAzimuth],
+        ['故障', '叶片桨距角不同步', '叶片桨距角不同步', 2, 5, plt.BladeAsynchronous],
+        ['故障', '叶根摆振弯矩超限', '叶根摆振弯矩超限', 2, 6, plt.BladeOverloaded],
+        ['故障', '叶根摆挥舞矩超限', '叶根摆挥舞矩超限', 2, 6, plt.BladeOverloaded],
+        ['故障', '叶根载荷不平衡', '叶根载荷不平衡', 2, 7, plt.BladeUnblacedLoad],
+        ['故障', '叶片pitchkick', '叶片pitchkick', 2, 8, plt.BladePitchkick],
         ['安全', '叶片净空', 'clearance', 3, 1, None],
         ['安全', '塔顶振动', 'vibration', 3, 2, None],
         ['通用质量特性', '可靠性', 'reliability', 4, 1, None],
@@ -52,6 +53,7 @@ SIDEBAR_DF = pd.DataFrame(
     columns=['category', 'name', 'id', 'order', 'suborder', 'graph_cls']
     )
 
+FAULT_TYPE =  RSDBInterface.read_turbine_fault_type().set_index('name')
 
 # =============================================================================
 # layour
@@ -120,7 +122,7 @@ def _card_fault():
                     dbc.InputGroup(
                         [
                             dbc.InputGroupText('日期', class_name='small'),
-                            dmc.DatePicker(id=f'{_PREFIX}_date_fault', size='md', clearable =False),  
+                            dmc.DatePicker(id=f'{_PREFIX}_date_fault', size='md', clearable =False, value=None),  
                             dbc.InputGroupText("开始时间", class_name='small'),
                             dmc.TimeInput(id=f'{_PREFIX}_start_time_fault', size='md', value='2022-02-02T00:00:00'),
                             dbc.InputGroupText("结束时间", class_name='small'),
@@ -225,6 +227,7 @@ def _get_card_plot():
         ])
     return dbc.Row(dbc.Col(card, class_name='m-0 px-1 pt-1'))
 
+
 def get_layout():
     layout = [
         dbc.Alert(id=f"{_PREFIX}_alert", color = 'danger', duration=3000, is_open=False),
@@ -251,6 +254,7 @@ def get_layout():
                         dbc.Container(id=f"{_PREFIX}_setting",
                                     fluid=True,
                                     className='m-0'),
+                        # 绘图区是共用的
                         dbc.Container(
                             _get_card_plot(),
                             id=f"{_PREFIX}_graph_area",
@@ -272,30 +276,21 @@ def get_layout():
 # =============================================================================
 @callback(
     Output(f'{_PREFIX}_setting', 'children'),
+    Output(f'{_PREFIX}_graph_area', 'children'),
     Input({'main':f'{_PREFIX}_sidebar', 'sub': ALL}, 'n_clicks'),
-    State(f'{_PREFIX}_store_sidebar_item_component', 'data'),
     prevent_initial_call=True
     )
 @_on_error
-def analyse_on_click_sidebar_item(n, store_component):
-    # 点击侧边栏选项卡时，切换图形设定区
+def analyse_change_setting_card(n):
     sub = ctx.triggered_id['sub']
     new_cat = SIDEBAR_DF[SIDEBAR_DF['id']==sub]['category'].iloc[0]
-    if store_component is None or store_component=='':
-        old_cat = ''
+    if new_cat == '性能':
+             card = _card_comparison()
+    elif new_cat == '故障':
+        card = _card_fault()
     else:
-        old_cat = SIDEBAR_DF[SIDEBAR_DF['id']==store_component]['category'].iloc[0]
-
-    if new_cat==old_cat:
-        rev=no_update
-    else:
-        if new_cat == '性能':
-             rev = _card_comparison()
-        elif new_cat == '故障':
-            rev = _card_fault()
-        else:
-            rev = ''
-    return rev
+        card = ''
+    return card, _get_card_plot()
 
 @callback(
     Output(f'{_PREFIX}_store_sidebar_item_component', 'data'),
@@ -304,23 +299,18 @@ def analyse_on_click_sidebar_item(n, store_component):
     )
 @_on_error
 def analyse_update_store_sidebar_item_component(n):
-    # 点击侧边栏选项卡时，记录下选择的栏目
+    # 点击侧边栏选项卡时，记录下当前选择的栏目
     return ctx.triggered_id['sub']
 
 @callback(
-    Output(f'{_PREFIX}_plot', 'figure'),
+    Output(f'{_PREFIX}_store_data_dct', 'data', allow_duplicate=True),
+    Output(f'{_PREFIX}_store_talbe_lst', 'data', allow_duplicate=True),
     Input({'main':f'{_PREFIX}_sidebar', 'sub': ALL}, 'n_clicks'),
-    State(f'{_PREFIX}_store_sidebar_item_component', 'data'),
     prevent_initial_call=True
     )
 @_on_error
-def analyse_on_sidbar_powercurv(n, store_component):
-    # 点击其他侧边栏选项后，清空绘图区域
-    sub = ctx.triggered_id['sub']
-    if sub==store_component:
-        return no_update
-    return {}
-
+def analyse_clear_store_data(n):
+    return None, None
 
 # =============================================================================
 # 参数设定区响应函数————对比分析
@@ -353,6 +343,8 @@ def analyse_on_btn_add_cmp(n):
     )
 @_on_error
 def analyse_on_change_set_id_cmp(set_id):
+    if set_id is None:
+        return [], None
     df = RSDBInterface.read_windfarm_configuration()
     tags_df = get_all_table_tags().rename(columns={'device':'turbine_id'})
     df = pd.merge(df, tags_df, how='inner')
@@ -458,6 +450,18 @@ def analyse_on_change_dropdown_map_id_cmp(map_id, set_id):
     return rev
 
 
+# 由于动态生成页面元素，且公用refresh按钮，所需需要通过store对象来存储绘图设置列表，避免
+# component不存在的错误
+@callback(
+    Output(f'{_PREFIX}_store_talbe_lst', 'data'),
+    Input(f'{_PREFIX}_datatable_cmp', 'data'),
+    prevent_initial_call=True
+    )
+@_on_error
+def analyse_update_store_table_lst(value_lst):
+    return value_lst
+
+
 # =============================================================================
 # 参数设定区响应函数————故障分析
 # =============================================================================
@@ -469,7 +473,9 @@ def analyse_on_change_dropdown_map_id_cmp(map_id, set_id):
     )
 @_on_error
 def analyse_on_change_set_id_fault(set_id):
-    df = RSDBInterface.read_windfarm_configuration()
+    if set_id is None:
+        return [], None
+    df = RSDBInterface.read_windfarm_configuration(set_id=set_id)
     tags_df = get_all_table_tags().rename(columns={'device':'turbine_id'})
     df = pd.merge(df, tags_df, how='inner')
     
@@ -484,12 +490,16 @@ def analyse_on_change_set_id_fault(set_id):
     Output(f'{_PREFIX}_date_fault', 'value'),
     Input(f'{_PREFIX}_dropdown_map_id_fault', 'value'),
     State(f'{_PREFIX}_dropdown_set_id_fault', 'value'),
+    State(f'{_PREFIX}_store_sidebar_item_component', 'data'),
     prevent_initial_call=True
     )
 @_on_error
-def analyse_on_change_map_id_fault(map_id, set_id): 
+def analyse_update_date_picker_fault(map_id, set_id, fault_type): 
+    if None in (map_id, set_id, fault_type):
+        return [None]*4
+    fault_id = FAULT_TYPE.loc[fault_type, 'id']
     turbine_id = utils.mapid_to_tid(set_id=set_id, map_id=map_id)
-    df = RSDBInterface.read_statistics_fault(set_id=set_id, turbine_id=turbine_id)
+    df = RSDBInterface.read_statistics_fault(set_id=set_id, turbine_id=turbine_id, fault_id=fault_id)
     if len(df)>0:
         dates = df['date'].squeeze()
         min_date = dates.min()
@@ -507,83 +517,42 @@ def analyse_on_change_map_id_fault(map_id, set_id):
     rev = [min_date, max_date, disabled_days, value]
     return rev
 
-
 @callback(
     Output(f'{_PREFIX}_start_time_fault', 'value'),    
     Output(f'{_PREFIX}_end_time_fault', 'value'),
-    Input(f'{_PREFIX}_start_time_fault', 'value'),    
-    Input(f'{_PREFIX}_end_time_fault', 'value'),
+    Input(f'{_PREFIX}_date_fault', 'value'),
+    State(f'{_PREFIX}_dropdown_set_id_fault', 'value'),
+    State(f'{_PREFIX}_dropdown_map_id_fault', 'value'),
+    State(f'{_PREFIX}_store_sidebar_item_component', 'data'),
+    State(f'{_PREFIX}_start_time_fault', 'value'),    
+    State(f'{_PREFIX}_end_time_fault', 'value'),
     prevent_initial_call=True
     )
 @_on_error
-def analyse_on_change_date_range_cmp(start_time, end_time):
+def analyse_change_date_fault(date, set_id, map_id, fault_type, start_time, end_time):
+    if date is None:
+        return [None]*2
     start_time = pd.to_datetime(start_time)
     end_time = pd.to_datetime(end_time)
-    
-    rev = []
-    if start_time.minute==59:
-        start_time = start_time - pd.Timedelta('1m')
-        rev.append(start_time)
+    date = pd.to_datetime(date)
+    # 若修改了日期，则讲开始、结束时间重置为故障前后15分钟
+    fault_id = FAULT_TYPE.loc[fault_type, 'id']
+    turbine_id = utils.mapid_to_tid(set_id, map_id)
+    df = RSDBInterface.read_statistics_fault(set_id=set_id, turbine_id=turbine_id, date=date, fault_id=fault_id)
+    if len(df)<1:
+        start_time=end_time=no_update
     else:
-        rev.append(no_update)
-        
-    if start_time.time()>=end_time.time():
-        end_time = pd.to_datetime(start_time) + pd.Timedelta('1m')
-        rev.append(end_time)
-    else:
-        rev.append(no_update)
-    
-    return rev
-
-
-# =============================================================================
-# 绘图区 - cmp
-# =============================================================================
-@callback(
-    Output(f'{_PREFIX}_btn_refresh_cmp', 'disabled'),
-    Input(f'{_PREFIX}_datatable_cmp', 'data'),
-    )
-@_on_error
-def analyse_update_ui_btn_refresh_cmp(value_lst):
-    rev = False
-    if value_lst is None or len(value_lst)==0:
-        rev = True
-    return rev
-
+        start_time = df['timestamp'].iloc[0] - pd.Timedelta('15m')
+        # 有可能会是前一天
+        if start_time.date() < date.date():
+            start_time = '1999-01-01 00:00:00'
+        end_time = df['timestamp'].iloc[0] + pd.Timedelta('15m')
+        # 有可能是后一天
+        if end_time.date() > date.date():
+            end_time =  '1999-01-01 23:59:00'
+    return start_time, end_time
 
 @callback(
-    Output(f'{_PREFIX}_btn_refresh', 'disabled', allow_duplicate=True),
-    Output(f'{_PREFIX}_store_talbe_lst', 'data'),
-    Input(f'{_PREFIX}_datatable_cmp', 'data'),
-    prevent_initial_call=True
-    )
-@_on_error
-def analyse_on_btn_refresh_cmp(value_lst):
-    if value_lst is None or len(value_lst)<1:
-        return True, value_lst
-    return False, value_lst
-
-    
-# @callback(
-#     Output(f'{_PREFIX}_graph_cmp', 'figure'),
-#     Input(f'{_PREFIX}_btn_refresh_cmp', 'n_clicks'),
-#     State(f'{_PREFIX}_datatable_cmp', 'data'),
-#     State(f'{_PREFIX}_store_sidebar_item_component', 'data'),
-#     prevent_initial_call=True
-#     )
-# @_on_error
-# def analyse_on_btn_refresh_cmp(n, value_lst, item):
-#     columns=['图例号', '机型编号', '风机编号', '开始日期', '结束日期']
-#     df = pd.DataFrame(value_lst, columns=columns)
-#     rev = SIDEBAR_DF.set_index('id').loc[item, 'graph_cls'](df).figs[0]
-#     rev.update_layout(height=700)
-#     return rev
-
-# =============================================================================
-# 绘图区 - fault
-# =============================================================================
-@callback(
-    Output(f'{_PREFIX}_btn_refresh', 'disabled'),
     Output(f'{_PREFIX}_store_data_dct', 'data'),
     Input(f'{_PREFIX}_dropdown_set_id_fault', 'value'),
     Input(f'{_PREFIX}_dropdown_map_id_fault', 'value'),
@@ -592,42 +561,61 @@ def analyse_on_btn_refresh_cmp(value_lst):
     Input(f'{_PREFIX}_end_time_fault', 'value'),
     )
 @_on_error
-def analyse_update_ui_btn_refresh_fault(set_id, map_id, date, start_time, end_time):
-    data_dct = dict(
+def analyse_update_store_data_dct(set_id, map_id, date, start_time, end_time):
+    if None in (set_id, map_id, date, start_time, end_time):
+        return None
+    rev = dict(
         set_id=set_id, 
         map_id=map_id, 
         start_time=f'{date}T{start_time[11:]}',
         end_time=f'{date}T{end_time[11:]}', 
         name=None
         )
-    rev = [False, data_dct]
-    variables = (set_id, map_id, start_time, end_time, date)
-    if None in variables or '' in variables:
-        rev[0] = True  
     return rev
 
 # =============================================================================
 # 绘图区
 # =============================================================================
+# 控制栏区中所有信息都有值，refresh按钮可用，否则禁用，下面两组函数更新对象相同，但是
+# Input不一样。它们不可以合并在一起，因为Input并不是同时存在。
+@callback(
+    Output(f'{_PREFIX}_btn_refresh', 'disabled', allow_duplicate=True),
+    Input(f'{_PREFIX}_datatable_cmp', 'data'),
+    prevent_initial_call=True 
+    )
+@_on_error
+def analyse_update_ui_btn_refresh_fault(data):
+    return data is None
+
+@callback(
+    Output(f'{_PREFIX}_btn_refresh', 'disabled'),
+    Input(f'{_PREFIX}_dropdown_set_id_fault', 'value'),
+    Input(f'{_PREFIX}_dropdown_map_id_fault', 'value'),
+    Input(f'{_PREFIX}_date_fault', 'value'),
+    Input(f'{_PREFIX}_start_time_fault', 'value'),
+    Input(f'{_PREFIX}_end_time_fault', 'value'),
+    prevent_initial_call=True 
+    )
+@_on_error
+def analyse_update_ui_btn_refresh_cmp(set_id, map_id, date, start_time, end_time):
+    if None in (set_id, map_id, date, start_time, end_time):
+        return True
+    if start_time[11:] >= end_time[11:]:
+        return True
+    return False
+
+
+# 根据导航栏大类绘制图形
 @callback(
     Output(f'{_PREFIX}_graph', 'figure'),
     Input(f'{_PREFIX}_btn_refresh', 'n_clicks'),
-    Input({'main':f'{_PREFIX}_sidebar', 'sub': ALL}, 'n_clicks'),
     State(f'{_PREFIX}_store_sidebar_item_component', 'data'),
     State(f'{_PREFIX}_store_talbe_lst', 'data'),
     State(f'{_PREFIX}_store_data_dct', 'data'),
     prevent_initial_call=True
     )
 @_on_error
-def analyse_on_btn_refresh(n, n2, item, value_lst, data_dct):
-    id_ = ctx.triggered_id
-    sub = getattr(id_, 'sub', None)
-    if sub is not None:
-        if sub==item:
-            return no_update
-        else:
-            return {}
-    
+def analyse_update_graph(n, item, value_lst, data_dct):    
     cat = SIDEBAR_DF[SIDEBAR_DF['id']==item]['category'].iloc[0]
     if cat=='性能':
         columns=['图例号', '机型编号', '风机编号', '开始日期', '结束日期']
@@ -638,10 +626,9 @@ def analyse_on_btn_refresh(n, n2, item, value_lst, data_dct):
         data = None
         
     if data is None or len(data)<1:
-        rev = no_update
+        rev = {}
     else:
-        rev = SIDEBAR_DF.set_index('id').loc[item, 'graph_cls'](data).figs[0]
-        rev.update_layout(height=900)
+        rev = SIDEBAR_DF.set_index('id').loc[item, 'graph_cls'](data, title=item).figs[0]
     return rev
 
 
@@ -654,4 +641,4 @@ if __name__ == '__main__':
                     external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
                     suppress_callback_exceptions=True)
     app.layout = html.Div(get_layout())
-    app.run_server(debug=True)
+    app.run_server(debug=False)

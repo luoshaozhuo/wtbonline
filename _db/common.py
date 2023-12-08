@@ -136,7 +136,7 @@ def make_sure_list(x)->list:
         x = []
     elif isinstance(x, str):
         x = [x]
-    elif hasattr(x, 'tolist'):
+    elif isinstance(x, pd.Series):
         x = x.tolist()
     elif isinstance(x, pd.DataFrame):
         if x.shape[1]==1:

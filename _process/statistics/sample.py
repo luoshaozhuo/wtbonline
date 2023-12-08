@@ -162,7 +162,7 @@ def update_statistic_sample(*args, **kwargs):
     if len(df)==0:
         raise ValueError('update_statistic_sample: windfarm_configuration 查询失败')
     for _, (set_id, turbine_id) in df.iterrows():
-        _LOGGER.info(f'update_statistic_sample: {set_id}, {turbine_id}')
+        _LOGGER.info(f'task_id={task_id} update_statistic_sample: {set_id}, {turbine_id}')
         # 本地tsdb已存在的数据日期
         tsdb_dates = get_dates_tsdb(turbine_id, remote=False)
         statistics_dates = dates_in_statistic_sample(set_id, turbine_id)

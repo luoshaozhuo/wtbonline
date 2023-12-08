@@ -322,6 +322,7 @@ class TimedTask(db.Model):
     __tablename__ = 'timed_task'
 
     id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='任务id')
     status = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='start/pause/delete')
     func = db.Column(db.String(100, 'utf8mb4_general_ci'), nullable=False)
     setting = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='interval/date')
@@ -329,7 +330,7 @@ class TimedTask(db.Model):
     function_parameter = db.Column(db.String(255, 'utf8mb4_general_ci'))
     task_parameter = db.Column(db.String(255, 'utf8mb4_general_ci'))
     username = db.Column(db.ForeignKey('user.username', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True, info='任务发布者')
-    create_time = db.Column(db.DateTime, nullable=False)
+    update_time = db.Column(db.DateTime, nullable=False)
 
     user = db.relationship('User', primaryjoin='TimedTask.username == User.username', backref='timed_tasks')
 
@@ -339,8 +340,8 @@ class TimedTaskLog(db.Model):
     __tablename__ = 'timed_task_log'
 
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, index=True)
-    success = db.Column(db.Integer, nullable=False)
+    task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
+    result = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False)
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
     pid = db.Column(db.Integer, nullable=False)

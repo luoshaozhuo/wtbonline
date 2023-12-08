@@ -8,7 +8,7 @@ Created on Tue Apr 25 19:21:08 2023
 """
 #%% definiton
 # import
-from datetime import date
+import datetime
 import pandas as pd
 from typing import List, Optional, Union, Mapping, Any
 
@@ -47,6 +47,12 @@ class RSDBInterface():
                 in_clause.update({key_:values})
         return eq_clause, in_clause
 
+
+    @classmethod
+    def read_apscheduler_jobs(cls,)->pd.DataFrame:
+        tbname = model.ApschedulerJob.__tablename__
+        return RSDB.query(tbname) 
+
     @classmethod
     def read_statistics_daily(
             cls, 
@@ -78,10 +84,11 @@ class RSDBInterface():
             *, 
             set_id:Optional[Union[str, List[str]]]=None,
             turbine_id:Optional[Union[str, List[str]]]=None,
-            fault_id:Optional[Union[str, List[str]]]=None,
+            fault_id:Optional[Union[int, List[int]]]=None,
             columns:Optional[Union[List[str], str]]=None,
-            start_time:Union[str, pd.Timestamp, date] = None,
-            end_time:Union[str, pd.Timestamp, date] = None,
+            date:datetime.date=None,
+            start_time:Union[str, pd.Timestamp, datetime.date] = None,
+            end_time:Union[str, pd.Timestamp, datetime.date] = None,
             limit=None,
             )->pd.DataFrame:
         tbname = model.StatisticsFault.__tablename__
@@ -90,8 +97,9 @@ class RSDBInterface():
         lge_clause = {} if start_time is None else {'timestamp':start_time}
         end_time = make_sure_datetime(end_time)  
         lt_clause = {} if end_time is None else {'timestamp':end_time}
+        date = make_sure_datetime(date)
         
-        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, turbine_id=turbine_id, fault_id=fault_id)
+        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, turbine_id=turbine_id, fault_id=fault_id, date=date)
         return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, 
                           lge_clause=lge_clause, lt_clause=lt_clause ,columns=columns) 
 
@@ -99,8 +107,8 @@ class RSDBInterface():
     def read_timed_task(
             cls, 
             *, 
-            status:Optional[Union[str, List[str]]]=['start', 'pause'],
-            success:Optional[Union[str, List[str]]]=None,
+            task_id:Optional[str]=None,
+            status:Optional[Union[str, List[str]]]=None,
             func:Optional[Union[str, List[str]]]=None,
             limit=None,
             )->pd.DataFrame:
@@ -108,7 +116,7 @@ class RSDBInterface():
         >>> _ = RSDBInterface.read_timed_task_log()
         '''
         tbname = 'timed_task'
-        eq_clause, in_clause = cls.get_in_or_eq_clause(success=success, func=func, status=status)
+        eq_clause, in_clause = cls.get_in_or_eq_clause(status=status, func=func, task_id=task_id)
         return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit) 
 
     @classmethod
@@ -289,8 +297,8 @@ class RSDBInterface():
         id_:(list or int or str)=None,
         set_id:(list or int or str)=None,
         turbine_id:(list or int or str)=None,
-        start_time:Union[str, pd.Timestamp, date] = None,
-        end_time:Union[str, pd.Timestamp, date] = None,
+        start_time:Union[str, pd.Timestamp, datetime.date] = None,
+        end_time:Union[str, pd.Timestamp, datetime.date] = None,
         columns:Optional[Union[List[str], str]]=None,
         limit:int=None,
         unique:bool=False,
@@ -325,8 +333,8 @@ class RSDBInterface():
         set_id:(list or int or str)=None,
         turbine_id:(list or int or str)=None,
         model_uuid:List[str]=None,
-        start_time:Union[str, pd.Timestamp, date] = None,
-        end_time:Union[str, pd.Timestamp, date] = None,
+        start_time:Union[str, pd.Timestamp, datetime.date] = None,
+        end_time:Union[str, pd.Timestamp, datetime.date] = None,
         columns:Optional[Union[List[str], str]]=None,
         limit:int=None,
         ):

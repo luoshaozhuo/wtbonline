@@ -84,7 +84,7 @@ def log_it(logger, is_timed_task=False):
             params = f'{p_args},{p_kwargs}'.strip(',')
             logger.info(f'{func.__name__}({params}) start')
             rev = None
-            success = 0
+            result = 'SUCCESS'
             if is_timed_task==True:
                 start_time = pd.Timestamp.now()
             try:
@@ -94,18 +94,18 @@ def log_it(logger, is_timed_task=False):
                 raise
             else:
                 logger.info(f'{func.__name__}({params}) finihed')
-                success = 1
+                result = 'FAILED'
             finally:
                 if is_timed_task==True:
                     pid = os.getppid()
                     end_time = pd.Timestamp.now()
                     RSDBInterface.insert(
                         dict(
-                            task_id=kwargs.get('task_id', '-999'),
+                            task_id=kwargs.get('task_id', 'test'),
                             pid=pid,
                             start_time=start_time,
                             end_time=end_time,
-                            success=success
+                            result=result
                             ), 
                         'timed_task_log')
                     logger.info(f'{func.__name__}({params}) recorded')

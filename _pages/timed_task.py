@@ -14,34 +14,56 @@ from dash import html, Input, Output, no_update, callback, State, ctx, dash_tabl
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import pandas as pd
+import numpy as np
 from flask_login import current_user
 import requests
 import time
+from dash_iconify import DashIconify
 
 from wtbonline._pages.tools._decorator import _on_error
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._pages.tools.utils import is_duplicated_task
+from wtbonline._common.code import SCHEDULER_MANIPULATION_FAILED, SCHEDULER_CONNECTION_FAILED, MYSQL_QUERY_FAILED
 
 # =============================================================================
 # constant
 # =============================================================================
 _PREFIX = 'task'
-_COLUMNS = ['id', '状态', '目标函数', '设定', '任务参数', '目标函数参数', '设定执行时间', '下次运行时间', '最近运行结果',  '发布者']
+
+_COLUMNS_DCT = {
+    'task_id':'任务id', 
+    'status':'状态', 
+    'setting':'类型', 
+    'task_parameter':'参数', 
+    'func':'目标函数', 
+    'function_parameter':'目标函数参数', 
+    'start_time':'开始时间', 
+    'next_run_time':'下次运行时间', 
+    'username':'拥有者'
+}
+_TABLE_COLUMNS = list(_COLUMNS_DCT.keys())
+_TABLE_HEADERS = list(_COLUMNS_DCT.values())
+
 _FUNC_DCT = { 
-    "初始化数据库":"wtbonline._process.preprocess:init_tdengine",
-    "原始数据ETL":"wtbonline._process.preprocess:update_tsdb",
-    "数据统计":"wtbonline._process.statistic:update_statistic_sample",
-    "训练模型":"wtbonline._process.modelling:train_all",
-    "离群值识别":"wtbonline._process.modelling:predict_all",
-    "简报":"wtbonline._report.brief_report:build_brief_report_all",
-    "更新缓存":"wtbonline._pages.tools.utils:update_cache",
-    "心跳":"wtbonline._process.preprocess:heart_beat",
+    "初始化数据库":"wtbonline._process.preprocess.init_tsdb:init_tdengine",
+    "拉取原始数据":"wtbonline._process.preprocess.load_tsdb:update_tsdb",
+    "拉取ibox数据":"wtbonline._process.preprocess.load_ibox_files:update_ibox_files",
+    "统计10分钟样本":"wtbonline._process.statistics.sample:update_statistic_sample",
+    "统计24小时样本":"wtbonline._process.statistics.daily:udpate_statistic_daily",
+    "检测故障":"wtbonline._process.statistics.fault:udpate_statistic_fault",
+    "训练离群值识别模型":"wtbonline._process.model.anormlay.train:train_all",
+    "离群值识别":"wtbonline._process.model.anormlay.predict:predict_all",
+    "数据统计报告":"wtbonline._report.brief_report:build_brief_report_all",
+    "更新缓存":"wtbonline._pages.tools.utils:update_cache"
     }
 
 _DATE_DATE_FORMAT = '%Y-%m-%d'
 _DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 _URL='http://scheduler:40000/scheduler/jobs'
+
+SUCCESS = 0
+FAILED = 1 
 
 # =============================================================================
 # function
@@ -52,37 +74,42 @@ def _make_sure_datetime_string(x):
     return x
 
 def read_task_table():
-    # ['id', '状态', '目标函数', '设定', '任务参数', '目标函数参数', '设定执行时间', '下次运行时间', '最近运行结果',  '发布者']
-    sql='''
-        select e.id, e.status, e.func, e.setting, e.task_parameter, e.function_parameter, e.start_time, f.next_run_time, e.success, e.username from apscheduler_jobs f
-        right join 
-        (
-            select * from timed_task c 
-            left join 
-            (
-                select a.task_id, a.success, a.end_time from timed_task_log a
-                right join
-                (select task_id, max(end_time) as end_time from timed_task_log GROUP BY task_id) b
-                on b.task_id=a.task_id and a.end_time=b.end_time
-            ) d
-            on d.task_id=c.id
-            where c.status='start' or c.status='pause'
-        ) e
-        on f.id=e.id
-        '''
-    df = RSDB.read_sql(sql)
+    apschduler_df = RSDBInterface.read_apscheduler_jobs()
+    timed_task_df = RSDBInterface.read_timed_task()
+    df = pd.merge(timed_task_df, apschduler_df, how='left', left_on='task_id', right_on='id')
     df['next_run_time'] = pd.to_datetime(df['next_run_time'], unit='s') + pd.Timedelta('8h')
-    return df
+    return df[_TABLE_COLUMNS]
 
 def _render_table():
     df = read_task_table()
-    df.columns = _COLUMNS
+    df.columns = _TABLE_HEADERS
     data = df.to_dict('records')
     return data
 
 # =============================================================================
 # layout
 # =============================================================================
+def get_notification(_type:int, message:str):
+    if _type==SUCCESS:
+        autoClose = 3000
+        color = 'green'
+        title = 'success'
+        icon=DashIconify(icon="akar-icons:circle-check")
+    elif _type==FAILED:
+        autoClose = False
+        color = 'red'
+        title = 'failed'
+        icon=DashIconify(icon="ic:twotone-warning-amber")
+    return dmc.Notification(
+            id=f'{_PREFIX}_notification',
+            title=title,
+            action="show",
+            message=message,
+            icon=icon,
+            color=color,
+            autoClose=autoClose
+        )
+
 def _setting():
     return dbc.Card([
             dbc.CardHeader('任务管理'),
@@ -116,16 +143,16 @@ def _setting():
                 class_name='mb-2'),
             dash_table.DataTable(
                 id=f'{_PREFIX}_datatable',
-                columns=[{'name': i, 'id': i} for i in _COLUMNS],                           
+                columns=[{'name': i, 'id': i} for i in _TABLE_HEADERS],                           
                 row_deletable=False,
                 row_selectable="single",
                 page_action='native',
                 page_current= 0,
                 page_size= 20,
                 style_header = {'font-weight':'bold'},
-                style_table = {'font-size':'small'},
+                style_table = {'font-size':'small', 'overflowX': 'auto'},
                 style_data={
-                    'whiteSpace': 'normal',
+                    # 'whiteSpace': 'normal',
                     'height': 'auto',
                     'lineHeight': '15px'
                 },                
@@ -160,7 +187,7 @@ def _control():
                 dbc.InputGroup(
                     [
                         dbc.InputGroupText("时间", class_name='small'),
-                        dmc.TimeInput(id=f'{_PREFIX}_start_time', size='sm'),
+                        dmc.TimeInput(id=f'{_PREFIX}_start_time', size='sm', value='2022-02-02T00:00:00'),
                         ], 
                     className='w-100'
                     ), 
@@ -234,16 +261,19 @@ def _control():
 
 def get_layout():
     layout = [
-        dbc.Alert(id=f'{_PREFIX}_alert', color='danger', duration=3000, is_open=False, className='border rounded-0'),
+        dmc.NotificationsProvider(html.Div(id=f'{_PREFIX}_notification_container')),  
         dbc.Row(
             [
                 dbc.Col(
-                    _control(), 
+                    [   
+                     _control()
+                     ],
                     width=2, 
                     className='border-end h-100'
                     ),
                 dbc.Col(
                     _setting(), 
+                    width=10,
                     className='h-100'
                     ),
                 ],
@@ -252,20 +282,21 @@ def get_layout():
         ]
     return layout
 
-
 # =============================================================================
 # callback
 # =============================================================================
 @callback(
     Output(f'{_PREFIX}_interval', 'disabled'),
     Output(f'{_PREFIX}_interval_unit', 'disabled'),
+    Output(f'{_PREFIX}_start_time', 'value'),
     Input(f'{_PREFIX}_setting', 'value'),
     prevent_initial_call=True,
     )
 @_on_error
 def timed_task_on_change_setting(setting):
-    rev = False if setting=='interval' else True
-    return [rev]*2
+    disabled = False if setting=='interval' else True
+    start_time = '2022-02-02T00:00:00' if setting=='interval' else pd.Timestamp.now()
+    return disabled, disabled, start_time
 
 @callback(
     Output(f'{_PREFIX}_btn_add', 'disabled'),
@@ -288,9 +319,7 @@ def timed_task_on_change_func(func, setting):
 
 @callback(
     Output(f'{_PREFIX}_datatable', 'data', allow_duplicate=True),
-    Output(f'{_PREFIX}_alert', 'is_open', allow_duplicate=True),
-    Output(f'{_PREFIX}_alert', 'children', allow_duplicate=True),
-    Output(f'{_PREFIX}_alert', 'color', allow_duplicate=True),
+    Output(f'{_PREFIX}_notification_container', "children", allow_duplicate=True),  
     Input(f'{_PREFIX}_btn_add', 'n_clicks'),
     State(f'{_PREFIX}_func', 'value'),
     State(f'{_PREFIX}_start_date', 'value'),
@@ -308,14 +337,14 @@ def timed_task_on_change_func(func, setting):
 def timed_task_on_btn_add(n, func, job_start_date, job_start_time, setting, interval, unit,  end_date, minimum, size, delta):
     func_name = _FUNC_DCT[func].split(':')[1]
     if 'update_statistic_sample'==func_name and is_duplicated_task(func_name):
-        return no_update, True, f"已有在运行中的一次新任务或定时任务：'{func}'，删除后再尝试添加", 'danger'
+        message =  f"{func}：任务已存在，不可以重复添加。"
+        return no_update, get_notification(FAILED, message=message)
     
     try:
         username = current_user.username
     except:
         username = 'timed_task_test'
     job_start_time = _make_sure_datetime_string(job_start_time)
-    status = 'pause'
     
     job_start_date = pd.Timestamp.now() if job_start_date is None else pd.to_datetime(job_start_date)
     if job_start_time is None or job_start_time=='':
@@ -332,23 +361,45 @@ def timed_task_on_btn_add(n, func, job_start_date, job_start_time, setting, inte
         end_time = end_time,
         delta = delta,
         size = size,
-        minimum =minimum
+        minimum = minimum
         )
     
-    RSDBInterface.insert(
-        dict(
-            status=status,
-            func=_FUNC_DCT[func],
-            setting=setting,
-            start_time=job_start_time,
-            task_parameter=f'{task_parameter}',
-            function_parameter=f'{function_parameter}',
-            username=username,
-            create_time=pd.Timestamp.now()
-            ),
-        'timed_task'
-        )
-    return _render_table(), no_update, no_update, no_update
+    task_id = str(pd.Timestamp.now().date()) + '-' + str(np.random.randint(0, 10**6))
+    function_parameter.update({"task_id":task_id})
+    key_ = 'run_date' if setting=='date' else 'start_date'
+    kwargs = {
+        'id':task_id, 
+        'func':_FUNC_DCT[func], 
+        'trigger':setting,
+        key_:job_start_time,
+        'kwargs':function_parameter,
+        }
+    kwargs.update(task_parameter)
+    
+    _type = SUCCESS
+    message = ''
+    
+    try:
+        RSDBInterface.insert(
+            dict(
+                task_id=task_id,
+                status='CREATED',
+                func=_FUNC_DCT[func],
+                setting=setting,
+                start_time=job_start_time,
+                task_parameter=f'{task_parameter}',
+                function_parameter=f'{function_parameter}',
+                username=username,
+                update_time=pd.Timestamp.now()
+                ),
+            'timed_task'
+            )
+    except:
+        _type = FAILED
+        message = MYSQL_QUERY_FAILED    
+    
+    return _render_table(),  get_notification(_type, message)
+
 
 @callback(
     Output(f'{_PREFIX}_datatable', 'data', allow_duplicate=True),
@@ -372,18 +423,17 @@ def timed_task_select_rows(rows, data):
     if (data is not None) and len(data)>0 and (rows is not None) and len(rows)>0:
         df = pd.DataFrame(data).iloc[rows]
         status = df['状态'].iloc[0]
-        if status=='start':
+        if status=='START':
             rev = [True, False, False]
-        elif status=='pause':
+        elif status in ('PAUSED', 'CREATED'):
             rev = [False, True, False]
     return rev
+
 
 @callback(
     Output(f'{_PREFIX}_datatable', 'data', allow_duplicate=True),
     Output(f'{_PREFIX}_datatable', 'selected_rows', allow_duplicate=True),
-    Output(f'{_PREFIX}_alert', 'is_open'),
-    Output(f'{_PREFIX}_alert', 'children'),
-    Output(f'{_PREFIX}_alert', 'color'),
+    Output(f'{_PREFIX}_notification_container', "children"),
     Input(f'{_PREFIX}_btn_start', 'n_clicks'),
     Input(f'{_PREFIX}_btn_pause', 'n_clicks'),
     Input(f'{_PREFIX}_btn_delete', 'n_clicks'),
@@ -392,55 +442,49 @@ def timed_task_select_rows(rows, data):
     prevent_initial_call=True,
     )
 @_on_error
-def timed_task_on_btn_start_pause_delete(n1, n2, n3, rows, data):  
-    df = pd.DataFrame(data).iloc[rows]
+def timed_task_on_btn_start_pause_delete(n1, n2, n3, indexs, data):  
+    # 只有单行，因为datatable不能多选
+    row = pd.DataFrame(data).iloc[indexs[0], :]
     _id = ctx.triggered_id
-    # 这里考虑多选的情况
-    for _,row in df.iterrows():
-        exist=False
-        # 考虑超时会导致scheduler丢失mysql连接，重试3次，让其恢复
-        for i in range(3):
-            response = requests.get(_URL+f"/{row['id']}")
-            if response.reason == 'OK':
-                exist = True
-                break
-            elif response.reason == 'NOT FOUND':
-                break
-            time.sleep(0.5)
-        else:
-            return _render_table(), [], True, f"apscheduler丢失mysql连接, code={response.status_code}, response={response.text}", 'danger' 
-        if _id==f'{_PREFIX}_btn_start':
-            if exist:
-                response = requests.post(_URL+f"/{row['id']}/resume")
-            else:
-                task_parameter = eval(row['任务参数'])
-                funtion_parameter = eval(row['目标函数参数'])
-                funtion_parameter.update({"task_id":row['id']})
-                key_ = 'run_date' if row['设定']=='date' else 'start_date'
-                kwargs = {
-                    'id':f"{row['id']}", 
-                    'func':row['目标函数'], 
-                    'trigger':row['设定'],
-                    key_:row['设定执行时间'],
-                    'kwargs':funtion_parameter,
-                    }
-                kwargs.update(task_parameter)
-                response = requests.post(_URL, json=kwargs)
-            status = 'start'
-        elif _id==f'{_PREFIX}_btn_pause':
-            if exist:
-                response = requests.post(_URL+f"/{row['id']}/pause")
-            status = 'pause'
-        elif _id==f'{_PREFIX}_btn_delete':
-            if exist:
-                response = requests.delete(_URL+f"/{row['id']}")
-            status = 'delete'
-        # 如果没有重新执行requests，沿用循环开头的requests.get(_URL+f"/{row['id']}")得到的request，此时为ok或not found
-        if response.ok==False and pd.Series(response.text).str.match('.*Job .* not found').all() == False:
-            return _render_table(), [], True, f"操作失败：task_id={row['id']}, code={response.status_code}, response={response.text}", 'danger'
-        RSDBInterface.update('timed_task', {'status':status}, eq_clause={'id':row['id']})         
-    rev_aug = [True, f"操作成功", 'success']
-    return [_render_table(), []] + rev_aug
+    _type = SUCCESS
+    message = ''
+    
+    for i in range(3):
+        try:
+            if _id==f'{_PREFIX}_btn_start':
+                if row['状态'] == 'CREATED':
+                    task_parameter = eval(row['参数'])
+                    funtion_parameter = eval(row['目标函数参数'])
+                    funtion_parameter.update({"task_id":row['任务id']})
+                    key_ = 'run_date' if row['类型']=='date' else 'start_date'
+                    kwargs = {
+                        'id':f"{row['任务id']}", 
+                        'func':row['目标函数'], 
+                        'trigger':row['类型'],
+                        key_:row['开始时间'],
+                        'kwargs':funtion_parameter,
+                        }
+                    kwargs.update(task_parameter)
+                    response = requests.post(_URL, json=kwargs, timeout=2)
+                else:
+                    response = requests.post(_URL+f"/{row['任务id']}/resume", timeout=2)
+            elif _id==f'{_PREFIX}_btn_pause':
+                response = requests.post(_URL+f"/{row['任务id']}/pause", timeout=2)
+            elif _id==f'{_PREFIX}_btn_delete':
+                response = requests.delete(_URL+f"/{row['任务id']}", timeout=2)
+        except Exception as e:
+            response = None
+            _type = FAILED
+            message = SCHEDULER_CONNECTION_FAILED
+            break
+        if response.ok == True:
+            break
+        time.sleep(1)
+    else:
+        _type = FAILED
+        message = f"{SCHEDULER_MANIPULATION_FAILED}：task_id={row['id']}, code={response.status_code}, response={response.text}"
+    
+    return _render_table(), [], get_notification(_type=_type, message=message)
 
 
 # =============================================================================
@@ -451,5 +495,5 @@ if __name__ == '__main__':
     app = dash.Dash(__name__, 
                     external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
                     suppress_callback_exceptions=True)
-    app.layout = html.Div(get_layout())
+    app.layout = html.Div(get_layout())    
     app.run_server(debug=False)

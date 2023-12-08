@@ -9,6 +9,9 @@ from wtbonline._plot.classes.base import BaseFigure
 
 
 class BladePitchkick(BaseFigure):
+    def _init(self):
+        self.height = 800
+    
     def _initialize(self):
         '''
         >>> bp = BladePitchkick({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-05-02'})
@@ -31,7 +34,7 @@ class BladePitchkick(BaseFigure):
                         mode='lines',
                         opacity=0.5,
                         name=f'{i+1}#叶片实际角度',
-                        showlegend=False
+                        # showlegend=False
                         ),
                     row=1,
                     col=1,

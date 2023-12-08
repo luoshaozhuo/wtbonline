@@ -11,6 +11,7 @@ class Convertor(BaseFigure):
     '''
     def _init(self):
         self.var_names = ['var_15004', 'var_15005', 'var_15006', 'var_12016']
+        self.height = 800
 
          
 if __name__ == "__main__":

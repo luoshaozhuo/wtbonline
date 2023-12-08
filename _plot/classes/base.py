@@ -20,7 +20,7 @@ class BaseFigure():
     >>> figure = BaseFigure(df, var_names=['var_101', 'var_102'])
     >>> figure.plot()
     '''  
-    def __init__(self, target_df:Union[pd.DataFrame, dict], samples:int=5000, var_names:List[str]=[]):
+    def __init__(self, target_df:Union[pd.DataFrame, dict], samples:int=3600, var_names:List[str]=[], height=600, title=''):
         '''
         target_df -- 目标数据集
             需要包含set_id,start_time,end_time，必须包含turbine_id', 'map_id', 'device'中的一个，
@@ -35,8 +35,10 @@ class BaseFigure():
         '''
         self.figs = []
         self.samples = samples
+        self.height = height
         self.target_df = self._check_target(target_df)
         self.var_names = make_sure_list(var_names)
+        self.title = title
         self._init()
         self._initialize()
     
@@ -176,6 +178,8 @@ class BaseFigure():
         
     def _tight_layout(self, fig):
         fig.update_layout(
+            title=dict(text=self.title, font=dict(size=20), y=0.98, yref='container'),
+            height=self.height,
             legend=dict(
                 orientation="h",
                 font=dict(
@@ -186,7 +190,7 @@ class BaseFigure():
                 y=1.02,
                 xanchor="right",
                 x=1),
-            margin=dict(l=50, r=50, t=60, b=50)
+            margin=dict(l=50, r=50, t=70, b=50)
             )
 
 if __name__ == '__main__':
