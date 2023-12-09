@@ -421,12 +421,16 @@ def timed_task_on_btn_refresh(n):
 def timed_task_select_rows(rows, data):
     rev = [True]*3
     if (data is not None) and len(data)>0 and (rows is not None) and len(rows)>0:
-        df = pd.DataFrame(data).iloc[rows]
-        status = df['状态'].iloc[0]
-        if status=='START':
+        row = pd.DataFrame(data).iloc[rows[0]].squeeze()
+        status = row['状态']
+        if row['类型']=='intervel' and status in ('EXECUTED', 'ERROR', 'MISSED'):
             rev = [True, False, False]
-        elif status in ('PAUSED', 'CREATED'):
+        elif status=='PAUSED':
             rev = [False, True, False]
+        elif status=='CREATED':
+            rev = [False, True, True]
+        elif status=='ADDED':
+            rev = [True, True, False]
     return rev
 
 

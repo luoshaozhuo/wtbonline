@@ -13,10 +13,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import json
 from flask import request
 import pandas as pd
-
 from apscheduler.events import (
-    JobExecutionEvent, EVENT_JOB_MISSED, EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_REMOVED, EVENT_SCHEDULER_PAUSED, 
-    EVENT_SCHEDULER_RESUMED, EVENT_JOB_SUBMITTED,
+    EVENT_JOB_MISSED, EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_REMOVED, EVENT_SCHEDULER_PAUSED, 
+    EVENT_SCHEDULER_RESUMED, EVENT_JOB_SUBMITTED, EVENT_JOB_ADDED
     )
 
 from wtbonline._db.rsdb.dao import create_engine_
@@ -45,6 +44,7 @@ JOB_STATUS = {
     EVENT_JOB_MISSED:'MISSED', 
     EVENT_JOB_ERROR:'ERROR', 
     EVENT_JOB_EXECUTED:'EXECUTED',
+    EVENT_JOB_ADDED:'ADDED'
     }
 
 MASK = 0
@@ -59,6 +59,11 @@ def listen(event):
     status = JOB_STATUS[event.code]
     job_id = event.job_id
     try:
+        # event并不是按照严格的时间发生先后到达
+        # 譬如，提交一个过期的date型任务时
+        # 有时是miss->remove->submit
+        # 有时是remove->miss->submit
+        # 但是，期望的是remove->submit->miss
         last = RECORD.get(job_id, None)
         now = time.time()
         if last is not None and (now - last[1])<1 and last[0]=='MISSED':

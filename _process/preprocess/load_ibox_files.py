@@ -125,13 +125,15 @@ def _update_ibox_files(args):
     return rev
     
 @log_it(_LOGGER, True)
-def update_ibox_files(executor='thread', max_workers=1):
+def update_ibox_files(*args, **kwargs):
+    executor = kwargs.get('executor', 'thread')
+    max_worker = kwargs.get('max_worker', 1)
     import time
     confs = RSDBInterface.read_windfarm_configuration(columns=['set_id', 'turbine_id'])
     confs = [(i,j) for _,(i,j) in confs.iterrows()]
     start = time.time()
     pool_executor = ThreadPoolExecutor if executor=='thread' else ProcessPoolExecutor
-    with pool_executor(max_workers=max_workers) as exec:
+    with pool_executor(max_workers=max_worker) as exec:
         results = list(exec.map(_update_ibox_files, confs))
     print(time.time()-start)
     if 1 in results:

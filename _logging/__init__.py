@@ -1,8 +1,6 @@
 import logging
 import logging.handlers
-from typing import Union, Optional
 from pathlib import Path
-import time
 
 from wtbonline._db.rsdb_interface import RSDBInterface
 
@@ -31,10 +29,6 @@ def get_error_handler(_dir, name:str):
 
 def get_info_handler(_dir, name:str):
     handler = logging.handlers.TimedRotatingFileHandler(filename=_dir/'info.log', when='W0')
-    # formatter = logging.Formatter(
-    #     "%(asctime)s %(name)s %(levelname)s %(pathname)s %(lineno)d pid=%(process)s tid=%(thread)s \n %(message)s",
-    #     datefmt='%Y-%m-%d %H:%M:%S'
-    #     )
     formatter = logging.Formatter(
     "%(asctime)s %(name)s %(levelname)s %(pathname)s %(lineno)d pid=%(process)s tid=%(thread)s \n %(message)s",
     datefmt='%Y-%m-%d %H:%M:%S'
