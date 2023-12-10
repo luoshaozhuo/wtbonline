@@ -43,7 +43,7 @@ from wtbonline._db.common import make_sure_list, make_sure_datetime
 from wtbonline._logging import get_logger, log_it
 from wtbonline._plot.functions import line_plot, scatter_matrix_anormaly
 import wtbonline._plot as plt
-import wtbonline._process.tools.inspector as insp
+import wtbonline._process.inspector as insp
 from wtbonline._process.tools.filter import filter_for_modeling
 from wtbonline._process.model.anormlay.predict import load_model
 
@@ -302,52 +302,45 @@ def _sample(
     end_time = make_sure_datetime(end_time)
     
     rev = {}
-    for func in ['min', 'max']:
-        if func=='min':
-            sub_df = exceed_df[exceed_df['min']<=exceed_df['lower_bound']]
-            title_subfix = '超下限'
-        else:
-            sub_df = exceed_df[exceed_df['max']>=exceed_df['upper_bound']]
-            title_subfix = '超上限'
-        for grp_name, grp in sub_df.groupby('var_name'):
-            idx = getattr(grp[func], f'idx{func}')()
-            tid, var_name, id_ = grp.loc[idx][['device', 'var_name', 'map_id']]
-            temp, _ =  TDFC.read(
-                set_id=set_id,
-                turbine_id=tid,
-                start_time=start_time,
-                end_time=end_time,
-                where='and workmode=32',
-                func_dct={var_name:[func]},
-                )
-            var_name = (pd.Series(var_name)
-                .str.extractall('(var_\d+)')
-                .iloc[:, 0]
-                .drop_duplicates()
-                .tolist())
-            ts = pd.to_datetime(temp['ts'].iloc[0])
-            df, point_df = TDFC.read(
-                set_id=set_id,
-                turbine_id=tid,
-                start_time=ts-pd.Timedelta('15m'),
-                end_time=ts+pd.Timedelta('15m'),
-                var_name=var_name
-                )
-            df.rename(
-                columns={r['var_name']:r['point_name'] for _,r in point_df.iterrows()}, 
-                inplace=True
-                )
-            point_df.set_index('var_name', inplace=True)
-            fig_ts = line_plot(
-                df, 
-                point_df.loc[var_name, 'point_name'], 
-                point_df.loc[var_name, 'unit'],
-                height=450,
-                )
-            title=id_ + '_' + grp['name'].iloc[0] + '_' + title_subfix
-            rev.update({title:fig_ts})
+    for _, grp in exceed_df.groupby('variable'):
+        var_name, func = grp['variable'].str.rsplit('_', n=1).iloc[0]
+        title_subfix = '超下限' if func=='min' else '超上限'
+        tid, id_ = grp.iloc[0][['device', 'map_id']]
+        temp, _ =  TDFC.read(
+            set_id=set_id,
+            turbine_id=tid,
+            start_time=start_time,
+            end_time=end_time,
+            where='and workmode=32',
+            func_dct={var_name:[func]},
+            )
+        var_name = (pd.Series(var_name)
+            .str.extractall('(var_\d+)')
+            .iloc[:, 0]
+            .drop_duplicates()
+            .tolist())
+        ts = pd.to_datetime(temp['ts'].iloc[0])
+        df, point_df = TDFC.read(
+            set_id=set_id,
+            turbine_id=tid,
+            start_time=ts-pd.Timedelta('15m'),
+            end_time=ts+pd.Timedelta('15m'),
+            var_name=var_name
+            )
+        df.rename(
+            columns={r['var_name']:r['point_name'] for _,r in point_df.iterrows()}, 
+            inplace=True
+            )
+        point_df.set_index('var_name', inplace=True)
+        fig_ts = line_plot(
+            df, 
+            point_df.loc[var_name, 'point_name'], 
+            point_df.loc[var_name, 'unit'],
+            height=450,
+            )
+        title=id_ + '_' + grp['name'].iloc[0] + '_' + title_subfix
+        rev.update({title:fig_ts})
     return rev
-
 
 def _read_power_curve(set_id:str, turbine_id:List[str], min_date:Union[str, date], max_date:Union[str, date]):
     df = RSDBInterface.read_statistics_sample(
@@ -375,43 +368,22 @@ def _read_power_curve(set_id:str, turbine_id:List[str], min_date:Union[str, date
     df['mean_wind_speed'] = df['mean_wind_speed']*np.power((273.15+df['evntemp_mean'])/288.15,1/3.0)
     return df
 
-def _concise(sql):
-    ''' 去除多余的换行、空格字符 '''
-    sql = pd.Series(sql).str.replace('\n', '').str.replace(' {2,}', ' ', regex=True)
-    sql = sql.str.strip().squeeze()
-    return sql
-
-def _tight_layout(fig):
-    fig.update_layout(
-        legend=dict(
-            orientation="h",
-            font=dict(
-                    size=10,
-                    color="black"
-                ),
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1)
-        )
-
-def _construct_graph(exceed_df, delta, cls, samples=1):
+def _construct_graph(exceed_df, delta, cls):
     exceed_df = exceed_df.copy()
     graphs = []
     if exceed_df.shape[0]>0:
-        ts = pd.to_datetime(exceed_df['ts'].dt.date)
+        ts = pd.to_datetime(exceed_df['ts'])
         exceed_df['start_time'] = ts - pd.Timedelta(delta)
         exceed_df['end_time'] = ts + pd.Timedelta(delta)
-        sub_df = exceed_df.head(samples)
-        bul = cls(sub_df)
-        graphs = [(title, fig) for title,fig in zip(sub_df['map_id'], bul.figs)]
+        sub_df = exceed_df
+        plots = cls(sub_df)
+        graphs = [(title, fig) for title,fig in zip(sub_df['map_id'], plots.figs)]
     return graphs
 
-
 def build_chapter(set_id:str, min_date:Union[str, date], max_date:Union[str, date], temp_dir, chapter_index,
-                  chapter_title, table_title, inspector, grapher, fig_height, delta):
+                  chapter_title, table_title, inspector, grapher, fig_height, delta, fault_id):
     _LOGGER.info(f'chapter {chapter_index} {chapter_title}')
-    candidates_df = RSDBInterface.read_statistics_fault(set_id=set_id, fault_id=10, start_time=min_date, end_time=max_date)
+    candidates_df = RSDBInterface.read_statistics_fault(set_id=set_id, fault_id=fault_id, start_time=min_date, end_time=max_date)
     candidates_df = candidates_df.loc[candidates_df.groupby('turbine_id')['timestamp'].idxmax()]
     
     exceed_df = []
@@ -425,12 +397,20 @@ def build_chapter(set_id:str, min_date:Union[str, date], max_date:Union[str, dat
                 end_time=start_time+pd.Timedelta('1d'),
                 )
             )
-    exceed_df = pd.concat(exceed_df, ignore_index=True)
-    
-    columns = ['set_id', 'map_id', 'ts', 'value', 'bound']
-    fig_tbl = ff.create_table(exceed_df[columns], height_constant=50)
-    
-    graphs = _construct_graph(exceed_df.iloc[2:4,:], delta, grapher)
+    if len(exceed_df)>0:
+        exceed_df = pd.concat(exceed_df, ignore_index=True)
+        exceed_df = exceed_df.groupby(['set_id', 'map_id']).head(1).reset_index()
+        if pd.api.types.is_number(exceed_df['value']):
+            exceed_df['value'] = exceed_df['value'].round(2)
+        columns = ['set_id', 'map_id', 'ts', 'value', 'bound']
+        fig_tbls = []
+        cnt = 20
+        for i in exceed_df.index.tolist()[::cnt]:
+            sub_df = exceed_df.iloc[i:(i+cnt)]
+            tbl = ff.create_table(sub_df[columns], height_constant=50)
+            fig_tbls.append(tbl)
+            del(tbl)
+        graphs = _construct_graph(exceed_df.head(1), delta, grapher)
     
     rev = []
     rev.append(Paragraph(f'{chapter_index} {chapter_title}', PS_HEADING_2))
@@ -439,11 +419,12 @@ def build_chapter(set_id:str, min_date:Union[str, date], max_date:Union[str, dat
         rev.append(Paragraph('无故障', PS_BODY))
     else:
         title = chapter_title
-        rev.append(
-            build_graph(fig_tbl, f'{table_title}_最新记录', f'{chapter_index}_{title}_table.jpg', temp_dir=temp_dir)
-            )
+        for i, tbl in enumerate(fig_tbls):
+            rev.append(
+                build_graph(tbl, f'{table_title}_{i}', f'{chapter_index}_{title}_{i}_table.jpg', temp_dir=temp_dir)
+                )
         for i, (title, plot) in enumerate(graphs):
-            rev.append(build_graph(plot, title, f'{chapter_index}-{i}_{title}.jpg', temp_dir=temp_dir, height=fig_height))
+            rev.append(build_graph(plot, title, f'{chapter_index}_{i}_{title}.jpg', temp_dir=temp_dir, height=fig_height))
     return rev 
 
 
@@ -765,20 +746,20 @@ def chapter_3(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
         *converter(**params, chapter='3-4'),
         *main_bearing(**params, chapter='3-5'),
         *build_chapter(**params, chapter_index='3-6', chapter_title='叶根载荷不平衡', table_title='叶根弯矩不平衡超限', 
-                       inspector=insp.BladeUnbalanceLoadInspector, grapher=plt.BladeUnblacedLoad, fig_height=1000, delta='12h'),
+                       inspector=insp.BladeUnbalanceLoadInspector, grapher=plt.BladeUnblacedLoad, fig_height=None, delta='12h', fault_id=8),
         *build_chapter(**params, chapter_index='3-7', chapter_title='叶根摆振弯矩', table_title='叶根摆振弯矩超限', 
-                       inspector=insp.BladeEdgewiseOverLoadedInspector, grapher=plt.BladeOverloaded, fig_height=1000, delta='30m'),
+                       inspector=insp.BladeEdgewiseOverLoadedInspector, grapher=plt.BladeOverloaded, fig_height=None, delta='30m', fault_id=10),
         *build_chapter(**params, chapter_index='3-8', chapter_title='叶根挥舞弯矩', table_title='叶根挥舞弯矩超限', 
-                inspector=insp.BladeFlapwiseOverLoadedInspector, grapher=plt.BladeOverloaded, fig_height=1000, delta='30m'),
+                inspector=insp.BladeFlapwiseOverLoadedInspector, grapher=plt.BladeOverloaded, fig_height=None, delta='30m', fault_id=11),
         *build_chapter(**params, chapter_index='3-9', chapter_title='Pitchkick', table_title='触发Pitchkick', 
-                inspector=insp.BladePitchkickInspector, grapher=plt.BladePitchkick, fig_height=None, delta='10m'),
+                inspector=insp.BladePitchkickInspector, grapher=plt.BladePitchkick, fig_height=None, delta='10m', fault_id=6),
         *build_chapter(**params, chapter_index='3-10', chapter_title='叶片不同步', table_title='叶片不同步事件', 
-                inspector=insp.BladeAsynchronousInspector, grapher=plt.BladeAsynchronous, fig_height=None, delta='10m'),
+                inspector=insp.BladeAsynchronousInspector, grapher=plt.BladeAsynchronous, fig_height=None, delta='10m', fault_id=7),
         *energy_difference(**params, chapter='3-11'),
         *build_chapter(**params, chapter_index='3-12', chapter_title='风轮方位角', table_title='风轮方位角异常事件', 
-                inspector=insp.HubAzimuthInspector, grapher=plt.HubAzimuth, fig_height=None, delta='12h'),
+                inspector=insp.HubAzimuthInspector, grapher=plt.HubAzimuth, fig_height=None, delta='12h', fault_id=9),
         *build_chapter(**params, chapter_index='3-13', chapter_title='发电机超功率', table_title='发电机超功率事件', 
-                inspector=insp.OverPowerInspector, grapher=plt.GeneratorOverloaded, fig_height=None, delta='12h'),
+                inspector=insp.OverPowerInspector, grapher=plt.GeneratorOverloaded, fig_height=None, delta='12h', fault_id=5),
         ]
 
 
@@ -904,7 +885,7 @@ def build_brief_report(
 
 # main
 @log_it(_LOGGER, True)
-def build_brief_report_all(**kwargs):
+def build_brief_report_all(*args, **kwargs):
     '''
     end_time : 截至时间
     delta : 单位天
@@ -934,4 +915,4 @@ def build_brief_report_all(**kwargs):
 
 #%% main
 if __name__ == "__main__":
-    build_brief_report_all(end_time='2023-09-19', delta=30)
+    build_brief_report_all(end_time='2023-10-19', delta=180)

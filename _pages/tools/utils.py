@@ -240,13 +240,17 @@ def tdfc_read_cache(set_id, turbine_id, start_time, end_time):
 
 
 @log_it(_LOGGER, True)    
-def update_cache(*args, **kwargs):
+def clear_cache(*args, **kwargs):
     mapid_to_tid.cache_clear()
     tdfc_read_cache.cache_clear()
     read_scatter_matrix_anormaly.cache_clear()
-    
+
+@log_it(_LOGGER, True)    
+def update_cache(*args, **kwargs):
+    clear_cache(*args, **kwargs)
     delta = RSDBInterface.read_app_configuration(key_='cache_days')
     delta = int(delta['value'].iloc[0])
+    # 缓存所有异常点对应的十分钟样本
     anomaly_ids = (
         RSDBInterface.read_model_anormaly(columns=['sample_id'])
         .drop_duplicates()
@@ -259,6 +263,7 @@ def update_cache(*args, **kwargs):
         .drop_duplicates()
         .squeeze()
         )
+    # 统计库里，最近delta天的数据
     sample_df = (
         RSDBInterface.read_statistics_sample(
             columns=['set_id', 'turbine_id', 'bin'],
@@ -273,6 +278,7 @@ def update_cache(*args, **kwargs):
     df.drop_duplicates(inplace=True)
     
     for (set_id, turbine_id, map_id), grp in df.groupby(['set_id', 'turbine_id', 'map_id']):
+        # 缓存十分钟数据
         for bin in grp['bin']:
             print(turbine_id, bin)
             _ = tdfc_read_cache(
@@ -281,6 +287,7 @@ def update_cache(*args, **kwargs):
                 start_time=bin,
                 end_time=bin+pd.Timedelta('10m'),
                 )
+        # 缓存散点矩阵
         _ = read_scatter_matrix_anormaly(
             set_id=set_id,
             map_id=map_id,
@@ -288,30 +295,14 @@ def update_cache(*args, **kwargs):
             )
 
 def is_duplicated_task(key_):
-    sql='''
-        select e.id, e.status, e.func, e.setting, f.next_run_time, e.success from apscheduler_jobs f
-        right join 
-        (
-            select * from timed_task c 
-            left join 
-            (
-                select a.task_id, a.success, a.end_time from timed_task_log a
-                right join
-                (select task_id, max(end_time) as end_time from timed_task_log GROUP BY task_id) b
-                on b.task_id=a.task_id and a.end_time=b.end_time
-            ) d
-            on d.task_id=c.id
-            where c.status='start' or c.status='pause'
-        ) e
-        on f.id=e.id
-        '''
-    df = RSDB.read_sql(sql) 
-    df = df[df['func'].str.match(f'.*:{key_}')]
-    is_scheduled = ((df['status']=='start') & (df['next_run_time'].notnull()))
-    is_executing = (df['status']=='start') & (df['success'].isnull())
-    df = df[is_scheduled | is_executing]
-    return len(df)>0
+    existed_task = RSDBInterface.read_timed_task()
+    existed_task['key_'] = existed_task['func'].apply(lambda x:x.split(':')[1])
+    existed_task = existed_task[
+        (existed_task['key_']==key_)
+        & (existed_task['setting']=='interval')
+        & (existed_task['status']!='REMOVED')
+        ]
+    return len(existed_task)>0
 
-# if __name__ == "__main__":
-#     import doctest
-#     doctest.testmod()
+if __name__ == "__main__":
+    update_cache()

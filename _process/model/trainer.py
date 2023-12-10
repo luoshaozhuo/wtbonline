@@ -50,10 +50,10 @@ class BaseTrainer():
         self.X_test = None
         self.y_test = None  
     
-    def data_filter(self,df:pd.DataFrame)->pd.DataFrame:
+    def data_filter(self, df:pd.DataFrame, reset_index:bool=False)->pd.DataFrame:
         ''' 过滤用于训练模型的数据 '''
         if self._data_filter is not None:
-            return self._data_filter(df)
+            return self._data_filter(df, reset_index=reset_index)
         return df
     
     def _get_XY(self,df:pd.DataFrame)->List[pd.DataFrame]:

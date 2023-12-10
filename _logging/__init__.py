@@ -78,17 +78,17 @@ def log_it(logger, is_timed_task=False):
             params = f'{p_args},{p_kwargs}'.strip(',')
             logger.info(f'{func.__name__}({params}) start')
             rev = None
-            result = 'SUCCESS'
             if is_timed_task==True:
                 start_time = pd.Timestamp.now()
             try:
                 rev = func(*args, **kwargs)
             except Exception as e:
+                result = 'FAILED'
                 logger.error(f'{func.__name__}({params}) error \n {str(e)}', exc_info=True)
                 raise
             else:
+                result = 'SUCCESS'
                 logger.info(f'{func.__name__}({params}) finihed')
-                result = 'FAILED'
             finally:
                 if is_timed_task==True:
                     pid = os.getppid()

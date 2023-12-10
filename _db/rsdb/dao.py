@@ -45,12 +45,14 @@ class ORMFactory:
 class RSDBDAO():
     def __init__(self):
         self.factory = ORMFactory()
+        self.engine = create_engine_()
 
     def get_session(self):
         '''
         返回类sessionmaker对象的调用
         '''
-        return sessionmaker(create_engine_())()
+        # return sessionmaker(create_engine_())()
+        return sessionmaker(self.engine)()
 
     def init_database(self, uri=RSDB_URI):
         '''

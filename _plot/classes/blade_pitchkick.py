@@ -17,7 +17,7 @@ class BladePitchkick(BaseFigure):
         >>> bp = BladePitchkick({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-05-02'})
         >>> bp.plot()
         '''
-        for _,entity in  self.target_df.iterrows():
+        for _,entity in self.target_df.iterrows():
             df = self._read_data(
                 turbine_id=entity['turbine_id'],
                 start_time=entity['start_time'],

@@ -9,7 +9,7 @@ from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._process.tools.common import get_all_table_tags
-from wtbonline._process.inspector.funcs import INSPECTORS
+from wtbonline._process.inspector import INSPECTORS
 from wtbonline._common.utils import make_sure_datetime
 from wtbonline._logging import log_it
 from wtbonline._process.statistics import _LOGGER

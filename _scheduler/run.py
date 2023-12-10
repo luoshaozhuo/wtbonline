@@ -14,14 +14,16 @@ import json
 from flask import request
 import pandas as pd
 from apscheduler.events import (
-    EVENT_JOB_MISSED, EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_REMOVED, EVENT_SCHEDULER_PAUSED, 
-    EVENT_SCHEDULER_RESUMED, EVENT_JOB_SUBMITTED, EVENT_JOB_ADDED
+    EVENT_JOB_MISSED, EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, EVENT_JOB_REMOVED, 
+    EVENT_SCHEDULER_RESUMED, EVENT_JOB_SUBMITTED, EVENT_JOB_ADDED, EVENT_JOB_MODIFIED
     )
 
 from wtbonline._db.rsdb.dao import create_engine_
 from wtbonline._logging import get_logger
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._common.code import MYSQL_QUERY_FAILED
+from wtbonline._process.statistics.daily import udpate_statistic_daily
+from wtbonline._report.brief_report import build_brief_report_all
 
 #%% config
 class Config():
@@ -37,14 +39,15 @@ logger = get_logger('apscheduler')
 scheduler = APScheduler(BackgroundScheduler(timezone='Asia/Shanghai'))
 
 JOB_STATUS = {
-    EVENT_SCHEDULER_PAUSED:'PAUSED',
     EVENT_SCHEDULER_RESUMED:'START',
     EVENT_JOB_REMOVED:'REMOVED',
     EVENT_JOB_SUBMITTED:'SUBMIITED',
     EVENT_JOB_MISSED:'MISSED', 
     EVENT_JOB_ERROR:'ERROR', 
     EVENT_JOB_EXECUTED:'EXECUTED',
-    EVENT_JOB_ADDED:'ADDED'
+    EVENT_JOB_ADDED:'ADDED',
+    # 从源代码看，pause_job最后发送的是MODIFEIED，而不是PAUSED，后者是调用pause函数触发的，含义是停止scheduler
+    EVENT_JOB_MODIFIED:'PAUSED'
     }
 
 MASK = 0
@@ -88,6 +91,6 @@ def log_each_request(response):
     logger.info(f'{request.remote_addr} {request.method} {request.url} {request_data} {response.status}')
     return response
 
-# #%% main
+#%% main
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=40000)

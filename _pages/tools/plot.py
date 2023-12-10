@@ -366,8 +366,10 @@ def simple_plot(
                 )
             fig.add_trace(trace)
         elif _type=='line':
-            for y, secondary_y in zip([y_lst[i], y2_lst[i]], [False, True]):
-                suffix = 'y' if secondary_y==False else 'y2'
+            for y, is_secondary_y in zip([y_lst[i], y2_lst[i]], [False, True]):
+                if y is None:
+                    continue
+                suffix = 'y' if is_secondary_y==False else 'y2'
                 trace = go.Scatter(
                     x=x_lst[i], 
                     y=y, 
@@ -376,7 +378,7 @@ def simple_plot(
                     showlegend=True,
                     marker=dict(size=3, opacity=0.5)
                     )
-                fig.add_trace(trace, secondary_y=secondary_y)
+                fig.add_trace(trace, secondary_y=is_secondary_y)
     for i in ref_freqs:
         fig.add_vline(
             x=i, 

@@ -1,23 +1,18 @@
 from pathlib import Path
-import pandas as pd
-from typing import Union, List, Optional
+from typing import Union, List
 from functools import partial
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
 from functools import partial
-from datetime import date
-import plotly.graph_objects as go
- 
-from wtbonline._db.config import get_temp_dir
+
 from wtbonline._process.model.trainer import SimpleTrainer
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.common import make_sure_list
-from wtbonline._process.tools.plot import scatter_anormaly, scatter_regressor
 from wtbonline._process.tools.filter import filter_for_modeling
-from wtbonline._logging import get_logger, log_it
+from wtbonline._logging import get_logger
 
 #%% constant
 _LOGGER = get_logger('modelling')

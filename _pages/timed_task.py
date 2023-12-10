@@ -22,7 +22,6 @@ from dash_iconify import DashIconify
 
 from wtbonline._pages.tools._decorator import _on_error
 from wtbonline._db.rsdb_interface import RSDBInterface
-from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._pages.tools.utils import is_duplicated_task
 from wtbonline._common.code import SCHEDULER_MANIPULATION_FAILED, SCHEDULER_CONNECTION_FAILED, MYSQL_QUERY_FAILED
 
@@ -30,6 +29,8 @@ from wtbonline._common.code import SCHEDULER_MANIPULATION_FAILED, SCHEDULER_CONN
 # constant
 # =============================================================================
 _PREFIX = 'task'
+
+TIMEOUT = 10
 
 _COLUMNS_DCT = {
     'task_id':'任务id', 
@@ -55,7 +56,7 @@ _FUNC_DCT = {
     "训练离群值识别模型":"wtbonline._process.model.anormlay.train:train_all",
     "离群值识别":"wtbonline._process.model.anormlay.predict:predict_all",
     "数据统计报告":"wtbonline._report.brief_report:build_brief_report_all",
-    "更新缓存":"wtbonline._pages.tools.utils:update_cache"
+    "清理缓存":"wtbonline._pages.tools.utils:clear_cache"
     }
 
 _DATE_DATE_FORMAT = '%Y-%m-%d'
@@ -91,7 +92,7 @@ def _render_table():
 # =============================================================================
 def get_notification(_type:int, message:str):
     if _type==SUCCESS:
-        autoClose = 3000
+        autoClose = 1500
         color = 'green'
         title = 'success'
         icon=DashIconify(icon="akar-icons:circle-check")
@@ -141,21 +142,23 @@ def _setting():
                 ],
                 size='sm',
                 class_name='mb-2'),
-            dash_table.DataTable(
-                id=f'{_PREFIX}_datatable',
-                columns=[{'name': i, 'id': i} for i in _TABLE_HEADERS],                           
-                row_deletable=False,
-                row_selectable="single",
-                page_action='native',
-                page_current= 0,
-                page_size= 20,
-                style_header = {'font-weight':'bold'},
-                style_table = {'font-size':'small', 'overflowX': 'auto'},
-                style_data={
-                    # 'whiteSpace': 'normal',
-                    'height': 'auto',
-                    'lineHeight': '15px'
-                },                
+            dmc.LoadingOverlay(
+                    dash_table.DataTable(
+                    id=f'{_PREFIX}_datatable',
+                    columns=[{'name': i, 'id': i} for i in _TABLE_HEADERS],                           
+                    row_deletable=False,
+                    row_selectable="single",
+                    page_action='native',
+                    page_current= 0,
+                    page_size= 20,
+                    style_header = {'font-weight':'bold'},
+                    style_table = {'font-size':'small', 'overflowX': 'auto'},
+                    style_data={
+                        # 'whiteSpace': 'normal',
+                        'height': 'auto',
+                        'lineHeight': '15px'
+                    },                
+                    )  
                 )
             ])
         ])
@@ -311,10 +314,10 @@ def timed_task_on_change_setting(setting):
 @_on_error
 def timed_task_on_change_func(func, setting):
     btn_add = True if (func is None or func=='') or (setting is None or setting=='') else False
-    end_date = False if func in ['训练模型', '离群值识别', '简报'] else True
-    minimum = False if func in ['训练模型'] else True
+    end_date = False if func in ['训练离群值识别模型', '离群值识别', '数据统计报告'] else True
+    minimum = False if func in ['训练离群值识别模型'] else True
     size = False if func in ['离群值识别'] else True
-    delta = False if func in ['训练模型', '离群值识别', '简报'] else True
+    delta = False if func in ['训练离群值识别模型', '离群值识别', '数据统计报告'] else True
     return btn_add, end_date, minimum, size, delta
 
 @callback(
@@ -423,14 +426,14 @@ def timed_task_select_rows(rows, data):
     if (data is not None) and len(data)>0 and (rows is not None) and len(rows)>0:
         row = pd.DataFrame(data).iloc[rows[0]].squeeze()
         status = row['状态']
-        if row['类型']=='intervel' and status in ('EXECUTED', 'ERROR', 'MISSED'):
+        if status=='ADDED':
+            rev = [True, False, False]
+        elif row['类型']=='interval' and status in ('EXECUTED', 'ERROR', 'MISSED'):
             rev = [True, False, False]
         elif status=='PAUSED':
             rev = [False, True, False]
         elif status=='CREATED':
             rev = [False, True, True]
-        elif status=='ADDED':
-            rev = [True, True, False]
     return rev
 
 
@@ -450,10 +453,7 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, indexs, data):
     # 只有单行，因为datatable不能多选
     row = pd.DataFrame(data).iloc[indexs[0], :]
     _id = ctx.triggered_id
-    _type = SUCCESS
-    message = ''
-    
-    for i in range(3):
+    for _ in range(3):
         try:
             if _id==f'{_PREFIX}_btn_start':
                 if row['状态'] == 'CREATED':
@@ -469,24 +469,26 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, indexs, data):
                         'kwargs':funtion_parameter,
                         }
                     kwargs.update(task_parameter)
-                    response = requests.post(_URL, json=kwargs, timeout=2)
+                    response = requests.post(_URL, json=kwargs, timeout=TIMEOUT)
                 else:
-                    response = requests.post(_URL+f"/{row['任务id']}/resume", timeout=2)
+                    response = requests.post(_URL+f"/{row['任务id']}/resume", timeout=TIMEOUT)
             elif _id==f'{_PREFIX}_btn_pause':
-                response = requests.post(_URL+f"/{row['任务id']}/pause", timeout=2)
+                response = requests.post(_URL+f"/{row['任务id']}/pause", timeout=TIMEOUT)
             elif _id==f'{_PREFIX}_btn_delete':
-                response = requests.delete(_URL+f"/{row['任务id']}", timeout=2)
+                response = requests.delete(_URL+f"/{row['任务id']}", timeout=TIMEOUT)
         except Exception as e:
-            response = None
             _type = FAILED
+            response = None
             message = SCHEDULER_CONNECTION_FAILED
             break
         if response.ok == True:
+            _type = SUCCESS
+            message = ''
             break
         time.sleep(1)
     else:
         _type = FAILED
-        message = f"{SCHEDULER_MANIPULATION_FAILED}：task_id={row['id']}, code={response.status_code}, response={response.text}"
+        message = f"{SCHEDULER_MANIPULATION_FAILED}：task_id={row['任务id']}, code={response.status_code}, response={response.text}"
     
     return _render_table(), [], get_notification(_type=_type, message=message)
 

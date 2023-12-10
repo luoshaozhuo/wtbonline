@@ -460,15 +460,16 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, ts_y2, sct_x, sct_y, rad_t
             continue
         name_lst.append(dct['图例号'])
         x = df[xcol].tolist() if xcol=='ts' else df[desc_df.loc[xcol, 'var_name']].tolist()
-        y = df[desc_df.loc[ycol, 'var_name']].tolist()
         x_lst.append(x)
-        y_lst.append(y)
-        xtitle = desc_df.loc[xcol, 'column'] if xtitle=='' else xtitle
-        if ytitle=='':
-            if _type == 'spectrum':
-                ytitle = ycol + f"_({desc_df.loc[ycol, 'unit']})^2"
-            else:
-                ytitle = desc_df.loc[ycol, 'column']
+        if ycol is not None:
+            y = df[desc_df.loc[ycol, 'var_name']].tolist()
+            y_lst.append(y)
+            xtitle = desc_df.loc[xcol, 'column'] if xtitle=='' else xtitle
+            if ytitle=='':
+                if _type == 'spectrum':
+                    ytitle = ycol + f"_({desc_df.loc[ycol, 'unit']})^2"
+                else:
+                    ytitle = desc_df.loc[ycol, 'column']
         if y2col is not None:
             y2 = df[desc_df.loc[y2col, 'var_name']].tolist()
             y2_lst.append(y2)
@@ -477,7 +478,9 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, ts_y2, sct_x, sct_y, rad_t
                     y2title = ycol + f"_({desc_df.loc[y2col, 'unit']})^2"
                 else:
                     y2title = desc_df.loc[y2col, 'column']
-        
+        else:
+            y2_lst.append(None)
+                    
     fig = simple_plot(
         x_lst=x_lst, 
         y_lst=y_lst, 
