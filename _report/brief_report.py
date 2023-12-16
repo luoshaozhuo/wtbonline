@@ -30,7 +30,9 @@ from reportlab.pdfgen import canvas
 
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
+from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
+import plotly.express as px 
 plt.rcParams['font.family']='sans-serif'        
 plt.rcParams['font.sans-serif']=['SimHei']
 plt.rcParams['axes.unicode_minus']=False 
@@ -536,7 +538,7 @@ def active_power(set_id:str, min_date:Union[str, date], max_date:Union[str, date
         df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
         df = df[(df['wspd']>=7) & (df['wspd']<=10)]
         
-        stat_df = df.pivot_table(values='mean_power', index='turbine_id', columns='wspd').astype(int)
+        stat_df = df.pivot_table(values='mean_power', index='turbine_id', columns='wspd').round(1)
         isnormal_df = (stat_df-stat_df.mean()).abs() < (1.0*stat_df.std())
         stat_df = stat_df.reset_index().rename(columns={'turbine_id':'风机编号'})
         isnormal_df = isnormal_df.reset_index().rename(columns={'turbine_id':'风机编号'})
@@ -681,6 +683,7 @@ def energy_difference(set_id:str, min_date:Union[str, date], max_date:Union[str,
     # 绘图
     sql = f'''
         SELECT
+            var_94_mean,
             var_246_mean,
             var_101_mean,
             var_102_mean,
@@ -695,26 +698,44 @@ def energy_difference(set_id:str, min_date:Union[str, date], max_date:Union[str,
             and bin>='{min_date}' 
             and bin<'{max_date}'
         '''
-    x = '并网有功功率（kWh）'
-    y = '叶片实际角均值（°）'
     fig_scatter = None
     count = 3000
-    for _, row in raw_df.iterrows():
+    colors = px.colors.qualitative.Plotly
+    for i, row in raw_df.iterrows():
         if fig_scatter is None:
-            fig_scatter = go.Figure()
+            fig_scatter = make_subplots(2, 1, shared_xaxes=True, vertical_spacing=0.05)
         plot_df = RSDB.read_sql(sql)
         if plot_df.shape[0]<1:
             continue
-        plot_df.rename(columns={'var_246_mean':x}, inplace=True)
-        plot_df[y] = (plot_df['var_101_mean'] + plot_df['var_101_mean'] + plot_df['var_101_mean'])/3.0
         plot_df = plot_df.sample(count) if plot_df.shape[0]>count else plot_df
         fig_scatter.add_trace(
-            go.Scatter(x=plot_df[x], y=plot_df[y], mode='markers',
-                    marker=dict(size=3,opacity=0.5), name=f'''{row['map_id']}@{row['totalenergy']}(kWh)''')
+            go.Scatter(
+                x=plot_df['var_246_mean'], 
+                y=(plot_df['var_101_mean'] + plot_df['var_101_mean'] + plot_df['var_101_mean'])/3.0, 
+                mode='markers',
+                marker=dict(size=3,opacity=0.5,color=colors[i]), 
+                name=f'''{row['map_id']}@{row['totalenergy']}(kWh)'''
+                ),
+            row=1,
+            col=1    
             )
+        fig_scatter.add_trace(
+            go.Scatter(
+                x=plot_df['var_246_mean'], 
+                y=plot_df['var_94_mean'], 
+                mode='markers',
+                marker=dict(size=3,opacity=0.5,color=colors[i]),
+                name=f'''{row['map_id']}@{row['totalenergy']}(kWh)''',
+                showlegend=False,
+                ),
+            row=2,
+            col=1    
+            )
+        
     if fig_scatter is not None:
-        fig_scatter.layout.xaxis.update({'title': x})
-        fig_scatter.layout.yaxis.update({'title': y})
+        fig_scatter.update_xaxes(title_text='并网有功功率（kWh）', row=2, col=1)
+        fig_scatter.update_yaxes(title_text='叶片实际角均值（°）', row=1, col=1)
+        fig_scatter.update_yaxes(title_text='风轮转速', row=2, col=1)
         fig_scatter.update_layout(
             legend=dict(
                 orientation="h",
@@ -915,4 +936,4 @@ def build_brief_report_all(*args, **kwargs):
 
 #%% main
 if __name__ == "__main__":
-    build_brief_report_all(end_time='2023-10-19', delta=180)
+    build_brief_report_all(end_time='2023-12-14', delta=90)

@@ -49,7 +49,7 @@ _TABLE_HEADERS = list(_COLUMNS_DCT.values())
 _FUNC_DCT = { 
     "初始化数据库":"wtbonline._process.preprocess.init_tsdb:init_tdengine",
     "拉取原始数据":"wtbonline._process.preprocess.load_tsdb:update_tsdb",
-    "拉取ibox数据":"wtbonline._process.preprocess.load_ibox_files:update_ibox_files",
+    "拉取PLC数据":"wtbonline._process.preprocess.load_ibox_files:update_ibox_files",
     "统计10分钟样本":"wtbonline._process.statistics.sample:update_statistic_sample",
     "统计24小时样本":"wtbonline._process.statistics.daily:udpate_statistic_daily",
     "检测故障":"wtbonline._process.statistics.fault:udpate_statistic_fault",

@@ -31,10 +31,6 @@ from wtbonline._pages import _SCATTER_PLOT_VARIABLES
 # constant
 # =============================================================================
 _PREFIX = 'diagnose' 
-# _SCATTER_PLOT_VARIABLES = tuple([
-#     'var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean',
-#     'var_382_mean', 'var_383_mean'
-#     ])
 
 # =============================================================================
 # function

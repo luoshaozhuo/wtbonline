@@ -9,16 +9,19 @@ Created on Mon Jun  5 09:28:04 2023
 # =============================================================================
 # import
 # ============================================================================
+from distutils.sysconfig import PREFIX
 from dash import html, dcc, Input, Output, no_update, callback, State, ctx, dash_table
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import pandas as pd
 import numpy as np
+from dash_iconify import DashIconify
 
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._pages.tools.plot import simple_plot
 from wtbonline._pages.tools._decorator import _on_error
 from wtbonline._pages.tools.utils import mapid_to_tid, read_raw_data
+from wtbonline._pages.common.notification import SUCCESS, FAILED, get_notification
 
 # =============================================================================
 # constant
@@ -46,16 +49,17 @@ def _get_accordion_item(item_dct, title):
     content = []
     for i in item_dct:
         content.append(
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText(i, class_name='small'),
-                    dbc.Select(id=item_dct[i],class_name='small')
-                ],
-                className='mb-4'
+            dmc.Select(
+                id=item_dct[i],
+                label=i,
+                searchable=True,
+                style={"width": '100%'},
+                icon=DashIconify(icon="radix-icons:magnifying-glass"),
+                rightSection=DashIconify(icon="radix-icons:chevron-down"),
                 )
             )
-    
-    return dbc.AccordionItem(content, title=title)
+    rev = dmc.Group(content)
+    return dbc.AccordionItem(rev, title=title)
 
 def _get_side_bar():
     content = []
@@ -88,6 +92,7 @@ def _get_card_select():
                                         className='btn-primary me-2'),
                              dbc.Button(html.I(className='bi bi-arrow-repeat'), 
                                         id=f'{_PREFIX}_btn_refresh',
+                                        disabled=True, 
                                         size='sm',
                                         className='btn-primary'),
                              ], className='mb-2'),
@@ -147,16 +152,6 @@ def _get_modle_dialog():
                         ], 
                     className='w-100'
                     ),
-                html.Br(),
-                dbc.InputGroup(
-                    [
-                        dbc.InputGroupText("结束日期", class_name='small'),
-                        dmc.DatePicker(id=f'{_PREFIX}_end_date', size='md', clearable =False),
-                        dbc.InputGroupText("时间", class_name='small'),
-                        dmc.TimeInput(id=f'{_PREFIX}_end_time', size='md'),
-                        ], 
-                    className='w-100'
-                    ),
                 ]), 
             dbc.ModalFooter([
                 dbc.Button(
@@ -183,7 +178,7 @@ def _get_modle_dialog():
 def get_layout():
     layout = [
         _get_modle_dialog(),
-        dbc.Alert(id=f'{_PREFIX}_alert', color='danger', duration=3000, is_open=False, className='border rounded-0'),
+        dmc.NotificationsProvider(html.Div(id=f'{_PREFIX}_notification_container')), 
         dbc.Row([dbc.Col(_get_side_bar(), 
                         width=2, 
                         className='border-end h-100'),
@@ -232,12 +227,10 @@ def on_explore_btn_collapse(n, is_open):
     Input(f'{_PREFIX}_datatable', 'data'),
     State(f'{_PREFIX}_start_date', 'value'),
     State(f'{_PREFIX}_start_time', 'value'),    
-    State(f'{_PREFIX}_end_date', 'value'),
-    State(f'{_PREFIX}_end_time', 'value'),
     prevent_initial_call=True
     )
 @_on_error
-def on_explore_dialog(n1, n2, n3, set_id, map_id, obj_lst, start_date, start_time, end_date, end_time):
+def on_explore_dialog(n1, n2, n3, set_id, map_id, obj_lst, start_date, start_time):
     ''' 显示/隐藏添加分析对象对话框，更新分析对象数据 '''
     _id = ctx.triggered_id
     # 点击增加，打开对话框，修改set_id及map_id的可选项以及默认值
@@ -262,9 +255,10 @@ def on_explore_dialog(n1, n2, n3, set_id, map_id, obj_lst, start_date, start_tim
     elif _id==f'{_PREFIX}_btn_confirm':
         obj_lst = [] if obj_lst is None else obj_lst
         start_time = _make_sure_datetime_string(start_time)
-        end_time = _make_sure_datetime_string(end_time)
+        start_time = start_date+start_time[10:]
+        end_time = pd.to_datetime(start_time)+pd.Timedelta('1h')
         obj_lst.append({'图例号':'*', '机型编号':set_id, '风机编号':map_id, 
-                        '开始日期':start_date+start_time[10:], '结束日期':end_date+end_time[10:]})
+                        '开始日期':start_time, '结束日期':end_time})
         df = pd.DataFrame(obj_lst, index=np.arange(len(obj_lst)))
         df.drop_duplicates(['机型编号','风机编号','开始日期','结束日期'], inplace=True)
         df['图例号'] = [f't_{i}' for i in np.arange(df.shape[0])]
@@ -275,32 +269,18 @@ def on_explore_dialog(n1, n2, n3, set_id, map_id, obj_lst, start_date, start_tim
         rev =  [no_update, no_update, no_update, no_update, no_update, no_update]
     return rev
 
+
 @callback(
-    Output(f'{_PREFIX}_end_date', 'error', allow_duplicate=True),
-    Output(f'{_PREFIX}_end_time', 'error', allow_duplicate=True),
     Output(f'{_PREFIX}_btn_confirm', 'disabled'),
     Input(f'{_PREFIX}_start_date', 'value'),
     Input(f'{_PREFIX}_start_time', 'value'),    
-    Input(f'{_PREFIX}_end_date', 'value'),
-    Input(f'{_PREFIX}_end_time', 'value'),
     State(f'{_PREFIX}_dropdown_set_id', 'value'),
     State(f'{_PREFIX}_dropdown_map_id', 'value'),
     prevent_initial_call=True
     )
 @_on_error
-def on_change_explore_date_range(start_date, start_time, end_date, end_time, set_id, map_id):
-    if None in [set_id, map_id, start_date, end_date]:
-        rev = [no_update, no_update, True]
-    else:
-        start_time = _make_sure_datetime_string(start_time)
-        end_time = _make_sure_datetime_string(end_time)
-        start_dt = pd.to_datetime(start_date + start_time[10:])
-        end_dt = pd.to_datetime(end_date + end_time[10:])
-        if start_dt >= end_dt:
-            rev = [True, True, True]
-        else:
-            rev = [False, False, False]
-    return rev
+def on_change_explore_date_range(start_date, start_time, set_id, map_id):
+    return  None in (start_date, start_time, set_id, map_id)
 
 
 @callback(
@@ -308,10 +288,6 @@ def on_change_explore_date_range(start_date, start_time, end_date, end_time, set
     Output(f'{_PREFIX}_start_date', 'maxDate'),
     Output(f'{_PREFIX}_start_date', 'disabledDates'),  
     Output(f'{_PREFIX}_start_date', 'value'),
-    Output(f'{_PREFIX}_end_date', 'minDate'),
-    Output(f'{_PREFIX}_end_date', 'maxDate'),
-    Output(f'{_PREFIX}_end_date', 'disabledDates'),  
-    Output(f'{_PREFIX}_end_date', 'value'),
     Input(f'{_PREFIX}_dropdown_map_id', 'value'),
     State(f'{_PREFIX}_dropdown_set_id', 'value'),
     prevent_initial_call=True
@@ -338,28 +314,27 @@ def on_change_explore_dropdown_map_id(map_id, set_id):
     disabled_days = disabled_days[~disabled_days.isin(dates)]
     disabled_days = [i.date().isoformat() for i in disabled_days]
     rev = [min_date, max_date, disabled_days, None]
-    rev += [min_date, max_date, disabled_days, None]
     return rev
     
-       
+    
 @callback(
-    Output(f'{_PREFIX}_dropdown_timeseries_y', 'options'),
-    Output(f'{_PREFIX}_dropdown_timeseries_y2', 'options'),
-    Output(f'{_PREFIX}_dropdown_scatter_x', 'options'),
-    Output(f'{_PREFIX}_dropdown_scatter_y', 'options'),
-    Output(f'{_PREFIX}_dropdown_radar_theta', 'options'),
-    Output(f'{_PREFIX}_dropdown_radar_r', 'options'),
-    Output(f'{_PREFIX}_dropdown_spectrum_y', 'options'),
+    Output(f'{_PREFIX}_dropdown_timeseries_y', 'data'),
+    Output(f'{_PREFIX}_dropdown_timeseries_y2', 'data'),
+    Output(f'{_PREFIX}_dropdown_scatter_x', 'data'),
+    Output(f'{_PREFIX}_dropdown_scatter_y', 'data'),
+    Output(f'{_PREFIX}_dropdown_radar_theta', 'data'),
+    Output(f'{_PREFIX}_dropdown_radar_r', 'data'),
+    Output(f'{_PREFIX}_dropdown_spectrum_y', 'data'),
     Input(f'{_PREFIX}_datatable', 'data'),
     prevent_initial_call=True
     )
 @_on_error
-def on_change_explore_table(data_dct):
+def explore_update_dropdown_selection_variables(data_dct):
     if len(data_dct)>0:
         set_ids = pd.DataFrame(data_dct)['机型编号'].unique()
         # 选出所有机型表格中所有机型共有的变量
         cols = ['point_name', 'unit', 'set_id', 'datatype']
-        model_point_df = RSDBInterface.read_turbine_model_point(set_id=set_ids, select=1, columns=cols)
+        model_point_df = RSDBInterface.read_turbine_model_point(set_id=set_ids, columns=cols, select=[0, 1])
         count = model_point_df.groupby('point_name')['set_id'].count()
         count = count[count==len(set_ids)]
         model_point_df.set_index('point_name', inplace=True)
@@ -378,12 +353,40 @@ def on_change_explore_table(data_dct):
         return timeseries_y, timeseries_y, scatter_x, scatter_y, radar_theta, radar_r, spectrum_y
     else:
         return [None]*7
+       
+
+@callback(
+    Output(f'{_PREFIX}_btn_refresh', 'disabled'),
+    Input(f'{_PREFIX}_datatable', 'data'),
+    Input(f'{_PREFIX}_accordion', 'active_item'),
+    Input(f'{_PREFIX}_dropdown_timeseries_y', 'value'),
+    Input(f'{_PREFIX}_dropdown_scatter_x', 'value'),
+    Input(f'{_PREFIX}_dropdown_scatter_y', 'value'),
+    Input(f'{_PREFIX}_dropdown_radar_theta', 'value'),
+    Input(f'{_PREFIX}_dropdown_radar_r', 'value'),
+    Input(f'{_PREFIX}_dropdown_spectrum_y', 'value'),
+    prevent_initial_call=True
+    )
+@_on_error
+def on_explore_enable_btn_refresh(table_lst, item, ts_y, sct_x, sct_y, rad_th, rad_r, spc_y):
+    empty_table = not (isinstance(table_lst, (list, tuple)) and len(table_lst)>0)
+    plot_type = list(_ACCORDION_ITEMS.keys())[int(item.split('-')[1])]
+    if plot_type=='时序图':
+        # 必须指定ts_y，可以不指定ts_y2
+        vars = [ts_y]
+    elif plot_type=='散点图':
+        vars = [sct_x, sct_y]
+    elif plot_type=='雷达图':
+        vars = [rad_th, rad_r]
+    elif plot_type=='频谱图':
+        vars = [spc_y]
+    not_enough_var = None in vars
+    return empty_table or not_enough_var
+
 
 @callback(
     Output(f'{_PREFIX}_plot', 'figure'),
-    Output(f'{_PREFIX}_alert', 'children', allow_duplicate=True),
-    Output(f'{_PREFIX}_alert', 'is_open', allow_duplicate=True),
-    Output(f'{_PREFIX}_alert', 'color', allow_duplicate=True),
+    Output(f'{_PREFIX}_notification_container', "children", allow_duplicate=True),  
     Input(f'{_PREFIX}_btn_refresh', 'n_clicks'),
     State(f'{_PREFIX}_datatable', 'data'),
     State(f'{_PREFIX}_accordion', 'active_item'),
@@ -400,15 +403,13 @@ def on_change_explore_table(data_dct):
 def on_explore_btn_refresh(n1, table_lst, item, ts_y, ts_y2, sct_x, sct_y, rad_th,
                             rad_r, spc_y):
     ''' 点击刷新按钮，绘制图形 '''
-    if table_lst is None or len(table_lst)<1:
-        return [no_update]*3
     plot_type = list(_ACCORDION_ITEMS.keys())[int(item.split('-')[1])]
-    rev_error = [no_update, '未指定绘图变量', True, 'danger']
+    message = ''
+
+    # 设置绘图参数
     xtitle=''
     y2col=None
     if plot_type=='时序图':
-        if ts_y is None:
-            return rev_error
         xcol = 'ts'
         ycol = ts_y
         y2col = ts_y2
@@ -416,28 +417,23 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, ts_y2, sct_x, sct_y, rad_t
         _type = 'line'
         xtitle = '时间'
     elif plot_type=='散点图':
-        if sct_x is None or sct_y is None:
-            return rev_error
         xcol = sct_x
         ycol = sct_y
         _type = 'scatter'
         mode = 'markers'
     elif plot_type=='雷达图':
-        if rad_th is None or rad_r is None:
-            return rev_error
         xcol = rad_th
         ycol = rad_r
         _type = 'polar'
         mode = 'markers'
     elif plot_type=='频谱图':
-        if spc_y is None:
-            return rev_error
         xcol = 'ts'
         ycol = spc_y
         _type = 'spectrum'
         mode = 'markers+lines'
         xtitle = '频率Hz'
     
+    # 读取绘图数据
     x_lst=[]    
     y_lst=[]
     y2_lst=[]
@@ -448,16 +444,22 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, ts_y2, sct_x, sct_y, rad_t
     point_name = tuple(pd.Series([xcol, ycol, y2col]).replace('ts', None).dropna())
     sample_cnt = int(10000/len(table_lst))
     for dct in table_lst:
-        df, desc_df = read_raw_data(
-            set_id=dct['机型编号'], 
-            map_id=dct['风机编号'], 
-            point_name=point_name, 
-            start_time=dct['开始日期'],
-            end_time=dct['结束日期'],
-            sample_cnt=sample_cnt,
-            )
+        try:
+            df, desc_df = read_raw_data(
+                set_id=dct['机型编号'], 
+                map_id=dct['风机编号'], 
+                point_name=point_name, 
+                start_time=dct['开始日期'],
+                end_time=dct['结束日期'],
+                sample_cnt=sample_cnt,
+                remote=True
+                )
+        except:
+            message = f"查询数据失败 {dct['机型编号']} {dct['风机编号']} {dct['开始日期']} {point_name}"
+            break
         if len(df)<1:
-            continue
+            message = f"数据集为空 {dct['机型编号']} {dct['风机编号']} {dct['开始日期']} {point_name}"
+            break
         name_lst.append(dct['图例号'])
         x = df[xcol].tolist() if xcol=='ts' else df[desc_df.loc[xcol, 'var_name']].tolist()
         x_lst.append(x)
@@ -493,7 +495,11 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, ts_y2, sct_x, sct_y, rad_t
         _type=_type,
         ref_freqs=ref_freqs,
         )
-    return fig, no_update, no_update, no_update
+    if message == '':
+        notify = no_update
+    else:
+        notify = get_notification(_PREFIX, FAILED, message)
+    return fig, notify
 
 # =============================================================================
 # for test

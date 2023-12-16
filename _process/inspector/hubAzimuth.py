@@ -23,7 +23,7 @@ class HubAzimuthInspector(BaseInspector):
             from 
                 {from_clause}
             where 
-                (faultcode=30014
+                (faultcode=30017
                 or faultcode=30024) 
                 and ts>"{start_time}"
                 and ts<"{end_time}"

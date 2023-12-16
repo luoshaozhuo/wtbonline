@@ -108,7 +108,7 @@ def read_sample_ts(sample_id:int, var_name:Union[str, tuple[str]]):
     point_df = point_df.set_index('var_name', drop=False).loc[var_name]
     return df, point_df
 
-@lru_cache(maxsize=_CACHE_SIZE_SMALL)
+# @lru_cache(maxsize=_CACHE_SIZE_SMALL)
 def read_scatter_matrix_anormaly(
         set_id:str, 
         *,
@@ -183,7 +183,8 @@ def read_raw_data(
         point_name:Union[str, tuple[str]], 
         start_time:pd.Timestamp,
         end_time:pd.Timestamp,
-        sample_cnt:int=20000
+        sample_cnt:int=20000,
+        remote=False,
         ):
     point_name = make_sure_list(point_name)
     turbine_id = mapid_to_tid(set_id, map_id)
@@ -191,7 +192,7 @@ def read_raw_data(
     end_time = make_sure_datetime(end_time)
     diff = (end_time - start_time).value/10**9
     
-    if diff<=sample_cnt:
+    if diff<=sample_cnt or remote==True:
         df, desc_df = TDFC.read(
             set_id=set_id, 
             turbine_id=turbine_id,
@@ -199,6 +200,7 @@ def read_raw_data(
             end_time=end_time,
             point_name=point_name,
             limit=sample_cnt,
+            remote=remote
             )    
         desc_df.set_index('point_name', inplace=True, drop=False)
     else:
@@ -216,7 +218,7 @@ def read_raw_data(
             sliding({interval})
             '''
         sql = pd.Series(sql).str.replace('\n *', ' ', regex=True).squeeze().strip()
-        df = TDFC.query(sql, remote=False)
+        df = TDFC.query(sql, remote=remote)
         df.sort_values('ts', inplace=True)
     return df, desc_df
 
