@@ -237,9 +237,7 @@ def on_account_btn_update(n, old_password, new_password):
 # =============================================================================
 if __name__ == '__main__':     
     import dash
-    app = dash.Dash(__name__, 
-                    external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
-                    suppress_callback_exceptions=True)
+    app = dash.Dash(__name__, assets_folder='../assets', suppress_callback_exceptions=True)
     app.layout = html.Div(get_layout())
     app.run_server(debug=False)
     

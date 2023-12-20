@@ -24,3 +24,4 @@ click
 scikit-learn
 matplotlib
 ipykernel
+dash_iconify

@@ -426,9 +426,7 @@ def diagnose_on_click_label_buttons(n1, n2, n3, set_id, map_id, selected_data):
 # =============================================================================
 if __name__ == '__main__':     
     import dash
-    app = dash.Dash(__name__, 
-                    external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
-                    suppress_callback_exceptions=True)
+    app = dash.Dash(__name__, assets_folder='../assets', suppress_callback_exceptions=True)
     app.layout = html.Div(get_layout())
-    app.run_server(debug=False, host='0.0.0.0', port=40006)
+    app.run_server(debug=False, host='0.0.0.0', port=8050)
     

@@ -18,9 +18,7 @@ from wtbonline._db.rsdb.model import db
 # =============================================================================
 # global
 # =============================================================================
-app = dash.Dash(__name__, 
-                external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
-                suppress_callback_exceptions=True)
+app = dash.Dash(__name__, suppress_callback_exceptions=True)
 
 server = app.server
 server.config.from_object(Default())

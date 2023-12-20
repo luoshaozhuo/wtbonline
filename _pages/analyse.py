@@ -635,10 +635,8 @@ def analyse_update_graph(n, item, value_lst, data_dct):
 # =============================================================================
 # for test
 # =============================================================================
-if __name__ == '__main__':    
+if __name__ == '__main__':     
     import dash
-    app = dash.Dash(__name__, 
-                    external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
-                    suppress_callback_exceptions=True)
+    app = dash.Dash(__name__, assets_folder='../assets', suppress_callback_exceptions=True)
     app.layout = html.Div(get_layout())
-    app.run_server(debug=False)
+    app.run_server(debug=False, host='0.0.0.0', port=8050)

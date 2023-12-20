@@ -7,6 +7,7 @@ Created on Mon Nov 4 09:28:04 2023
 数据操作工具集，加上缓存机制
 """
 
+from random import sample
 import pandas as pd
 from typing import List, Union
 from functools import lru_cache
@@ -193,15 +194,26 @@ def read_raw_data(
     diff = (end_time - start_time).value/10**9
     
     if diff<=sample_cnt or remote==True:
-        df, desc_df = TDFC.read(
-            set_id=set_id, 
-            turbine_id=turbine_id,
-            start_time=start_time,
-            end_time=end_time,
-            point_name=point_name,
-            limit=sample_cnt,
-            remote=remote
-            )    
+        df = []
+        # 远程数据库有可能限制每次查询的数据量
+        for _ in range(30):
+            tmp, desc_df = TDFC.read(
+                set_id=set_id, 
+                turbine_id=turbine_id,
+                start_time=start_time,
+                end_time=end_time,
+                point_name=point_name,
+                limit=sample_cnt,
+                remote=remote
+                )
+            if len(tmp)>0:
+                df.append(tmp)
+                start_time=tmp['ts'].max()+pd.Timedelta('0.0001s')
+            else:
+                break
+        df = pd.concat(df, ignore_index=True) 
+        df = df.sample(sample_cnt) if len(df)>sample_cnt else df  
+        df.sort_values('ts', inplace=True)
         desc_df.set_index('point_name', inplace=True, drop=False)
     else:
         interval = f'{int(diff/60/20)}m'

@@ -498,8 +498,6 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, indexs, data):
 # =============================================================================
 if __name__ == '__main__':
     import dash
-    app = dash.Dash(__name__, 
-                    external_stylesheets=[dbc.themes.FLATLY, dbc.icons.BOOTSTRAP],
-                    suppress_callback_exceptions=True)
+    app = dash.Dash(__name__, assets_folder='../assets', suppress_callback_exceptions=True)
     app.layout = html.Div(get_layout())    
     app.run_server(debug=False)

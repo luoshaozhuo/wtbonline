@@ -70,6 +70,11 @@ def _get_side_bar():
 def _get_card_plot():
     card = dbc.Card([dbc.CardHeader('绘图区'),
                      dbc.CardBody([
+                        dbc.Button(html.I(className='bi bi-arrow-repeat'), 
+                            id=f'{_PREFIX}_btn_refresh',
+                            disabled=True, 
+                            size='sm',
+                            className='btn-primary'),
                          dmc.LoadingOverlay(
                             dcc.Graph(id=f'{_PREFIX}_plot',
                                     config={'displaylogo':False})
@@ -90,17 +95,12 @@ def _get_card_select():
                                         id=f'{_PREFIX}_btn_add',
                                         size='sm',
                                         className='btn-primary me-2'),
-                             dbc.Button(html.I(className='bi bi-arrow-repeat'), 
-                                        id=f'{_PREFIX}_btn_refresh',
-                                        disabled=True, 
-                                        size='sm',
-                                        className='btn-primary'),
                              ], className='mb-2'),
                          dbc.Collapse(
                              dash_table.DataTable(
                                  id=f'{_PREFIX}_datatable',
                                  columns=[{'name': i, 'id': i} for i in 
-                                          ['图例号', '机型编号', '风机编号', '开始日期', '结束日期']],                           
+                                          ['图例号', '机型编号', '风机编号', '开始日期时间', '结束日期时间']],                           
                                  row_deletable=True,
                                  selected_columns=[],
                                  selected_rows=[],
@@ -121,57 +121,67 @@ def _get_card_select():
 def _get_modle_dialog():
     return dbc.Modal(
         [
-            dbc.ModalHeader(dbc.ModalTitle('添加分析对象', class_name='fs-4')),
+            dbc.ModalHeader(dbc.ModalTitle('添加分析对象', class_name='fs-5')),
             dbc.ModalBody([
-                dbc.InputGroup(
-                    [
-                        dbc.InputGroupText('机型编号', class_name='small'),
-                        dbc.Select(
-                            id=f'{_PREFIX}_dropdown_set_id',
-                            class_name='small',
-                            )
-                        ],
-                    className='mb-4'
+                dmc.Select(
+                    label="机型编号",
+                    placeholder="Select one",
+                    searchable=True,
+                    id=f'{_PREFIX}_dropdown_set_id',
+                    size='sm',
+                    style={"width": '100%', "marginBottom": 10},
                     ),
-                dbc.InputGroup(
-                    [
-                        dbc.InputGroupText('风机编号', class_name='small'),
-                        dbc.Select(
-                            id=f'{_PREFIX}_dropdown_map_id',
-                            class_name='small',
-                            )
-                        ],
-                    className='mb-4'
+                dmc.Select(
+                    label="机组编号",
+                    placeholder="Select one",
+                    searchable=True,
+                    id=f'{_PREFIX}_dropdown_map_id',
+                    size='sm',
+                    style={"width": '100%', "marginBottom": 10},
                     ),
-                dbc.InputGroup(
-                    [
-                        dbc.InputGroupText("开始日期", class_name='small'),
-                        dmc.DatePicker(id=f'{_PREFIX}_start_date', size='md', clearable =False),
-                        dbc.InputGroupText("时间", class_name='small'),
-                        dmc.TimeInput(id=f'{_PREFIX}_start_time', size='md'),
-                        ], 
-                    className='w-100'
+                dmc.DatePicker(
+                    id=f'{_PREFIX}_start_date',
+                    placeholder = 'Select one',
+                    label="起始日期",
+                    size='sm',
+                    style={"width": '100%'},
                     ),
+                dmc.TimeInput(
+                    id=f'{_PREFIX}_start_time',
+                    label="起始时间",
+                    size='sm',
+                    style={"width": '100%'},
+                    ),
+                dmc.NumberInput(
+                    id=f'{_PREFIX}_hours',
+                    label="数据长度（小时）",
+                    size='sm',
+                    description="整数，最小值1，最大值5。",
+                    value=5,
+                    min=1,
+                    style={"width": '100%'},
+                    )
                 ]), 
             dbc.ModalFooter([
-                dbc.Button(
+                dmc.Button(
                     '确定', 
                     id=f'{_PREFIX}_btn_confirm', 
                     className='btn-primary me-2', 
                     n_clicks=0,
                     disabled=True,
-                    size='sm'
+                    size='xs'
                     ),
-                dbc.Button(
+                dmc.Button(
                     '取消', 
                     id=f'{_PREFIX}_btn_cancel', 
                     className='btn-secondary', 
                     n_clicks=0,
-                    size='sm'
+                    size='xs'
                     )
                 ]), 
             ], 
     id=f'{_PREFIX}_modal', 
+    size="sm",
     is_open=False
     )
 
@@ -208,67 +218,87 @@ def get_layout():
     prevent_initial_call=True
 )
 @_on_error
-def on_explore_btn_collapse(n, is_open):
+def on_explore_show_table(n, is_open):
     ''' 显示选定分析对象表格 '''
     return not is_open 
 
 @callback(
-    Output(f'{_PREFIX}_modal', 'is_open'),
-    Output(f'{_PREFIX}_dropdown_set_id', 'options'),
-    Output(f'{_PREFIX}_dropdown_set_id', 'value'),
-    Output(f'{_PREFIX}_dropdown_map_id', 'options'),
-    Output(f'{_PREFIX}_dropdown_map_id', 'value'),
-    Output(f'{_PREFIX}_datatable', 'data'),
+    Output(f'{_PREFIX}_modal', 'is_open', allow_duplicate=True),
     Input(f'{_PREFIX}_btn_add', 'n_clicks'),
+    prevent_initial_call=True    
+)
+@_on_error
+def on_explore_open_dialog(n):
+    return True
+
+@callback(
+    Output(f'{_PREFIX}_modal', 'is_open'),
     Input(f'{_PREFIX}_btn_confirm', 'n_clicks'),
     Input(f'{_PREFIX}_btn_cancel', 'n_clicks'),
-    Input(f'{_PREFIX}_dropdown_set_id', 'value'),
-    Input(f'{_PREFIX}_dropdown_map_id', 'value'),
-    Input(f'{_PREFIX}_datatable', 'data'),
-    State(f'{_PREFIX}_start_date', 'value'),
-    State(f'{_PREFIX}_start_time', 'value'),    
+    prevent_initial_call=True    
+)
+@_on_error
+def on_explore_close_dialog(n1, n2):
+    return False
+
+@callback(
+    Output(f'{_PREFIX}_dropdown_set_id', 'data'),
+    Output(f'{_PREFIX}_dropdown_set_id', 'value'), 
+    Input(f'{_PREFIX}_btn_add', 'n_clicks'),
     prevent_initial_call=True
     )
 @_on_error
-def on_explore_dialog(n1, n2, n3, set_id, map_id, obj_lst, start_date, start_time):
-    ''' 显示/隐藏添加分析对象对话框，更新分析对象数据 '''
-    _id = ctx.triggered_id
-    # 点击增加，打开对话框，修改set_id及map_id的可选项以及默认值
-    if _id==f'{_PREFIX}_btn_add':
-        df = RSDBInterface.read_windfarm_configuration()
-        # set_id
-        set_id_lst = df['set_id'].unique().tolist()
-        option_set_id = [{'label':i} for i in set_id_lst]
-        set_id = set_id_lst[0]
-        # map_id
-        map_id_lst = df['map_id'].unique().tolist()
-        option_map_id = [{'label':i} for i in map_id_lst]
-        map_id = map_id_lst[0]
-        rev = [True, option_set_id, set_id, option_map_id, map_id, no_update]
-    # 选择新set_id后，变更map_id可选项以及默认值
-    elif _id==f'{_PREFIX}_dropdown_set_id':
-        map_id_lst = df['map_id'].unique().tolist()
-        option_map_id = [{'label':i} for i in map_id_lst]
-        map_id = map_id_lst[0]
-        rev = [no_update, no_update, no_update, option_map_id, map_id, no_update]
-    # 点击对话框里的确定按钮，关闭对话框，更新系列列表
-    elif _id==f'{_PREFIX}_btn_confirm':
-        obj_lst = [] if obj_lst is None else obj_lst
-        start_time = _make_sure_datetime_string(start_time)
-        start_time = start_date+start_time[10:]
-        end_time = pd.to_datetime(start_time)+pd.Timedelta('1h')
-        obj_lst.append({'图例号':'*', '机型编号':set_id, '风机编号':map_id, 
-                        '开始日期':start_time, '结束日期':end_time})
-        df = pd.DataFrame(obj_lst, index=np.arange(len(obj_lst)))
-        df.drop_duplicates(['机型编号','风机编号','开始日期','结束日期'], inplace=True)
-        df['图例号'] = [f't_{i}' for i in np.arange(df.shape[0])]
-        rev = [False, no_update, no_update, no_update, no_update, df.to_dict('records')]
-    elif _id==f'{_PREFIX}_btn_cancel':
-        rev =  [False, no_update, no_update, no_update, no_update, no_update]
-    else:
-        rev =  [no_update, no_update, no_update, no_update, no_update, no_update]
-    return rev
+def on_explore_update_set_id(n):
+    df = RSDBInterface.read_windfarm_configuration()
+    set_id_lst = df['set_id'].unique().tolist()
+    data=value=no_update
+    if len(set_id_lst)>0:
+        data = [{'value':i, 'label':i} for i in set_id_lst]
+        value = set_id_lst[0]
+    return data, value
 
+@callback(
+    Output(f'{_PREFIX}_dropdown_map_id', 'data'),
+    Output(f'{_PREFIX}_dropdown_map_id', 'value'), 
+    Input(f'{_PREFIX}_dropdown_set_id', 'value'),
+    prevent_initial_call=True
+    )
+@_on_error
+def on_explore_update_map_id(set_id):
+    df = RSDBInterface.read_windfarm_configuration()
+    data=value=no_update
+    if set_id is not None:
+        map_id_lst = df['map_id'].unique().tolist()
+        if len(map_id_lst)>0:
+            data = [{'value':i, 'label':i} for i in map_id_lst]
+            value = map_id_lst[0]
+    return data, value
+
+
+@callback(
+    Output(f'{_PREFIX}_datatable', 'data'),
+    Input(f'{_PREFIX}_btn_confirm', 'n_clicks'),
+    State(f'{_PREFIX}_dropdown_set_id', 'value'),
+    State(f'{_PREFIX}_dropdown_map_id', 'value'),
+    State(f'{_PREFIX}_datatable', 'data'),
+    State(f'{_PREFIX}_start_date', 'value'),
+    State(f'{_PREFIX}_start_time', 'value'),   
+    State(f'{_PREFIX}_hours', 'value'),   
+    prevent_initial_call=True
+    )
+@_on_error
+def on_explore_update_table(n, set_id, map_id, obj_lst, start_date, start_time, hours):
+    obj_lst = [] if obj_lst is None else obj_lst
+    start_time = _make_sure_datetime_string(start_time)
+    start_time = start_date+start_time[10:]
+    end_time = pd.to_datetime(start_time)+pd.Timedelta(f'{hours}h')
+    end_time = end_time.strftime('%Y-%m-%dT%H:%M:%S')
+    obj_lst.append({'图例号':'*', '机型编号':set_id, '风机编号':map_id, 
+                    '开始日期时间':start_time, '结束日期时间':end_time})
+    df = pd.DataFrame(obj_lst, index=np.arange(len(obj_lst)))
+    df.drop_duplicates(['机型编号','风机编号','开始日期时间','结束日期时间'], inplace=True)
+    df['图例号'] = [f't_{i}' for i in np.arange(df.shape[0])]
+    return df.to_dict('records')
 
 @callback(
     Output(f'{_PREFIX}_btn_confirm', 'disabled'),
@@ -313,8 +343,7 @@ def on_change_explore_dropdown_map_id(map_id, set_id):
     disabled_days = pd.date_range(min_date, max_date)
     disabled_days = disabled_days[~disabled_days.isin(dates)]
     disabled_days = [i.date().isoformat() for i in disabled_days]
-    rev = [min_date, max_date, disabled_days, None]
-    return rev
+    return min_date, max_date, disabled_days, None
     
     
 @callback(
@@ -442,23 +471,23 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, ts_y2, sct_x, sct_y, rad_t
     ytitle=''
     y2title=''
     point_name = tuple(pd.Series([xcol, ycol, y2col]).replace('ts', None).dropna())
-    sample_cnt = int(10000/len(table_lst))
+    sample_cnt = int(50000/len(table_lst))
     for dct in table_lst:
         try:
             df, desc_df = read_raw_data(
                 set_id=dct['机型编号'], 
                 map_id=dct['风机编号'], 
                 point_name=point_name, 
-                start_time=dct['开始日期'],
-                end_time=dct['结束日期'],
+                start_time=dct['开始日期时间'],
+                end_time=dct['结束日期时间'],
                 sample_cnt=sample_cnt,
                 remote=True
                 )
         except:
-            message = f"查询数据失败 {dct['机型编号']} {dct['风机编号']} {dct['开始日期']} {point_name}"
+            message = f"查询数据失败 {dct['机型编号']} {dct['风机编号']} {dct['开始日期时间']} {point_name}"
             break
         if len(df)<1:
-            message = f"数据集为空 {dct['机型编号']} {dct['风机编号']} {dct['开始日期']} {point_name}"
+            message = f"数据集为空 {dct['机型编号']} {dct['风机编号']} {dct['开始日期时间']} {point_name}"
             break
         name_lst.append(dct['图例号'])
         x = df[xcol].tolist() if xcol=='ts' else df[desc_df.loc[xcol, 'var_name']].tolist()
