@@ -354,7 +354,14 @@ def on_change_explore_dropdown_map_id(map_id, set_id):
     Output(f'{_PREFIX}_dropdown_radar_theta', 'data'),
     Output(f'{_PREFIX}_dropdown_radar_r', 'data'),
     Output(f'{_PREFIX}_dropdown_spectrum_y', 'data'),
-    Input(f'{_PREFIX}_datatable', 'data'),
+    Output(f'{_PREFIX}_dropdown_timeseries_y', 'value'),
+    Output(f'{_PREFIX}_dropdown_timeseries_y2', 'value'),
+    Output(f'{_PREFIX}_dropdown_scatter_x', 'value'),
+    Output(f'{_PREFIX}_dropdown_scatter_y', 'value'),
+    Output(f'{_PREFIX}_dropdown_radar_theta', 'value'),
+    Output(f'{_PREFIX}_dropdown_radar_r', 'value'),
+    Output(f'{_PREFIX}_dropdown_spectrum_y', 'value'),
+    Input(f'{_PREFIX}_datatable', 'value'),
     prevent_initial_call=True
     )
 @_on_error
@@ -379,9 +386,9 @@ def explore_update_dropdown_selection_variables(data_dct):
             ]
         radar_r = model_point_df[model_point_df['datatype']=='F']['point_name']
         spectrum_y = model_point_df[model_point_df['datatype']=='F']['point_name']
-        return timeseries_y, timeseries_y, scatter_x, scatter_y, radar_theta, radar_r, spectrum_y
+        return [timeseries_y, timeseries_y, scatter_x, scatter_y, radar_theta, radar_r, spectrum_y]+[None]*7
     else:
-        return [None]*7
+        return [[]]*7+[None]*7
        
 
 @callback(
