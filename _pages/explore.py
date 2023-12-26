@@ -361,7 +361,7 @@ def on_change_explore_dropdown_map_id(map_id, set_id):
     Output(f'{_PREFIX}_dropdown_radar_theta', 'value'),
     Output(f'{_PREFIX}_dropdown_radar_r', 'value'),
     Output(f'{_PREFIX}_dropdown_spectrum_y', 'value'),
-    Input(f'{_PREFIX}_datatable', 'value'),
+    Input(f'{_PREFIX}_datatable', 'data'),
     prevent_initial_call=True
     )
 @_on_error
