@@ -20,10 +20,6 @@ import taos
 # =============================================================================
 class TDEngine_Base():
     def __init__(self, **kwargs):
-        '''
-        >>> from wtbonline._db.config import TD_REMOTE_RESTAPI
-        >>> taos = TDEngine_Base(**TD_REMOTE_RESTAPI)
-        '''
         self._host = kwargs.get('host')
         self._port = kwargs.get('port')
         self._user = kwargs.get('user')
@@ -65,15 +61,15 @@ class TDEngine_RestAPI(TDEngine_Base):
 
     def query(self, sql):
         ''' 调用restApi，默认访问源数据库 
-        >>> from wtbonline._db.config import TD_REMOTE_RESTAPI
-        >>> taos = TDEngine_RestAPI(**TD_REMOTE_RESTAPI)
+        >>> from wtbonline._db.config import get_td_remote_restapi
+        >>> taos = TDEngine_RestAPI(**get_td_remote_restapi())
         >>> rs = taos.query('show databases')
         >>> len(rs)>0
         True
         '''
         sql = pd.Series(sql).str.replace('\n', '').str.replace(' {2,}', ' ', regex=True)
         sql = sql.str.strip().squeeze()
-        rec = requests.post(self._url, data=sql, headers=self._headers)
+        rec = requests.post(self._url, data=sql, headers=self._headers, timeout=300)
         if rec.status_code == 200:
             json = rec.json()
             if 'head' in json.keys():
@@ -94,12 +90,13 @@ class TDEngine_Connector(TDEngine_Base):
                             user=self.user,
                             password=self.password,
                             port=self.port,
-                            database=self.database)
+                            database=self.database,
+                            timeout=10)
 
     def query(self, sql):
         ''' 从tdengine读取原始数据 
-        >>> from wtbonline._db.config import TD_LOCAL_CONNECTOR
-        >>> connector = TD_LOCAL_CONNECTOR.copy()
+        >>> from wtbonline._db.config import get_td_local_connector
+        >>> connector = get_td_local_connector().copy()
         >>> connector['database']=None
         >>> tdec = TDEngine_Connector(**connector)
         >>> rs = tdec.query('show databases')  
