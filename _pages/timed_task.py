@@ -426,11 +426,11 @@ def timed_task_select_rows(rows, data):
     if (data is not None) and len(data)>0 and (rows is not None) and len(rows)>0:
         row = pd.DataFrame(data).iloc[rows[0]].squeeze()
         status = row['状态']
-        if status=='ADDED':
+        if status=='JOB_ADDED':
             rev = [True, False, False]
-        elif row['类型']=='interval' and status in ('EXECUTED', 'ERROR', 'MISSED'):
+        elif row['类型']=='interval' and status in ('JOB_EXECUTED', 'JOB_ERROR', 'JOB_MISSED'):
             rev = [True, False, False]
-        elif status=='PAUSED':
+        elif status=='JOB_MODIFIED':
             rev = [False, True, False]
         elif status=='CREATED':
             rev = [False, True, True]

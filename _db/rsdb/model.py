@@ -42,8 +42,7 @@ class ApschedulerJob(db.Model):
 class Model(db.Model):
     __tablename__ = 'model'
     __table_args__ = (
-        db.ForeignKeyConstraint(['set_id', 'turbine_id'], ['windfarm_configuration.set_id', 'windfarm_configuration.turbine_id'], ondelete='RESTRICT', onupdate='CASCADE'),
-        db.Index('compoud', 'set_id', 'turbine_id', 'name', 'create_time')
+        db.Index('compoud', 'set_id', 'turbine_id', 'name', 'create_time'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -57,15 +56,12 @@ class Model(db.Model):
     is_local = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='1=利用本地数据训练得到的模型')
     create_time = db.Column(db.DateTime, nullable=False, info='本记录生成时间')
 
-    set = db.relationship('WindfarmConfiguration', primaryjoin='and_(Model.set_id == WindfarmConfiguration.set_id, Model.turbine_id == WindfarmConfiguration.turbine_id)', backref='models')
-
 
 
 class ModelAnormaly(db.Model):
     __tablename__ = 'model_anormaly'
     __table_args__ = (
-        db.ForeignKeyConstraint(['set_id', 'turbine_id'], ['windfarm_configuration.set_id', 'windfarm_configuration.turbine_id'], ondelete='RESTRICT', onupdate='CASCADE'),
-        db.Index('set_id_2', 'set_id', 'turbine_id')
+        db.Index('set_id_2', 'set_id', 'turbine_id'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -76,15 +72,12 @@ class ModelAnormaly(db.Model):
     model_uuid = db.Column(db.String(100, 'utf8mb4_general_ci'), nullable=False)
     create_time = db.Column(db.DateTime, nullable=False)
 
-    set = db.relationship('WindfarmConfiguration', primaryjoin='and_(ModelAnormaly.set_id == WindfarmConfiguration.set_id, ModelAnormaly.turbine_id == WindfarmConfiguration.turbine_id)', backref='model_anormalies')
-
 
 
 class ModelLabel(db.Model):
     __tablename__ = 'model_label'
     __table_args__ = (
-        db.ForeignKeyConstraint(['set_id', 'turbine_id'], ['windfarm_configuration.set_id', 'windfarm_configuration.turbine_id'], ondelete='RESTRICT', onupdate='CASCADE'),
-        db.Index('set_id_3', 'set_id', 'turbine_id')
+        db.Index('set_id_3', 'set_id', 'turbine_id'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -95,7 +88,6 @@ class ModelLabel(db.Model):
     is_anormaly = db.Column(db.Integer, nullable=False)
     create_time = db.Column(db.DateTime, nullable=False)
 
-    set = db.relationship('WindfarmConfiguration', primaryjoin='and_(ModelLabel.set_id == WindfarmConfiguration.set_id, ModelLabel.turbine_id == WindfarmConfiguration.turbine_id)', backref='model_labels')
     user = db.relationship('User', primaryjoin='ModelLabel.username == User.username', backref='model_labels')
 
 
@@ -323,7 +315,7 @@ class TimedTask(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='任务id')
-    status = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='start/pause/delete')
+    status = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='start/pause/delete')
     func = db.Column(db.String(100, 'utf8mb4_general_ci'), nullable=False)
     setting = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='interval/date')
     start_time = db.Column(db.DateTime, nullable=False)
@@ -341,7 +333,7 @@ class TimedTaskLog(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
-    result = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False)
+    result = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False)
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
     pid = db.Column(db.Integer, nullable=False)
@@ -411,7 +403,6 @@ class User(UserMixin, db.Model):
 class WindfarmConfiguration(db.Model):
     __tablename__ = 'windfarm_configuration'
     __table_args__ = (
-        db.ForeignKeyConstraint(['set_id', 'model_name'], ['windfarm_turbine_model.set_id', 'windfarm_turbine_model.model_name'], ondelete='RESTRICT', onupdate='CASCADE'),
         db.Index('set_id_2', 'set_id', 'turbine_id'),
         db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name')
     )
@@ -427,8 +418,6 @@ class WindfarmConfiguration(db.Model):
     ftp_port = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue())
     ftp_username = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue())
     ftp_password = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue())
-
-    set = db.relationship('WindfarmTurbineModel', primaryjoin='and_(WindfarmConfiguration.set_id == WindfarmTurbineModel.set_id, WindfarmConfiguration.model_name == WindfarmTurbineModel.model_name)', backref='windfarm_configurations')
 
 
 

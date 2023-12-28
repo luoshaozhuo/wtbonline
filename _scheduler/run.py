@@ -31,10 +31,9 @@ from wtbonline._report.brief_report import build_brief_report_all
 #%% config
 class Config():
     SCHEDULER_JOBSTORES = {"default": SQLAlchemyJobStore(engine=create_engine_(), engine_options={'pool_pre_ping':True})}
-    # SCHEDULER_EXECUTORS = {"default": {"type": "processpool", "max_workers": 5}},
-    SCHEDULER_EXECUTORS = {'default': {'type': 'threadpool', 'max_workers': 5}}
+    SCHEDULER_EXECUTORS = {"default": {"type": "processpool", "max_workers": 5}}
     SCHEDULER_JOB_DEFAULTS = {"coalesce": True, "max_instances": 1}
-    SCHEDULER_API_ENABLED = True,
+    SCHEDULER_API_ENABLED = True
     SCHEDULER_TIMEZONE = 'Asia/Shanghai'
 
 app = Flask(__name__)
@@ -87,7 +86,7 @@ RECORD = {}
 
 def listen(event):
     status = JOB_STATUS[event.code]
-    job_id = event.job_id
+    job_id = getattr(event, 'job_id', 'NA')
     logger.info(f'event job_id={job_id} event={status}')
     if event.code in SELECTED_EVENT:
         try:

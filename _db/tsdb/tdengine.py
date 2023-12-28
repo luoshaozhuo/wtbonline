@@ -69,7 +69,7 @@ class TDEngine_RestAPI(TDEngine_Base):
         '''
         sql = pd.Series(sql).str.replace('\n', '').str.replace(' {2,}', ' ', regex=True)
         sql = sql.str.strip().squeeze()
-        rec = requests.post(self._url, data=sql, headers=self._headers, timeout=300)
+        rec = requests.post(self._url, data=sql, headers=self._headers, timeout=600)
         if rec.status_code == 200:
             json = rec.json()
             if 'head' in json.keys():
