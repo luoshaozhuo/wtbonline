@@ -31,8 +31,7 @@ from wtbonline._report.brief_report import build_brief_report_all
 #%% config
 class Config():
     SCHEDULER_JOBSTORES = {"default": SQLAlchemyJobStore(engine=create_engine_(), engine_options={'pool_pre_ping':True})}
-    # SCHEDULER_EXECUTORS = {"default": {"type": "processpool", "max_workers": 5}},
-    SCHEDULER_EXECUTORS = {'default': {'type': 'threadpool', 'max_workers': 5}}
+    SCHEDULER_EXECUTORS = {"default": {"type": "processpool", "max_workers": 5}},
     SCHEDULER_JOB_DEFAULTS = {"coalesce": True, "max_instances": 1}
     SCHEDULER_API_ENABLED = True,
     SCHEDULER_TIMEZONE = 'Asia/Shanghai'
