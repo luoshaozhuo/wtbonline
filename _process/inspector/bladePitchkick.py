@@ -15,7 +15,8 @@ class BladePitchkickInspector(BaseInspector):
         rev.insert(0, 'set_id', set_id)
         return rev
     
-    def _stat_tsdb(self, set_id, turbine_id, start_time, end_time):
+    # def _stat_tsdb(self, set_id, turbine_id, start_time, end_time):
+    def _stat_tsdb(self, set_id, start_time, end_time, turbine_id=None):
         st = start_time
         rev = []
         while True:
@@ -40,7 +41,7 @@ class BladePitchkickInspector(BaseInspector):
         if len(rev)>0:
             rev = pd.concat(rev, ignore_index=True)
             rev['date'] = rev['ts'].dt.date
-            rev = rev.groupby(['device', 'date'])['ts'].last().reset_index()
+            rev = rev.groupby(['device', 'date'])['ts'].first().reset_index()
             rev = self._standard(set_id, rev)
             rev['value'] = 'True'
             rev['bound'] = 'True'  

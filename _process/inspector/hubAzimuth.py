@@ -13,13 +13,14 @@ class HubAzimuthInspector(BaseInspector):
         rev.insert(0, 'set_id', set_id)
         return rev
     
-    def _stat_tsdb(self, set_id, turbine_id, start_time, end_time):
+    # def _stat_tsdb(self, set_id, turbine_id, start_time, end_time):
+    def _stat_tsdb(self, set_id, start_time, end_time, turbine_id=None):
         from_clause = f's_{set_id}' if turbine_id is None else f'd_{turbine_id}'
         sql = f'''
             select 
                 device,
                 TIMETRUNCATE(ts, 1d) as date,
-                last(ts) as ts
+                first(ts) as ts
             from 
                 {from_clause}
             where 

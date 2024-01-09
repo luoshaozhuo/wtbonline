@@ -25,7 +25,11 @@ def udpate_statistic_fault(*args, **kwargs):
     task_id = kwargs.get('task_id', 'NA')
     set_id = kwargs.get('set_id', None)
     start_time = kwargs.get('start_time', None)
+    if start_time is not None:
+        start_time = pd.to_datetime(start_time)
     end_time = kwargs.get('end_time', None)
+    if end_time is not None:
+        end_time = pd.to_datetime(end_time)
 
     # 获取所有set_id, turbine_id组合
     candidate_df = get_all_table_tags(set_id=set_id)
@@ -52,6 +56,7 @@ def udpate_statistic_fault(*args, **kwargs):
             except Exception as e:
                 _LOGGER.error(f'task_id={task_id} 无法从statistics_fault或windfarm确定{set_id} {turbine_id}的数据记录开始时间, {e}')
                 continue
+
         end = end_time
         if end is None:
             end = pd.to_datetime((pd.Timestamp.now()-pd.Timedelta('1d')))
