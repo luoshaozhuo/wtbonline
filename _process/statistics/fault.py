@@ -56,7 +56,6 @@ def udpate_statistic_fault(*args, **kwargs):
             except Exception as e:
                 _LOGGER.error(f'task_id={task_id} 无法从statistics_fault或windfarm确定{set_id} {turbine_id}的数据记录开始时间, {e}')
                 continue
-
         end = end_time
         if end is None:
             end = pd.to_datetime((pd.Timestamp.now()-pd.Timedelta('1d')))
