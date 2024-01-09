@@ -1,3 +1,5 @@
+import pandas as pd
+
 from wtbonline._process.inspector.base import BaseInspector
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
@@ -14,7 +16,6 @@ class BladeFlapwiseOverLoadedInspector(BaseInspector):
     
     def _inspect(self, set_id, turbine_id, start_time, end_time):
         rev = self._stat_flapwise(set_id, turbine_id, start_time, end_time)
-        rev.insert(0, 'set_id', set_id)
         return rev
     
     def _stat_flapwise(self, set_id, turbine_id, start_time, end_time):
@@ -22,6 +23,7 @@ class BladeFlapwiseOverLoadedInspector(BaseInspector):
         row = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name='blade_flapwise').iloc[0]
         sql = f'''
             select 
+                '{set_id}' as set_id,
                 device,
                 TIMETRUNCATE(ts, 1d) as date,
                 last(ts) as `ts`, 
@@ -45,12 +47,15 @@ class BladeFlapwiseOverLoadedInspector(BaseInspector):
         '''
         sql = concise(sql)
         rev = self._standard(set_id, TDFC.query(sql))
-        rev['value'] = rev[['var_18003', 'var_18004', 'var_18005']].max(axis=1)
-        rev['bound'] = row['upper_bound']
-        idxs = rev[rev['faultcode']=='30018'].index
-        rev.loc[idxs, 'value'] = rev.loc[idxs, ['var_18003', 'var_18004', 'var_18005']].min(axis=1)
-        rev.loc[idxs, 'bound'] = row['lower_bound']
-            
-        rev['var_name'] =  'blade_edgewise'
-        rev['name'] = row['name']
+        if rev.shape[0]>0:
+            rev['value'] = rev[['var_18003', 'var_18004', 'var_18005']].max(axis=1)
+            rev['bound'] = row['upper_bound']
+            idxs = rev[rev['faultcode']=='30018'].index
+            rev.loc[idxs, 'value'] = rev.loc[idxs, ['var_18003', 'var_18004', 'var_18005']].min(axis=1)
+            rev.loc[idxs, 'bound'] = row['lower_bound']
+
+            rev['var_name'] =  'blade_edgewise'
+            rev['name'] = row['name']
+        else:
+            rev = pd.DataFrame(columns=self.columns)
         return rev[self.columns]

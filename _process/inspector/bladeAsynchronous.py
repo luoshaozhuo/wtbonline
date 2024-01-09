@@ -10,18 +10,18 @@ class BladeAsynchronousInspector(BaseInspector):
         self.name = '叶片桨距角不同步'
     
     def _inspect(self, set_id, turbine_id, start_time, end_time):
-        rev = self._stat_tsdb(set_id, turbine_id, start_time, end_time)
-        rev.insert(0, 'set_id', set_id)
+        rev = self._stat_tsdb(set_id=set_id, turbine_id=turbine_id, start_time=start_time, end_time=end_time)
         return rev
-    
-    def _stat_tsdb(self, set_id, turbine_id, start_time, end_time):
+
+    def _stat_tsdb(self, *, set_id, start_time, end_time, turbine_id=None):
         row = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name='blade_asynchronous').iloc[0]
         from_clause = f's_{set_id}' if turbine_id is None else f'd_{turbine_id}'
         sql = f'''
-            select 
+            select
+                '{set_id}' as set_id,
                 device,
                 TIMETRUNCATE(ts, 1d) as date,
-                last(ts) as `ts`, 
+                first(ts) as `ts`, 
                 var_101,
                 var_102,
                 var_103
@@ -39,7 +39,7 @@ class BladeAsynchronousInspector(BaseInspector):
                 date
         '''
         sql = concise(sql)
-        rev = self._standard(set_id, TDFC.query(sql))
+        rev = self._standard(set_id, TDFC.query(sql, remote=False))
         rev['diff12'] = rev['var_101'] - rev['var_102']
         rev['diff13'] = rev['var_101'] - rev['var_103']
         rev['diff23'] = rev['var_102'] - rev['var_103']

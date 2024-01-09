@@ -41,7 +41,7 @@ SIDEBAR_DF = pd.DataFrame(
         ['故障', '风轮方位角异常', '风轮方位角异常', 2, 4, plt.HubAzimuth],
         ['故障', '叶片桨距角不同步', '叶片桨距角不同步', 2, 5, plt.BladeAsynchronous],
         ['故障', '叶根摆振弯矩超限', '叶根摆振弯矩超限', 2, 6, plt.BladeOverloaded],
-        ['故障', '叶根摆挥舞矩超限', '叶根摆挥舞矩超限', 2, 6, plt.BladeOverloaded],
+        ['故障', '叶根挥舞弯矩超限', '叶根挥舞弯矩超限', 2, 6, plt.BladeOverloaded],
         ['故障', '叶根载荷不平衡', '叶根载荷不平衡', 2, 7, plt.BladeUnblacedLoad],
         ['故障', '叶片pitchkick', '叶片pitchkick', 2, 8, plt.BladePitchkick],
         ['安全', '叶片净空', 'clearance', 3, 1, None],

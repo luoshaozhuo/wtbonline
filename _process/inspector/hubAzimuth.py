@@ -9,17 +9,17 @@ class HubAzimuthInspector(BaseInspector):
         self.name = '风轮方位角异常'
     
     def _inspect(self, set_id, turbine_id, start_time, end_time):
-        rev = self._stat_tsdb(set_id, turbine_id, start_time, end_time)
-        rev.insert(0, 'set_id', set_id)
+        rev = self._stat_tsdb(set_id=set_id, turbine_id=turbine_id, start_time=start_time, end_time=end_time)
         return rev
     
-    def _stat_tsdb(self, set_id, turbine_id, start_time, end_time):
+    def _stat_tsdb(self, *, set_id, start_time, end_time, turbine_id=None):
         from_clause = f's_{set_id}' if turbine_id is None else f'd_{turbine_id}'
         sql = f'''
             select 
+                '{set_id}' as set_id,
                 device,
                 TIMETRUNCATE(ts, 1d) as date,
-                last(ts) as ts
+                first(ts) as ts
             from 
                 {from_clause}
             where 
