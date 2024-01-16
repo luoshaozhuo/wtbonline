@@ -15,7 +15,7 @@ class BladeUnbalanceLoadInspector(BaseInspector):
         self.vars_bound = ['blade_flapwise_diff', 'blade_edgewise_diff']
         self.name = '叶根载荷不平衡'
     
-    def _stat_tsdb(self, set_id, start_time, end_time, turbine_id=None):
+    def _stat_tsdb(self, *, set_id, start_time, end_time, turbine_id=None):
         devices = make_sure_list(turbine_id)
         if len(devices)<1:
             sql = f'SHOW TABLE TAGS FROM s_{set_id}'
@@ -55,7 +55,7 @@ class BladeUnbalanceLoadInspector(BaseInspector):
                     and a.ongrid=1
                 '''
             sql = concise(sql)
-            df = self._standard(set_id, TDFC.query(sql, remote=False))
+            df = TDFC.query(sql, remote=False)
 
             df['blade_edgewise_diff_max'] = df[['blade_edgewise_diff12', 'blade_edgewise_diff13', 'blade_edgewise_diff23']].max(axis=1)
             df['blade_flapwise_diff_max'] = df[['blade_flapwise_diff12', 'blade_flapwise_diff13', 'blade_flapwise_diff23']].max(axis=1)
@@ -68,6 +68,8 @@ class BladeUnbalanceLoadInspector(BaseInspector):
                     value_name='value'
                     )
             indexs = df.groupby(['date', 'variable'])[['value']].idxmax().squeeze()
+            
+            df['set_id'] = set_id
             df['device'] = turbine_id
             df = df.loc[indexs]
             raw_df.append(df)

@@ -430,7 +430,7 @@ def timed_task_select_rows(rows, data):
             rev = [True, False, False]
         elif row['类型']=='interval' and status in ('JOB_EXECUTED', 'JOB_ERROR', 'JOB_MISSED'):
             rev = [True, False, False]
-        elif status=='JOB_MODIFIED':
+        elif status=='JOB_STOP':
             rev = [False, True, False]
         elif status=='CREATED':
             rev = [False, True, True]

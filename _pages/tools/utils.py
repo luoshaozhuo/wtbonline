@@ -314,7 +314,7 @@ def is_duplicated_task(key_):
     existed_task = existed_task[
         (existed_task['key_']==key_)
         & (existed_task['setting']=='interval')
-        & (existed_task['status']!='REMOVED')
+        & (existed_task['status']!='JOB_REMOVED')
         ]
     return len(existed_task)>0
 

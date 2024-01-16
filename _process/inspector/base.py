@@ -20,7 +20,7 @@ class BaseInspector():
         # 故障名
         self.name = None
         # 输出字段名
-        self.columns = ['map_id', 'turbine_id', 'device', 'date', 'ts', 'var_name', 'name', 'value', 'bound']
+        self.columns = ['set_id', 'map_id', 'turbine_id', 'device', 'date', 'ts', 'var_name', 'name', 'value', 'bound']
         self._initalize()
     
     def _initalize(self):
@@ -34,9 +34,8 @@ class BaseInspector():
     
     def _inspect(self, set_id, turbine_id, start_time, end_time):
         bound_df = RSDBInterface.read_turbine_variable_bound(set_id=set_id, var_name=self.vars_bound)
-        raw_df = self._stat_tsdb(set_id, start_time, end_time, turbine_id=turbine_id)
+        raw_df = self._stat_tsdb(set_id=set_id, start_time=start_time, end_time=end_time, turbine_id=turbine_id)
         rev = self._exceed(raw_df, bound_df)
-        rev['set_id'] = set_id
         return rev    
     
     def _exceed(self, raw_df, bound_df):
@@ -77,7 +76,7 @@ class BaseInspector():
         return self._condition_normal()
     
     
-    def _stat_tsdb(self, set_id, start_time, end_time, turbine_id=None):
+    def _stat_tsdb(self, *, set_id, start_time, end_time, turbine_id=None):
         ''' 在tsdb上执行统计计算 
         returns, pd.DataFrame, 'device', 'date', 'dt', 'variable', 'name', 'var_name'
         '''
@@ -86,6 +85,7 @@ class BaseInspector():
         for col,func in product(self.var_names, self.funcs):
             temp = f'''
                 select 
+                    '{set_id}' as set_id,
                     device, 
                     ts,
                     TIMETRUNCATE(ts, 1d) as date,

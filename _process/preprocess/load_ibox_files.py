@@ -67,7 +67,8 @@ class _FTP():
     def _login(self):
         self.ftp = FTP()
         self.ftp.connect(self.host, int(self.port), TIME_OUT)
-        self.ftp.login(self.username, self.password)
+        # self.ftp.login(self.username, self.password)
+        self.ftp.login('anonymous', '')
         
     def __enter__(self):
         self._quit()
@@ -142,5 +143,7 @@ def update_ibox_files(*args, **kwargs):
 
 #%% main
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+    # update_ibox_files()
+    set_id = '20835'
+    turbine_id = 's10016'
+    _update_ibox_files((set_id, turbine_id))

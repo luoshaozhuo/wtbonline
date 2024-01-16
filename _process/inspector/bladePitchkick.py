@@ -11,11 +11,10 @@ class BladePitchkickInspector(BaseInspector):
         self.name = '叶片pitchkick'
     
     def _inspect(self, set_id, turbine_id, start_time, end_time):
-        rev = self._stat_tsdb(set_id, turbine_id, start_time, end_time)
-        rev.insert(0, 'set_id', set_id)
+        rev = self._stat_tsdb(set_id=set_id, turbine_id=turbine_id, start_time=start_time, end_time=end_time)
         return rev
     
-    def _stat_tsdb(self, set_id, turbine_id, start_time, end_time):
+    def _stat_tsdb(self, *, set_id, start_time, end_time, turbine_id=None):
         st = start_time
         rev = []
         while True:
@@ -40,8 +39,9 @@ class BladePitchkickInspector(BaseInspector):
         if len(rev)>0:
             rev = pd.concat(rev, ignore_index=True)
             rev['date'] = rev['ts'].dt.date
-            rev = rev.groupby(['device', 'date'])['ts'].last().reset_index()
+            rev = rev.groupby(['device', 'date'])['ts'].first().reset_index()
             rev = self._standard(set_id, rev)
+            rev ['set_id'] = set_id
             rev['value'] = 'True'
             rev['bound'] = 'True'  
             rev['var_name'] =  'pitchkick'

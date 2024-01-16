@@ -1,3 +1,5 @@
+import pandas as pd
+
 from wtbonline._process.inspector.base import BaseInspector
 from wtbonline._process.tools.common import concise
 from wtbonline._db.tsdb_facade import TDFC
@@ -13,7 +15,6 @@ class BladeEdgewiseOverLoadedInspector(BaseInspector):
     
     def _inspect(self, set_id, turbine_id, start_time, end_time):
         rev = self._stat_edgewise(set_id, turbine_id, start_time, end_time)
-        rev.insert(0, 'set_id', set_id)
         return rev
     
     def _stat_edgewise(self, set_id, turbine_id, start_time, end_time):
@@ -24,6 +25,7 @@ class BladeEdgewiseOverLoadedInspector(BaseInspector):
             select 
                 TIMETRUNCATE(ts, 1d) as date,     
                 ts,
+                '{set_id}' as set_id,
                 device,
                 max(torque) as `value`
             from
@@ -63,8 +65,11 @@ class BladeEdgewiseOverLoadedInspector(BaseInspector):
                 date
             ''' 
         sql = concise(sql)
-        rev = self._standard(set_id, TDFC.query(sql))
-        rev['var_name'] =  'blade_edgewise'
-        rev['bound'] = bound
-        rev['name'] = row['name']
+        rev = self._standard(set_id, TDFC.query(sql, remote=False))
+        if rev.shape[0]>0:
+            rev['var_name'] =  'blade_edgewise'
+            rev['bound'] = bound
+            rev['name'] = row['name']
+        else:
+            rev = pd.DataFrame(columns=self.columns)
         return rev[self.columns]
