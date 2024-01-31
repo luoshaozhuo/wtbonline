@@ -16,7 +16,7 @@ from wtbonline._process.preprocess import _LOGGER
 OUTPATH = Path('/var/local/wtbonline/ibox')
 FILE_REGX = '^ibox.*\.txt$'
 REMOTE_DIR = Path('/ram0')
-TIME_OUT = 10
+TIME_OUT = 2
 
 #%% function
 def get_date(file_name:str):
@@ -67,9 +67,9 @@ class _FTP():
     def _login(self):
         self.ftp = FTP()
         self.ftp.connect(self.host, int(self.port), TIME_OUT)
-        # self.ftp.login(self.username, self.password)
-        self.ftp.login('anonymous', '')
-        
+        self.ftp.login(self.username, self.password)
+        self.ftp.set_pasv(True)
+
     def __enter__(self):
         self._quit()
         self._initialize()
@@ -145,5 +145,5 @@ def update_ibox_files(*args, **kwargs):
 if __name__ == "__main__":
     # update_ibox_files()
     set_id = '20835'
-    turbine_id = 's10016'
+    turbine_id = 's10025'
     _update_ibox_files((set_id, turbine_id))
