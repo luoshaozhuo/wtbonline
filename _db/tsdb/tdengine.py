@@ -90,8 +90,7 @@ class TDEngine_Connector(TDEngine_Base):
                             user=self.user,
                             password=self.password,
                             port=self.port,
-                            database=self.database,
-                            timeout=10)
+                            database=self.database)
 
     def query(self, sql):
         ''' 从tdengine读取原始数据 

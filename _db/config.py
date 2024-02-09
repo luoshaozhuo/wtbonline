@@ -25,9 +25,16 @@ from cryptography.fernet import Fernet
 # constant
 # =============================================================================
 _key = b'c63v5A2xjKjBXgVNJmXEWIjqMQmxMNaxoKvU5M5Hyfc='
+_host = 'localhost'
+_port = 40004
+_dbname = 'online'
+_user = 'root'
+_passwordd = quote_plus("Root666@mysql")
+
+SESSION_TIMEOUT = 3000
 
 def get_rsdb_uri():
-    return f'mysql+pymysql://root:{quote_plus("Root666@mysql")}@mysql:3306/online'
+    return f'mysql+pymysql://{_user}:{_passwordd}@{_host}:{_port}/{_dbname}'
 
 RSDB_URI = get_rsdb_uri() 
 
@@ -68,10 +75,6 @@ def get_td_remote_restapi():
     return sr.to_dict()
 
 def get_temp_dir():
-    '''
-    >>> isinstance(TEMP_DIR, Path)
-    True
-    '''
     path = pd.read_sql(
         '''
         select value 
@@ -83,6 +86,7 @@ def get_temp_dir():
     path = Path(path)
     path.mkdir(exist_ok=True)
     return path
+
 TEMP_DIR = get_temp_dir()
 
 if __name__ == "__main__":

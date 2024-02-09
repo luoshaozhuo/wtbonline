@@ -1,6 +1,6 @@
 dash
 dash_bootstrap_components
-dash-mantine-components
+dash-mantine-components==0.12.1
 flask_login
 sqlalchemy
 taospy

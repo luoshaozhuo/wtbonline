@@ -10,6 +10,9 @@ Created on Wed Apr 19 15:35:00 2023
 # =============================================================================
 import dash
 import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
+
+dmc.theme.DEFAULT_COLORS
 
 from wtbonline._pages.tools.login_manager import login_manager
 from wtbonline.config import Default
