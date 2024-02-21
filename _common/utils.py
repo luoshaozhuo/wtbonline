@@ -4,6 +4,14 @@ from typing import Union, Optional
 import numpy as np
 import datetime
 
+import dash_mantine_components as dmc
+from dash_iconify import DashIconify
+from dash import no_update
+
+import wtbonline.configure as cfg
+from wtbonline._db.rsdb_interface import RSDBInterface
+
+
 def make_sure_dict(x)->dict:
     '''
     >>> make_sure_dict(1)
@@ -168,6 +176,74 @@ def make_sure_datetime(
     else:
         rev = None
     return rev
+
+def dash_get_component_id(suffix, prefix=''):
+    '''
+    用于dash pages，将prefix及suffix拼接成控件ID
+    '''
+    return prefix + '_' + suffix
+
+def dash_try(note_title, func, *args, **kwargs):
+    '''
+    用于dash pages，返回func的运行结果及dash-mantine-component的notification控件
+    '''
+    try:
+        rs = func(*args, **kwargs)
+        notification = no_update
+    except Exception as e:
+        rs = None
+        notification = dmc.Notification(
+            id=f"simple_notify_{np.random.randint(0, 100)}",
+            title=note_title,
+            action="show",
+            autoClose=False,
+            message=f'func={func.__name__},args={args},{kwargs},errmsg={e}',
+            color='red',
+            icon=DashIconify(icon="mdi:alert-rhombus", width=20),
+            )         
+    return rs, notification    
+
+def dash_make_datetime(date:str, time:str):
+    '''
+    用于dash pages，拼接日期及时间
+    两个参数都是dash-mantine-component的datepicker及timeinput控件的value值
+    date: 如2024-12-02
+    time: 如2024-12-02T12:34:56
+    '''
+    return date + ' ' + time.split('T')[1]
+
+def interchage_mapid_and_tid(map_id=None, turbine_id=None):
+    assert not (map_id is None and turbine_id is None), 'neither map_id or turbine_id is specified'
+    if map_id is not None:
+        cond = cfg.WINDFARM_CONFIGURATION['map_id']==map_id
+        col = 'turbine_id'
+    elif turbine_id is None:
+        cond = cfg.WINDFARM_CONFIGURATION['turbie_id']==turbine_id
+        col = 'map_id'
+    rev = cfg.WINDFARM_CONFIGURATION[cond]
+    return rev[col].iloc[0] if len(rev)>0 else None
+
+def get_fault_id(name):
+    df = cfg.WINDFARM_FAULT_TYPE[cfg.WINDFARM_FAULT_TYPE['name']==name]
+    if len(df)>0:
+        rev = df['id'].iloc[0]
+    else:
+        rev = None
+    return rev
+
+def dash_dbquery(func, *args, **kwargs):
+    df, note = dash_try(note_title=cfg.NOTIFICATION_TITLE_DBQUERY, func=func, *args, **kwargs)
+    if df is not None and len(df)==0:
+        note = dmc.Notification(
+            id=f"simple_notify_{np.random.randint(0, 100)}",
+            title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,
+            action="show",
+            autoClose=False,
+            message=f'func={func.__name__},args={args},{kwargs}',
+            color='yellow',
+            icon=dmc.DashIconify(icon="mdi:question-mark-circle-outline", width=20),
+            )
+    return df, note
 
 if __name__ == "__main__":
     import doctest

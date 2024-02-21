@@ -1,6 +1,7 @@
 import pandas as pd
 
 import wtbonline._plot as plt
+from wtbonline._db.rsdb_interface import RSDBInterface
 
 HEADER_HEIGHT = '40px'
 
@@ -40,8 +41,27 @@ GRAPH_CONF = pd.DataFrame(
         ['通用质量特性', '可维修性', None],
         ['通用质量特性', '保障性', None]
         ],
-    columns=['section', 'item', 'class']
-    ).set_index('item')
+    columns=['item', 'clause', 'class']
+    )
 
 NOTIFICATION_TITLE_DBQUERY = '数据库操作失败'
+NOTIFICATION_TITLE_DBQUERY_NODATA = '查无数据'
 NOTIFICATION_TITLE_GRAPH = '绘图失败'
+
+WINDFARM_CONFIGURATION =  RSDBInterface.read_windfarm_configuration()
+WINDFARM_INFORMATION =  RSDBInterface.read_windfarm_infomation()
+WINDFARM_FAULT_TYPE = RSDBInterface.read_turbine_fault_type()
+
+SCHEDULER_JOB_TYPE = ['定时任务', '一次性任务']
+SCHEDULER_JOB_FUNC = { 
+    "初始化数据库":"wtbonline._process.preprocess.init_tsdb:init_tdengine",
+    "拉取原始数据":"wtbonline._process.preprocess.load_tsdb:update_tsdb",
+    "拉取PLC数据":"wtbonline._process.preprocess.load_ibox_files:update_ibox_files",
+    "统计10分钟样本":"wtbonline._process.statistics.sample:update_statistic_sample",
+    "统计24小时样本":"wtbonline._process.statistics.daily:udpate_statistic_daily",
+    "检测故障":"wtbonline._process.statistics.fault:udpate_statistic_fault",
+    "训练离群值识别模型":"wtbonline._process.model.anormlay.train:train_all",
+    "离群值识别":"wtbonline._process.model.anormlay.predict:predict_all",
+    "数据统计报告":"wtbonline._report.brief_report:build_brief_report_all",
+    "清理缓存":"wtbonline._pages.tools.utils:clear_cache"
+    }

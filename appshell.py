@@ -11,6 +11,7 @@ import dash_mantine_components as dmc
 from dash import Output, Input, clientside_callback, html, dcc, page_container, State, callback, ctx, no_update
 from dash_iconify import DashIconify
 import pandas as pd
+from sqlalchemy import asc
 
 #%% constant
 THEME_PRIMARY_COLOR = 'indigo'
@@ -199,7 +200,9 @@ def create_side_nav_content(nav_data):
         ).sort_values(['section_order', 'item_order'])
 
     links = []
-    for section, grp in df.groupby('section'):
+    # for section, grp in df.groupby('section'):
+    for section in df['section'].unique():
+        grp = df[df['section']==section]
         links.append(
             dmc.Divider(
                 labelPosition="left",
@@ -396,24 +399,12 @@ def create_appshell(nav_data):
                         create_navbar_drawer(nav_data),
                         create_modal_change_passwd(),
                         create_modal_user_management(),
-                        dmc.Grid(
-                            mt=HEADER_HEIGHT,
-                            mr='1px',
-                            ml='1px',
-                            gutter=MAIN_GRID_GUTTER,
-                            children=[
-                                dmc.MediaQuery(
-                                    smallerThan="lg",
-                                    styles={"display": "none"},
-                                    children=dmc.Col(pt=0, span='content', children=html.Div(create_side_navbar(nav_data), style={'width':NAVBAR_SIZE}))
-                                    ),
-                                dmc.Col(
-                                    pt=0,
-                                    span='auto',
-                                    children=html.Div(style={'height':'500px'}, children=page_container),                                  
-                                    )
-                                ]
-                            )
+                        dmc.MediaQuery(
+                            smallerThan="xl",
+                            styles={"display": "none"},
+                            children=create_side_navbar(nav_data)
+                            ),
+                        html.Div(style={'height':'500px'}, children=page_container)
                         ]
                     )
                 ]            
@@ -461,9 +452,3 @@ def callback_on_mdl_user_management(n1, n2):
     _id = ctx.triggered_id
     opened = True if _id == 'btn_manage_user' else False
     return opened
-
-# @callback(
-    
-#     )
-# def callback_logout():
-#     pass
