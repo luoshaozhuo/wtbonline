@@ -49,7 +49,7 @@ class PowerCurve(BaseFigure):
     
     def _initialize(self):
         '''
-        >>> fig = PowerCurve({'set_id':'20835', 'map_id':'A01', 'start_time':'2023-05-01', 'end_time':'2023-06-01'})
+        >>> fig = PowerCurve({'set_id':'20835', 'map_id':'A03', 'start_time':'2023-05-01', 'end_time':'2023-06-01'})
         >>> fig.plot()
         '''
         fig = go.Figure()

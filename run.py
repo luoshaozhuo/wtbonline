@@ -1,108 +1,24 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Apr 20 10:24:08 2023
+'''
+作者：luosz
+创建日期： 2024.02.18
+描述：gunicorn调用此文件启动应用
+'''
 
-@author: luosz
+import dash
+from dash import Dash
 
-首页
-"""
-# =============================================================================
-# import
-# =============================================================================
-from dash import html, dcc, Input, Output, no_update, callback
-import dash_bootstrap_components as dbc
-from flask_login import logout_user, current_user
+from appshell import create_appshell
 
-from wtbonline._pages import login, error_404, diagnose, analyse, explore, account, timed_task
-from wtbonline.app import app
-
-# =============================================================================
-# layout
-# =============================================================================
-navbar_children = [
-    dbc.NavItem(dbc.NavLink("探索", href="explore")),
-    dbc.NavItem(dbc.NavLink("分析", href="analyse")),
-    dbc.NavItem(dbc.NavLink("设计", href="design", disabled=True)),
-    dbc.NavItem(dbc.NavLink("诊断", href="diagnose")),
-    dbc.NavItem(dbc.NavLink("定时任务", href="timedtask")),
-    dbc.NavItem(dbc.NavLink("账户管理", href="account")),
-    dbc.NavItem(dbc.NavLink("退出登录", id='run_logout', href="#")),
-    ]
-
-navbar = dbc.NavbarSimple(
-    children=navbar_children,
-    brand = dbc.Row(
-                    [
-                        dbc.Col(html.Img(src='/assets/logo.jpg', height="30px")),
-                        dbc.Col(dbc.NavbarBrand("数据分析系统", className="ms-2 fs-6")),
-                    ],
-                    align="center",
-                    className="px-3",
-                ),
-    color="primary",
-    fluid=True,
-    dark=True,
-    id='navBar',
-    class_name='p-1',
-    style={'font-size':'small'},
-    fixed='top'
+app = Dash(
+    __name__,
+    suppress_callback_exceptions=True, # 动态页面需要设为True，跳过component检查
+    use_pages=True, # 打开多页面功能，默认从本文件所在目录的pages目录查找所需加载的页面
+    update_title=None,
 )
 
-layout = html.Div(
-    [
-     dcc.Location(id='run_location', refresh=False),
-     navbar,
-     html.Div(
-             id='run_page',
-             className='mt-5 h-100 w-100',
-             )
-     ],
-    className='position-absolute vw-100 vh-100 vstack'
-    )
-
-
-# =============================================================================
-# callback
-# =============================================================================
-@callback(Output('run_page', 'children'),
-              Output('run_location', 'pathname'),
-              Output('navBar', 'children'),
-              [Input('run_location', 'pathname')])
-def show_Page(pathname):
-    if pathname == '/login' or not current_user.is_authenticated:
-        return login.get_layout(), '/login', ''
- 
-    if pathname in ('/', '/diagnose'):
-        return diagnose.get_layout(), no_update, navbar_children
-    elif pathname == '/analyse':
-        return analyse.get_layout(), no_update, navbar_children
-    elif pathname == '/explore':
-        return explore.get_layout(), no_update, navbar_children
-    elif pathname == '/account':
-        return account.get_layout(), no_update, navbar_children
-    elif pathname == '/timedtask':
-        return timed_task.get_layout(), no_update, navbar_children
-    
-    return error_404.get_layout(), no_update, ''    
-
-@callback(
-    Output('run_location', 'pathname', allow_duplicate=True),
-    Input('run_logout', 'n_clicks'),
-    prevent_initial_call=True,
-    )
-def on_run_logout(nclick):
-    if nclick:
-        logout_user()
-        return '/login'
-    else: 
-        return no_update
-
-
-# =============================================================================
-# main
-# =============================================================================
-app.layout = layout
+# create_appshell太长，单独放在appshell.py文件里
+app.layout = create_appshell(dash.page_registry.values())
 server = app.server
 
-if __name__ == '__main__':
-    app.run_server(debug=False, host='0.0.0.0', port=40006) 
+if __name__ == "__main__":
+    app.run_server(debug=False)

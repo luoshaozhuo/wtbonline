@@ -23,7 +23,7 @@ class BaseFigure():
     def __init__(self, target_df:Union[pd.DataFrame, dict], samples:int=3600, var_names:List[str]=[], height=600, title=''):
         '''
         target_df -- 目标数据集
-            需要包含set_id,start_time,end_time，必须包含turbine_id', 'map_id', 'device'中的一个，
+            必须包含set_id,start_time,end_time，turbine_id'（'map_id', 'device'）中的一个，
             字段名可以是中文，对应关系是：
                 '机型编号':'set_id',
                 '风机编号':'device'或'turbine_id',
