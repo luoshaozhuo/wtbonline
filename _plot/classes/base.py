@@ -190,7 +190,7 @@ class BaseFigure():
                 y=1.02,
                 xanchor="right",
                 x=1),
-            margin=dict(l=50, r=50, t=70, b=50)
+            margin=dict(l=50, r=50, t=70, b=50),
             )
 
 if __name__ == '__main__':

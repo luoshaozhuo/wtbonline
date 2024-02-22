@@ -44,13 +44,22 @@ GRAPH_CONF = pd.DataFrame(
     columns=['item', 'clause', 'class']
     )
 
-NOTIFICATION_TITLE_DBQUERY = '数据库操作失败'
+NOTIFICATION_TITLE_DBQUERY_FAIL = '数据库操作失败'
 NOTIFICATION_TITLE_DBQUERY_NODATA = '查无数据'
-NOTIFICATION_TITLE_GRAPH = '绘图失败'
+NOTIFICATION_TITLE_GRAPH_FAIL = '绘图失败'
+NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL = '后台任务提交失败'
+NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS = '后台任务提交成功'
 
 WINDFARM_CONFIGURATION =  RSDBInterface.read_windfarm_configuration()
 WINDFARM_INFORMATION =  RSDBInterface.read_windfarm_infomation()
 WINDFARM_FAULT_TYPE = RSDBInterface.read_turbine_fault_type()
+
+NOTIFICATION = {
+    'error':{'color':'red', 'icon':'mdi:close-circle-outline"e'},
+    'info':{'color':'indigo', 'icon':'mdi:information-variant-circle-outline'},
+    'success':{'color':'green', 'icon':'mdi:success-circle-outline'},
+    'warning':{'color':'yellow', 'icon':'mdi:error-outline'},
+    }
 
 SCHEDULER_JOB_TYPE = ['定时任务', '一次性任务']
 SCHEDULER_JOB_FUNC = { 
@@ -65,3 +74,7 @@ SCHEDULER_JOB_FUNC = {
     "数据统计报告":"wtbonline._report.brief_report:build_brief_report_all",
     "清理缓存":"wtbonline._pages.tools.utils:clear_cache"
     }
+MISFIRE_GRACE_TIME = 600 # 600s
+SCHEDULER_JOB_INTER_UNIT = ['weeks', 'days', 'hours', 'miniues', 'seconds']
+SCHEDULER_URL='http://scheduler:40000/scheduler/jobs'
+SCHEDULER_TIMEOUT = 10

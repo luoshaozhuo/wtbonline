@@ -10,6 +10,7 @@ from dash import no_update
 
 import wtbonline.configure as cfg
 from wtbonline._db.rsdb_interface import RSDBInterface
+import wtbonline._common.dash_component as cmpt
 
 
 def make_sure_dict(x)->dict:
@@ -192,15 +193,11 @@ def dash_try(note_title, func, *args, **kwargs):
         notification = no_update
     except Exception as e:
         rs = None
-        notification = dmc.Notification(
-            id=f"simple_notify_{np.random.randint(0, 100)}",
+        notification = cmpt.notification(
             title=note_title,
-            action="show",
-            autoClose=False,
-            message=f'func={func.__name__},args={args},{kwargs},errmsg={e}',
-            color='red',
-            icon=DashIconify(icon="mdi:alert-rhombus", width=20),
-            )         
+            msg=f'func={func.__name__},args={args},{kwargs},errmsg={e}',
+            _type='error'
+            )     
     return rs, notification    
 
 def dash_make_datetime(date:str, time:str):
@@ -234,14 +231,10 @@ def get_fault_id(name):
 def dash_dbquery(func, *args, **kwargs):
     df, note = dash_try(note_title=cfg.NOTIFICATION_TITLE_DBQUERY, func=func, *args, **kwargs)
     if df is not None and len(df)==0:
-        note = dmc.Notification(
-            id=f"simple_notify_{np.random.randint(0, 100)}",
+        note = cmpt.notification(
             title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,
-            action="show",
-            autoClose=False,
-            message=f'func={func.__name__},args={args},{kwargs}',
-            color='yellow',
-            icon=dmc.DashIconify(icon="mdi:question-mark-circle-outline", width=20),
+            msg=f'func={func.__name__},args={args},{kwargs}',
+            _type='warning'
             )
     return df, note
 

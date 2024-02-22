@@ -30,7 +30,7 @@ NAVBAR_SIZE = '200px'
 NAVBAR_SECTION_FONTSIZE = 'xs'
 NAVBAR_ITEM_FONTSIZE = 'sm'
 
-HEADER_LABEL = '海装风电数据分析助理系统'
+HEADER_LABEL = '风电数据分析助理'
 HEADER_LABEL_ABBREATION =  'DAAS'
 WINDFARM_NAME = '渤中风电场'
 
@@ -74,6 +74,7 @@ def create_home_link(label):
         underline=False,
         children=dmc.Badge(
             size=HEADER_BAGE_SIZE,
+            ml=10,
             radius='xs',
             children=label
             )
@@ -86,7 +87,7 @@ def create_header_first_column():
             styles={"display":"none"},
             children=dmc.Image(
                 src="/assets/logo.png",
-                width=50,
+                height=20,
                 radius=0,
                 ),
             ),
@@ -134,14 +135,14 @@ def create_dropdown_menu_account():
 
 def create_header_last_column():
     return [
-        dmc.Switch(
-            offLabel=DashIconify(icon="radix-icons:moon", width=HEADER_SWITCH_ICON_WIDTH),
-            onLabel=DashIconify(icon="radix-icons:sun", width=HEADER_SWITCH_ICON_WIDTH),
-            checked=True,
-            size=HEADER_SWITCH_SIZE,
-            color='yellow',
-            id='switch_color_scheme'
-        ),
+        # dmc.Switch(
+        #     offLabel=DashIconify(icon="radix-icons:moon", width=HEADER_SWITCH_ICON_WIDTH),
+        #     onLabel=DashIconify(icon="radix-icons:sun", width=HEADER_SWITCH_ICON_WIDTH),
+        #     checked=True,
+        #     size=HEADER_SWITCH_SIZE,
+        #     color='yellow',
+        #     id='switch_color_scheme'
+        # ),
         dmc.Space(w=HEADER_ICON_HORIZONTAL_SPACE),
         create_dropdown_menu_account(),
         dmc.MediaQuery(
@@ -412,13 +413,13 @@ def create_appshell(nav_data):
         )
 
 #%% callback
-@callback(
-    Output("theme_provider", "theme"),
-    Input("switch_color_scheme", "checked"),
-    prevent_initial_call=True    
-)
-def callback_change_theme(checked):
-    return {"colorScheme":"light"} if checked else {"colorScheme":"dark"} 
+# @callback(
+#     Output("theme_provider", "theme"),
+#     Input("switch_color_scheme", "checked"),
+#     prevent_initial_call=True    
+# )
+# def callback_change_theme(checked):
+#     return {"colorScheme":"light"} if checked else {"colorScheme":"dark"} 
 
 @callback(
     Output("drawer_navbar", "opened"),

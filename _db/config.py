@@ -25,8 +25,8 @@ from cryptography.fernet import Fernet
 # constant
 # =============================================================================
 _key = b'c63v5A2xjKjBXgVNJmXEWIjqMQmxMNaxoKvU5M5Hyfc='
-_host = 'localhost'
-_port = 40004
+_host = 'mysql'
+_port = 3306
 _dbname = 'online'
 _user = 'root'
 _passwordd = quote_plus("Root666@mysql")

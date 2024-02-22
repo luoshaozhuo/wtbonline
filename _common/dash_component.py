@@ -1,12 +1,13 @@
 import dash_mantine_components as dmc
 import pandas as pd
 import numpy as np
+from dash_iconify import DashIconify
 
 import wtbonline.configure as cfg
 from wtbonline._db.rsdb_interface import RSDBInterface
 
 def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH):
-    if not isinstance(data[0], dict):
+    if len(data)>1 and not isinstance(data[0], dict):
         data=[{'label':i, 'value':i} for i in data]
     return dmc.Select(
         id=id,
@@ -71,3 +72,14 @@ def number_input(id, label, value, min, step=1, description='', size=cfg.TOOLBAR
         size=size,
         style={"width": width},
         )  
+
+def notification(title, msg='', _type='info'):
+    return dmc.Notification(
+        id=f"simple_notify_{np.random.randint(0, 100)}",
+        title=title,
+        action="show",
+        autoClose=False,
+        message=msg,
+        color=cfg.NOTIFICATION[_type]['color'],
+        icon=DashIconify(icon=cfg.NOTIFICATION[_type]['icon'], width=20),
+        )

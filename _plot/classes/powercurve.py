@@ -24,7 +24,7 @@ class PowerCurve(BaseFigure):
             end_time=end_time,
             columns = ['turbine_id', 'var_355_mean', 'var_246_mean', 'totalfaultbool_mode',
                     'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
-                    'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean'],
+                    'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean', 'bin'],
             )
         # 正常发电数据
         df = df[
@@ -62,7 +62,7 @@ class PowerCurve(BaseFigure):
                     y=mean_df['mean_power'],
                     line=dict(color=color),
                     mode='lines',
-                    name=row['name']
+                    name=row['name'],
                     )
                 )
             fig.add_trace(
@@ -71,7 +71,12 @@ class PowerCurve(BaseFigure):
                     y=df['mean_power'],
                     mode='markers',
                     name=row['name'],
-                    marker=dict(opacity=0.1, color=color)
+                    marker=dict(opacity=0.5, color=color),
+                    hovertemplate =
+                    '<i>mean_power</i>: %{y:.2f}'+
+                    '<br><i>mean_wind_speed</i>: %{x:.2f}<br>'+
+                    '<b>%{text}</b>',
+                    text = [f'datetime: {i}' for i in df['bin']],           
                     )
                 )
         fig.layout.xaxis.update({'title': '10分钟平均风速 m/s'})
