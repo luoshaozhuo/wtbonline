@@ -15,6 +15,9 @@ TOOLBAR_COMPONENT_SIZE = 'xs'
 TOOLBAR_ICON_WIDTH = 20
 TOOLBAR_COMPONENT_WIDTH = '170px'
 TOOLBAR_FONT_SIZE = 'sm'
+TOOLBAR_HIDE_SMALLER_THAN =  'lg'
+
+CONTAINER_SIZE = 'lg'
 
 NOW = pd.Timestamp.now()
 DATE = NOW.date()
@@ -55,7 +58,7 @@ WINDFARM_INFORMATION =  RSDBInterface.read_windfarm_infomation()
 WINDFARM_FAULT_TYPE = RSDBInterface.read_turbine_fault_type()
 
 NOTIFICATION = {
-    'error':{'color':'red', 'icon':'mdi:close-circle-outline"e'},
+    'error':{'color':'red', 'icon':'mdi:close-circle-outline'},
     'info':{'color':'indigo', 'icon':'mdi:information-variant-circle-outline'},
     'success':{'color':'green', 'icon':'mdi:success-circle-outline'},
     'warning':{'color':'yellow', 'icon':'mdi:error-outline'},
@@ -78,3 +81,8 @@ MISFIRE_GRACE_TIME = 600 # 600s
 SCHEDULER_JOB_INTER_UNIT = ['weeks', 'days', 'hours', 'miniues', 'seconds']
 SCHEDULER_URL='http://scheduler:40000/scheduler/jobs'
 SCHEDULER_TIMEOUT = 10
+
+
+TOOLBAR_TABLE_COLUMNS = ['图例号', 'map_id', 'start_time', 'end_time', 'set_id']
+TOOLBAR_TABLE_FONT_SIZE = '10px'
+TOOLBAR_TABLE_HEIGHT = '200PX'

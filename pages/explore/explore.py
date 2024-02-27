@@ -1,12 +1,15 @@
 '''
 作者：luosz
 创建日期： 2024.02.18
-描述：分析——性能
-    1、功率曲线
-    2、功率差异
+描述：探索--二维图
+    1、时序图
+    2、散点图
+    3、极坐标图
+    4、频谱图
 '''
 
 #%% import
+from tkinter import N
 import dash
 import dash_mantine_components as dmc
 from dash import dcc, html, dash_table
@@ -18,14 +21,15 @@ from functools import partial
 from wtbonline._db.rsdb_interface import RSDBInterface
 import wtbonline.configure as cfg
 from wtbonline._common import utils 
+from wtbonline._plot.functions import simple_plot
 from wtbonline._common import dash_component as dcmpt
 
 #%% constant
-SECTION = '分析'
+SECTION = '探索'
 SECTION_ORDER = 1
-ITEM='性能'
+ITEM='绘图'
 ITEM_ORDER = 1
-PREFIX =  'analysis_performance'
+PREFIX =  'explore_plot'
 
 HEADER_HEIGHT = cfg.HEADER_HEIGHT
 
@@ -48,9 +52,10 @@ DATE = cfg.DATE
 TIME_START = cfg.TIME_START
 TIME_END = cfg.TIME_END
 
+GRAPH_TYPE = ['时序图', '散点图', '极坐标图', '频谱图']
 GRAPH_PADDING_TOP = cfg.GRAPH_PADDING_TOP
-GRAPH_CONF = cfg.GRAPH_CONF[cfg.GRAPH_CONF['item']==ITEM].set_index('clause')
-NOTIFICATION_TITLE_DBQUERY = cfg.NOTIFICATION_TITLE_DBQUERY_FAIL
+DBQUERY_FAIL = cfg.NOTIFICATION_TITLE_DBQUERY_FAIL
+DBQUERY_NODATA = cfg.NOTIFICATION_TITLE_DBQUERY_NODATA
 NOTIFICATION_TITLE_GRAPH = cfg.NOTIFICATION_TITLE_GRAPH_FAIL
 
 TABLE_COLUMNS = cfg.TOOLBAR_TABLE_COLUMNS
@@ -65,8 +70,7 @@ def create_toolbar_content():
     return dmc.Stack(
         spacing=0, 
         px=TOOLBAR_PADDING, 
-        children=[
-            dcmpt.select_analysis_type(id=get_component_id('select_type'), data=list(GRAPH_CONF.index), label='分析类型'),
+        children=[   
             dcmpt.select_setid(id=get_component_id('select_setid')),
             dcmpt.select_mapid(id=get_component_id('select_mapid')),
             dcmpt.date_picker(id=get_component_id('datepicker_start'), label="开始日期", description="可选日期取决于24小时统计数据"),
@@ -91,10 +95,14 @@ def create_toolbar_content():
                     style_cell={'fontSize':TABLE_FONT_SIZE}
                     ),
                 ),
+            dmc.Space(h='10px'),
+            dcmpt.select(id=get_component_id('select_type'), data=GRAPH_TYPE, value=None, label='类型'),  
+            dcmpt.select(id=get_component_id('select_xaxis'), data=[], value=None, label='x坐标（θ坐标）', description='需要先选择类型以及机型编号'),
+            dcmpt.select(id=get_component_id('select_yaxis'), data=[], value=None, label='y坐标（r坐标）', description='需要先选择类型以及机型编号'),
+            dcmpt.select(id=get_component_id('select_yaxis2'), data=[], value=None, label='y2坐标', description='只适用于时序图'),
             dmc.Space(h='20px'),
             dmc.Button(
                 fullWidth=True,
-                disabled=True,
                 id=get_component_id('btn_refresh'),
                 leftIcon=DashIconify(icon="mdi:refresh", width=TOOLBAR_ICON_WIDTH),
                 size=TOOLBAR_COMPONENT_SIZE,
@@ -159,7 +167,7 @@ layout =  dmc.NotificationsProvider(children=[
     Input(get_component_id('select_setid'), 'value'),
     prevent_initial_call=True
     )
-def callback_update_select_mapid_performance(set_id):
+def callback_update_select_mapid_plot(set_id):
     df = cfg.WINDFARM_CONFIGURATION[cfg.WINDFARM_CONFIGURATION['set_id']==set_id]
     data = [] if df is None else [{'value':i, 'label':i} for i in df['map_id']]
     return data
@@ -173,10 +181,10 @@ def callback_update_select_mapid_performance(set_id):
     Input(get_component_id('select_mapid'), 'value'),
     prevent_initial_call=True
     )
-def callback_update_datepicker_start_performance(map_id):
+def callback_update_datepicker_start_plot(map_id):
     turbine_id = utils.interchage_mapid_and_tid(map_id=map_id)
     df, note = utils.dash_try(
-        note_title = NOTIFICATION_TITLE_DBQUERY, 
+        note_title = DBQUERY_FAIL, 
         func=RSDBInterface.read_statistics_daily, 
         turbine_id=turbine_id if turbine_id is not None else '', 
         columns=['date']
@@ -209,7 +217,7 @@ def callback_update_datepicker_start_performance(map_id):
     State(get_component_id('time_end'), 'value'),
     prevent_initial_call=True
     )
-def callback_update_datepicker_start_performance(date_start, maxDate_start, minDate_start, disabledDates_start, date_end, tm):
+def callback_update_datepicker_start_plot(date_start, maxDate_start, minDate_start, disabledDates_start, date_end, tm):
     minDate = date_start if date_start is not None else minDate_start
     maxDate = maxDate_start
     disabledDates = disabledDates_start
@@ -218,6 +226,57 @@ def callback_update_datepicker_start_performance(date_start, maxDate_start, minD
     else:
         value = None
     return disabledDates, minDate, maxDate, value
+
+@callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
+    Output(get_component_id('select_xaxis'), 'data'),
+    Output(get_component_id('select_xaxis'), 'value'),
+    Output(get_component_id('select_yaxis'), 'data'),
+    Output(get_component_id('select_yaxis'), 'value'),
+    Input(get_component_id('select_type'), 'value'),
+    Input(get_component_id('select_setid'), 'value'),
+    prevent_initial_call=True
+    )
+def callback_on_slect_type_plot(_type, set_id):
+    # 选出所有机型表格中所有机型共有的变量
+    if None in [_type, set_id]:
+        return [no_update]*5
+    cols = ['point_name', 'unit', 'set_id', 'datatype']
+    model_point_df, note = utils.dash_dbquery(
+        func=RSDBInterface.read_turbine_model_point,
+        set_id=set_id, 
+        columns=cols, 
+        select=[0, 1]
+        )
+    if note!=no_update:
+        return note, no_update, no_update, no_update, no_update
+    if _type=='时序图':
+        x_data = ['时间']
+        x_value = '时间'
+        y_data = model_point_df['point_name']
+        y_value = None
+    elif _type=='散点图':
+        x_data = model_point_df['point_name']
+        x_value = None
+        y_data = model_point_df['point_name']
+        y_value = None
+    elif _type=='极坐标图':
+        x_data = model_point_df['point_name'][
+                    (model_point_df['point_name'].str.find('角')>-1) & 
+                    (model_point_df['unit']=='°')
+                    ]
+        x_value = None
+        y_data = model_point_df[model_point_df['datatype']=='F']['point_name']
+        y_value = None    
+    elif _type=='频谱图':
+        x_data = ['频率']
+        x_value = '频率'
+        y_data = model_point_df[model_point_df['datatype']=='F']['point_name']
+        y_value = None
+    x_data = [{'value':i, 'label':i} for i in x_data]
+    y_data = [{'value':i, 'label':i} for i in y_data]
+    return no_update, x_data, x_value, y_data, y_value
+
 
 @callback(
     Output(get_component_id('select_setid'), 'error'),
@@ -236,7 +295,7 @@ def callback_update_datepicker_start_performance(date_start, maxDate_start, minD
     State(get_component_id('table'), 'data'),
     prevent_initial_call=True    
     )
-def callback_on_icon_add_component(n, set_id, map_id, date_start, date_end, time_start, time_end, tbl_lst):
+def callback_on_icon_add_plot(n, set_id, map_id, date_start, date_end, time_start, time_end, tbl_lst):
     tbl_df = pd.DataFrame(tbl_lst, columns=TABLE_COLUMNS)
     errs = ['变量不能为空' if i is None else '' for i in [set_id, map_id, date_start, date_end, time_end]]
     data = no_update
@@ -251,6 +310,7 @@ def callback_on_icon_add_component(n, set_id, map_id, date_start, date_end, time
         data = data.to_dict('records')
     return *errs, data
 
+
 @callback(
     Output(get_component_id('btn_refresh'), 'disabled'), 
     Input(get_component_id('table'), 'data'),  
@@ -262,25 +322,109 @@ def callback_update_btn_resresh_component(tbl_lst):
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('graph'), 'figure'),
+    Output(get_component_id('select_xaxis'), 'error'),
+    Output(get_component_id('select_yaxis'), 'error'),
     Input(get_component_id('btn_refresh'), 'n_clicks'),
-    State(get_component_id('table'), 'data'),
     State(get_component_id('select_type'), 'value'),
+    State(get_component_id('table'), 'data'),
+    State(get_component_id('select_xaxis'), 'value'),
+    State(get_component_id('select_yaxis'), 'value'),
+    State(get_component_id('select_yaxis2'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_btn_refresh_performance(n, tbl_lst, _type):
-    target_df = pd.DataFrame(tbl_lst)
-    graph = None
-    note = no_update
-    if len(target_df)>0:
-        graph, note = utils.dash_try(
-            note_title=NOTIFICATION_TITLE_GRAPH,   
-            func=GRAPH_CONF.loc[_type]['class'], 
-            target_df = target_df,
-            title = _type
-            )
-    figure = no_update if graph is None else graph.figs[0]
-    return note, figure
-
+def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
+    msg = '未选中任何数据'
+    error = ['未选中任何数据' if i is None else '' for i in [xcol, ycol]]
+    if msg in error:
+        return no_update, no_update, *error
+    # 设置绘图参数
+    xtitle=''
+    y2col=None
+    if plot_type=='时序图':
+        xcol = 'ts'
+        mode = 'markers+lines'
+        _type = 'line'
+        xtitle = '时间'
+    elif plot_type=='散点图':
+        _type = 'scatter'
+        mode = 'markers'
+    elif plot_type=='雷达图':
+        _type = 'polar'
+        mode = 'markers'
+    elif plot_type=='频谱图':
+        xcol = 'ts'
+        _type = 'spectrum'
+        mode = 'markers+lines'
+        xtitle = '频率Hz'
+    
+    # 读取绘图数据
+    x_lst=[]    
+    y_lst=[]
+    y2_lst=[]
+    name_lst=[]
+    ref_freqs=[]
+    ytitle=''
+    y2title=''
+    point_name = tuple(pd.Series([xcol, ycol, y2col]).replace('ts', None).dropna())
+    sample_cnt = int(10000/len(table_lst))
+    for dct in table_lst:
+        try:
+            df, desc_df = utils.read_raw_data(
+                set_id=dct['set_id'], 
+                map_id=dct['map_id'], 
+                point_name=point_name, 
+                start_time=dct['start_time'],
+                end_time=dct['end_time'],
+                sample_cnt=sample_cnt,
+                remote=True
+                )
+        except Exception as e:
+            note = dcmpt.notification(title=DBQUERY_FAIL, msg=e, _type='error')
+            break
+        else:
+            if len(df)<1:
+                note = dcmpt.notification(title=DBQUERY_NODATA, msg='查无数据', _type='warning')
+                break
+        note = no_update
+        name_lst.append(dct['图例号'])
+        x = df[xcol].tolist() if xcol=='ts' else df[desc_df.loc[xcol, 'var_name']].tolist()
+        x_lst.append(x)
+        if ycol is not None:
+            y = df[desc_df.loc[ycol, 'var_name']].tolist()
+            y_lst.append(y)
+            xtitle = desc_df.loc[xcol, 'column'] if xtitle=='' else xtitle
+            if ytitle=='':
+                if _type == 'spectrum':
+                    ytitle = ycol + f"_({desc_df.loc[ycol, 'unit']})^2"
+                else:
+                    ytitle = desc_df.loc[ycol, 'column']
+        if y2col is not None:
+            y2 = df[desc_df.loc[y2col, 'var_name']].tolist()
+            y2_lst.append(y2)
+            if y2title=='':
+                if _type == 'spectrum':
+                    y2title = ycol + f"_({desc_df.loc[y2col, 'unit']})^2"
+                else:
+                    y2title = desc_df.loc[y2col, 'column']
+        else:
+            y2_lst.append(None)
+    if note!=no_update:
+        return note, no_update, *error     
+    fig, note = utils.dash_try(
+        note_title='绘图失败',
+        func=simple_plot,
+        x_lst=x_lst, 
+        y_lst=y_lst, 
+        y2_lst=y2_lst,
+        xtitle=xtitle, 
+        ytitle=ytitle,
+        y2title=y2title,
+        name_lst=name_lst,
+        mode=mode,
+        _type=_type,
+        ref_freqs=ref_freqs,    
+        )
+    return note, fig, *error 
 
 #%% main
 if __name__ == '__main__':     

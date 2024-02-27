@@ -10,6 +10,7 @@ from dash import no_update
 
 import wtbonline.configure as cfg
 from wtbonline._db.rsdb_interface import RSDBInterface
+from wtbonline._db.tsdb_facade import TDFC
 import wtbonline._common.dash_component as cmpt
 
 
@@ -229,7 +230,7 @@ def get_fault_id(name):
     return rev
 
 def dash_dbquery(func, *args, **kwargs):
-    df, note = dash_try(note_title=cfg.NOTIFICATION_TITLE_DBQUERY, func=func, *args, **kwargs)
+    df, note = dash_try(note_title=cfg.NOTIFICATION_TITLE_DBQUERY_FAIL, func=func, *args, **kwargs)
     if df is not None and len(df)==0:
         note = cmpt.notification(
             title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,
@@ -237,6 +238,63 @@ def dash_dbquery(func, *args, **kwargs):
             _type='warning'
             )
     return df, note
+
+def read_raw_data(
+        set_id:str, 
+        map_id:str, 
+        point_name:Union[str, tuple[str]], 
+        start_time:pd.Timestamp,
+        end_time:pd.Timestamp,
+        sample_cnt:int=20000,
+        remote=False,
+        ):
+    point_name = make_sure_list(point_name)
+    turbine_id = interchage_mapid_and_tid(map_id=map_id)
+    start_time = make_sure_datetime(start_time)
+    end_time = make_sure_datetime(end_time)
+    diff = (end_time - start_time).value/10**9
+    
+    if diff<=sample_cnt or remote==True:
+        df = []
+        # 远程数据库有可能限制每次查询的数据量
+        for _ in range(30):
+            tmp, desc_df = TDFC.read(
+                set_id=set_id, 
+                turbine_id=turbine_id,
+                start_time=start_time,
+                end_time=end_time,
+                point_name=point_name,
+                limit=sample_cnt,
+                remote=remote
+                )
+            if len(tmp)>0:
+                df.append(tmp)
+                start_time=tmp['ts'].max()+pd.Timedelta('0.0001s')
+            else:
+                break
+        df = pd.concat(df, ignore_index=True) 
+        df = df.sample(sample_cnt) if len(df)>sample_cnt else df  
+        df.sort_values('ts', inplace=True)
+        desc_df.set_index('point_name', inplace=True, drop=False)
+    else:
+        interval = f'{int(diff/60/20)}m'
+        cnt = min(int(sample_cnt/20), 1000)
+        desc_df = RSDBInterface.read_turbine_model_point(set_id=set_id, point_name=point_name)
+        desc_df['var_name'] = desc_df['var_name'].str.lower() 
+        desc_df.set_index('point_name', inplace=True, drop=False)
+        desc_df['column'] = desc_df['point_name'] + '_' + desc_df['unit']
+        sql = f'''
+            select sample(ts,{cnt}) as ts,{','.join(desc_df['var_name'])} from windfarm.d_{turbine_id}
+            where
+            ts>='{start_time}' and ts<'{end_time}'
+            interval({interval})
+            sliding({interval})
+            '''
+        sql = pd.Series(sql).str.replace('\n *', ' ', regex=True).squeeze().strip()
+        df = TDFC.query(sql, remote=remote)
+        df.sort_values('ts', inplace=True)
+    return df, desc_df
+
 
 if __name__ == "__main__":
     import doctest

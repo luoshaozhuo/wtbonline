@@ -223,7 +223,9 @@ class TDEngine_FACADE():
         point_df['ref_name'] = point_df['ref_name'].str.lower()
 
         var_name = [key_ for key_ in func_dct.keys()] if len(func_dct)>0 else var_name
-        assert pd.Series(point_name).isin(point_df['point_name']).all() if len(point_name)>0 else True
+        unavailable_var = pd.Series(point_name)
+        unavailable_var = unavailable_var[~unavailable_var.isin(point_df['point_name'])]
+        assert len(unavailable_var)==0, f'远程数据库没有指定变量：{unavailable_var.tolist()}'
         point_df = point_df.query('var_name in @var_name') if len(var_name)>0 else point_df
         point_df = point_df.query('point_name in @point_name') if len(point_name)>0 else point_df
 
@@ -253,7 +255,7 @@ class TDEngine_FACADE():
         if remote==True:
             cols.replace({row['var_name']:row['ref_name'] for _,row in point_df.iterrows()}, inplace=True)
         cols_org = pd.Series(cols_org).str.replace('(.*as |"|`)', '',  regex=True)
-        return cols.tolist(), cols_org.tolist(), point_df
+        return cols.tolist(), cols_org.tolist(), point_df.drop_duplicates(subset='point_name')
 
     def read(
             self,

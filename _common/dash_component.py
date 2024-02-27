@@ -6,7 +6,7 @@ from dash_iconify import DashIconify
 import wtbonline.configure as cfg
 from wtbonline._db.rsdb_interface import RSDBInterface
 
-def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH):
+def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, description=''):
     if len(data)>1 and not isinstance(data[0], dict):
         data=[{'label':i, 'value':i} for i in data]
     return dmc.Select(
@@ -16,7 +16,9 @@ def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=c
         placeholder="Select one",
         style={"width": width},
         value=value,
-        data=data
+        data=data,
+        description=description,
+        searchable=True,
         )
 
 def select_analysis_type(id, data:list, label:str, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH):
@@ -79,7 +81,7 @@ def notification(title, msg='', _type='info'):
         title=title,
         action="show",
         autoClose=False,
-        message=msg,
+        message=f'{msg}',
         color=cfg.NOTIFICATION[_type]['color'],
         icon=DashIconify(icon=cfg.NOTIFICATION[_type]['icon'], width=20),
         )

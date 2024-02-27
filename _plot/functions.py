@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import List
 
 from wtbonline._pages.tools.utils import var_name_to_point_name
-from wtbonline.db.common import make_sure_list, make_sure_dataframe
+from wtbonline._common.utils import make_sure_list, make_sure_dataframe
 
 # =============================================================================
 # function
@@ -357,6 +357,8 @@ def simple_plot(
             fig.add_trace(trace)
         elif _type=='line':
             for y, secondary_y in zip([y_lst[i], y2_lst[i]], [False, True]):
+                if y is None or len(y)<1:
+                    continue
                 suffix = 'y' if secondary_y==False else 'y2'
                 trace = go.Scatter(
                     x=x_lst[i], 

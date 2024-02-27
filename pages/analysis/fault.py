@@ -36,6 +36,9 @@ TOOLBAR_COMPONENT_SIZE = cfg.TOOLBAR_COMPONENT_SIZE
 TOOLBAR_ICON_WIDTH = cfg.TOOLBAR_ICON_WIDTH
 TOOLBAR_COMPONENT_WIDTH = cfg.TOOLBAR_COMPONENT_WIDTH
 TOOLBAR_FONT_SIZE = cfg.TOOLBAR_FONT_SIZE
+TOOLBAR_HIDE_SMALLER_THAN =  cfg.TOOLBAR_HIDE_SMALLER_THAN
+
+CONTAINER_SIZE = cfg.CONTAINER_SIZE
 
 NOW = cfg.NOW
 DATE = cfg.DATE
@@ -117,9 +120,9 @@ dash.register_page(
 
 layout =  dmc.NotificationsProvider(children=[
     html.Div(id=get_component_id('notification')),
-    dmc.Container(children=[creat_content()], size='xl',pt=HEADER_HEIGHT),
+    dmc.Container(children=[creat_content()], size=CONTAINER_SIZE,pt=HEADER_HEIGHT),
     dmc.MediaQuery(
-        smallerThan="xl",
+        smallerThan=TOOLBAR_HIDE_SMALLER_THAN,
         styles={"display": "none"},
         children=creat_toolbar()
         )

@@ -16,7 +16,7 @@ from wtbonline._process.tools.common import concise, standard
 
 class BaseFigure():
     '''
-    >>> df = {'set_id':'20835', 'turbine_id':'s10002', 'start_time':'2023-05-01', 'end_time':'2023-06-01'}
+    >>> df = {'set_id':'20835', 'turbine_id':'s10003', 'start_time':'2023-05-01', 'end_time':'2023-06-01'}
     >>> figure = BaseFigure(df, var_names=['var_101', 'var_102'])
     >>> figure.plot()
     '''  
