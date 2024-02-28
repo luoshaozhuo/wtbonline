@@ -132,8 +132,6 @@ if __name__ == '__main__':
     import dash
     import dash_bootstrap_components as dbc
     app = dash.Dash(__name__, assets_folder='../assets', suppress_callback_exceptions=True, external_stylesheets=[dbc.themes.BOOTSTRAP])
-else:
-    first_noticifation_output = Output('notficiation_container', 'children', allow_duplicate=True)
 
 dash.register_page(
     __name__,
@@ -143,7 +141,7 @@ dash.register_page(
     item_order=ITEM_ORDER,
     )
 
-layout =  dmc.NotificationsProvider(children=[
+layout = [
     html.Div(id=get_component_id('notification')),
     dmc.Container(children=[creat_content()], size=CONTAINER_SIZE,pt=HEADER_HEIGHT),
     dmc.MediaQuery(
@@ -151,7 +149,12 @@ layout =  dmc.NotificationsProvider(children=[
         styles={"display": "none"},
         children=creat_toolbar()
         )
-    ])
+    ]
+
+if __name__ == '__main__':  
+    layout =  dmc.NotificationsProvider(children=layout)
+
+
 
 #%% callback
 @callback(
