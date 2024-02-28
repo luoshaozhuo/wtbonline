@@ -369,15 +369,16 @@ def simple_plot(
                     marker=dict(size=3, opacity=0.5)
                     )
                 fig.add_trace(trace, secondary_y=secondary_y)
-    for i in ref_freqs:
-        fig.add_vline(
-            x=i, 
-            annotation_text=f"特征频率{i}",
-            annotation_font_size=10, 
-            line_width=1, 
-            line_dash="dash", 
-            line_color="green"
-            )
+    if _type=='spectrum':
+        for i in ref_freqs:
+            fig.add_vline(
+                x=i, 
+                annotation_text=f"特征频率{i}",
+                annotation_font_size=10, 
+                line_width=1, 
+                line_dash="dash", 
+                line_color="green"
+                )
     fig.update_xaxes(title_text=xtitle)
     fig.update_yaxes(title_text=ytitle)
     if y2title not in (None, ''):

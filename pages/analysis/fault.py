@@ -180,7 +180,7 @@ def callback_update_datepicker_date_fault(map_id, _type):
     Input(get_component_id('datepicker_date'), 'value'),  
     prevent_initial_call=True 
 )
-def callback_update_btn_resresh_component(dt):
+def callback_update_btn_resresh_fault(dt):
     return True if dt is None else False
 
 @callback(
@@ -193,7 +193,7 @@ def callback_update_btn_resresh_component(dt):
     State(get_component_id('datepicker_date'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_btn_refresh_performance(n, set_id, map_id, _type, dt):
+def callback_on_btn_refresh_fault(n, set_id, map_id, _type, dt):
     turbine_id = utils.interchage_mapid_and_tid(map_id)
     df, note = utils.dash_dbquery( 
         func=RSDBInterface.read_statistics_fault, 

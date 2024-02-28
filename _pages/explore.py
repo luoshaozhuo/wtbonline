@@ -478,7 +478,7 @@ def on_explore_btn_refresh(n1, table_lst, item, ts_y, ts_y2, sct_x, sct_y, rad_t
     ytitle=''
     y2title=''
     point_name = tuple(pd.Series([xcol, ycol, y2col]).replace('ts', None).dropna())
-    sample_cnt = int(50000/len(table_lst))
+    sample_cnt = int(10000/len(table_lst))
     for dct in table_lst:
         try:
             df, desc_df = read_raw_data(

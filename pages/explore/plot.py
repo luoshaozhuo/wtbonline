@@ -27,7 +27,7 @@ from wtbonline._common import dash_component as dcmpt
 #%% constant
 SECTION = '探索'
 SECTION_ORDER = 1
-ITEM='绘图'
+ITEM='图形'
 ITEM_ORDER = 1
 PREFIX =  'explore_plot'
 
@@ -153,7 +153,7 @@ dash.register_page(
 
 layout =  dmc.NotificationsProvider(children=[
     html.Div(id=get_component_id('notification')),
-    dmc.Container(children=[creat_content()], size=CONTAINER_SIZE,pt=HEADER_HEIGHT),
+    dmc.Container(children=[creat_content()], size=CONTAINER_SIZE, pt=HEADER_HEIGHT),
     dmc.MediaQuery(
         smallerThan=TOOLBAR_HIDE_SMALLER_THAN,
         styles={"display": "none"},
@@ -233,6 +233,8 @@ def callback_update_datepicker_start_plot(date_start, maxDate_start, minDate_sta
     Output(get_component_id('select_xaxis'), 'value'),
     Output(get_component_id('select_yaxis'), 'data'),
     Output(get_component_id('select_yaxis'), 'value'),
+    Output(get_component_id('select_yaxis2'), 'data'),
+    Output(get_component_id('select_yaxis2'), 'value'),
     Input(get_component_id('select_type'), 'value'),
     Input(get_component_id('select_setid'), 'value'),
     prevent_initial_call=True
@@ -240,7 +242,7 @@ def callback_update_datepicker_start_plot(date_start, maxDate_start, minDate_sta
 def callback_on_slect_type_plot(_type, set_id):
     # 选出所有机型表格中所有机型共有的变量
     if None in [_type, set_id]:
-        return [no_update]*5
+        return [no_update]*7
     cols = ['point_name', 'unit', 'set_id', 'datatype']
     model_point_df, note = utils.dash_dbquery(
         func=RSDBInterface.read_turbine_model_point,
@@ -249,7 +251,7 @@ def callback_on_slect_type_plot(_type, set_id):
         select=[0, 1]
         )
     if note!=no_update:
-        return note, no_update, no_update, no_update, no_update
+        return note, *[no_update]*6
     if _type=='时序图':
         x_data = ['时间']
         x_value = '时间'
@@ -275,7 +277,7 @@ def callback_on_slect_type_plot(_type, set_id):
         y_value = None
     x_data = [{'value':i, 'label':i} for i in x_data]
     y_data = [{'value':i, 'label':i} for i in y_data]
-    return no_update, x_data, x_value, y_data, y_value
+    return no_update, x_data, x_value, y_data, y_value, y_data, y_value
 
 
 @callback(
@@ -316,7 +318,7 @@ def callback_on_icon_add_plot(n, set_id, map_id, date_start, date_end, time_star
     Input(get_component_id('table'), 'data'),  
     prevent_initial_call=True 
 )
-def callback_update_btn_resresh_component(tbl_lst):
+def callback_update_btn_resresh_plot(tbl_lst):
     return True if tbl_lst is None or len(tbl_lst)==0 else False
 
 @callback(
@@ -339,7 +341,6 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
         return no_update, no_update, *error
     # 设置绘图参数
     xtitle=''
-    y2col=None
     if plot_type=='时序图':
         xcol = 'ts'
         mode = 'markers+lines'
@@ -348,7 +349,7 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
     elif plot_type=='散点图':
         _type = 'scatter'
         mode = 'markers'
-    elif plot_type=='雷达图':
+    elif plot_type=='极坐标图':
         _type = 'polar'
         mode = 'markers'
     elif plot_type=='频谱图':
@@ -387,12 +388,12 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
                 break
         note = no_update
         name_lst.append(dct['图例号'])
+        xtitle = desc_df.loc[xcol, 'column'] if xtitle=='' else xtitle
         x = df[xcol].tolist() if xcol=='ts' else df[desc_df.loc[xcol, 'var_name']].tolist()
         x_lst.append(x)
         if ycol is not None:
             y = df[desc_df.loc[ycol, 'var_name']].tolist()
             y_lst.append(y)
-            xtitle = desc_df.loc[xcol, 'column'] if xtitle=='' else xtitle
             if ytitle=='':
                 if _type == 'spectrum':
                     ytitle = ycol + f"_({desc_df.loc[ycol, 'unit']})^2"
@@ -408,6 +409,7 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
                     y2title = desc_df.loc[y2col, 'column']
         else:
             y2_lst.append(None)
+        
     if note!=no_update:
         return note, no_update, *error     
     fig, note = utils.dash_try(

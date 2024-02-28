@@ -236,7 +236,7 @@ def callback_update_datepicker_start_performance(date_start, maxDate_start, minD
     State(get_component_id('table'), 'data'),
     prevent_initial_call=True    
     )
-def callback_on_icon_add_component(n, set_id, map_id, date_start, date_end, time_start, time_end, tbl_lst):
+def callback_on_icon_add_performance(n, set_id, map_id, date_start, date_end, time_start, time_end, tbl_lst):
     tbl_df = pd.DataFrame(tbl_lst, columns=TABLE_COLUMNS)
     errs = ['变量不能为空' if i is None else '' for i in [set_id, map_id, date_start, date_end, time_end]]
     data = no_update
@@ -256,7 +256,7 @@ def callback_on_icon_add_component(n, set_id, map_id, date_start, date_end, time
     Input(get_component_id('table'), 'data'),  
     prevent_initial_call=True 
 )
-def callback_update_btn_resresh_component(tbl_lst):
+def callback_update_btn_resresh_performance(tbl_lst):
     return True if tbl_lst is None or len(tbl_lst)==0 else False
 
 @callback(

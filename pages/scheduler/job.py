@@ -402,12 +402,12 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
             _type = 'error'
             response = None
             title = cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL
-            msg = f'{row['任务id']} {row['目标函数']} {e}'
+            msg = f'{row["任务id"]} {row["目标函数"]} {e}'
             break
         if response.ok == True:
             _type = 'success'
             title = cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS
-            msg =  f'{row['任务id']} {row['目标函数']}'
+            msg =  f'{row["任务id"]} {row["目标函数"]}'
             break
         time.sleep(1)
     else:
@@ -416,7 +416,7 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
             return note, no_update, no_update 
         _type = 'error'
         title = cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL
-        msg = msg = f'{row['任务id']} {row['目标函数']} 提交超时'
+        msg = msg = f'{row["任务id"]} {row["目标函数"]} 提交超时'
     note = dcmpt.notification(title, msg, _type), no_update, no_update       
     return note, data, []
 
