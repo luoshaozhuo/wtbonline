@@ -12,7 +12,7 @@ import wtbonline.configure as cfg
 from wtbonline._db.rsdb_interface import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 import wtbonline._common.dash_component as cmpt
-
+from wtbonline._process.tools.filter import filter_for_modeling
 
 def make_sure_dict(x)->dict:
     '''
@@ -294,6 +294,75 @@ def read_raw_data(
         df = TDFC.query(sql, remote=remote)
         df.sort_values('ts', inplace=True)
     return df, desc_df
+
+def read_scatter_matrix_anormaly(
+        set_id:str, 
+        *,
+        turbine_id:str=None, 
+        map_id:str=None, 
+        columns:Union[str, list[str]]=None, 
+        sample_cnt:int=5000,
+        df:pd.DataFrame=None
+        ):
+    '''
+    读取所有异常数据，以及抽样正常数据（经过滤），总数不超过sample_cnt
+    >>> set_id = '20835'
+    >>> map_id = 'A03'
+    >>> columns=tuple(['var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean','var_382_mean', 'var_383_mean'])
+    >>> df = read_scatter_matrix_anormaly(set_id, map_id=map_id, columns=columns)
+    '''
+    assert columns is not None, '没有指定字段'
+    turbine_id = turbine_id if turbine_id is not None else interchage_mapid_and_tid(map_id=map_id)
+    columns = make_sure_list(columns)
+    columns = tuple(columns + ['id', 'bin'])
+    columns_aug = tuple([
+        'set_id', 'turbine_id', 'pv_c', 'validation',
+        'limitpowbool_mode' ,'limitpowbool_nunique',
+        'workmode_mode', 'workmode_nunique', 'ongrid_mode', 'ongrid_nunique',
+        'totalfaultbool_mode', 'totalfaultbool_nunique',
+        ])
+    # 读取所有统计数据
+    # filter会筛除大部分数据，所以用4倍sample_cnt来采样
+    if df is None or len(df)<1:
+        rev = RSDBInterface.read_statistics_sample(
+            set_id=set_id, turbine_id=turbine_id, columns=tuple(columns+columns_aug), limit=4*sample_cnt, random=True
+            )
+        rev = filter_for_modeling(rev).loc[:, columns]
+    else:
+        rev = df
+    # 合并异常数据
+    idx = RSDBInterface.read_model_anormaly(
+        set_id=set_id, turbine_id=turbine_id
+        ).drop_duplicates('sample_id')['sample_id']
+    if len(idx)>0:
+        df = RSDBInterface.read_statistics_sample(id_=idx, columns=rev.columns)
+        rev = pd.concat([df, rev], ignore_index=True)
+    rev = rev.drop_duplicates('id').set_index('id', drop=False)
+    rev.insert(0, 'is_suspector', -1)
+    rev.loc[idx, 'is_suspector'] = 1
+    # 增加标签字段
+    df = RSDBInterface.read_model_label(set_id=set_id, turbine_id=turbine_id)
+    df = df.sort_values('create_time').drop_duplicates('sample_id', keep='last')
+    rev = pd.merge(
+        df[['sample_id', 'is_anomaly']], 
+        rev.reset_index(drop=True), 
+        left_on='sample_id', 
+        right_on='id', 
+        how='right'
+        ).drop(columns=['sample_id'])
+    rev['is_anomaly'] = rev['is_anomaly'].fillna(0)
+    # 抽样
+    sub_anormal = rev[rev['is_anomaly']==1]
+    count = sample_cnt - len(sub_anormal)
+    sub_normal = rev[rev['is_anomaly']==0]
+    sub_normal = sub_normal.sample(count) if sub_normal.shape[0]>count else sub_normal
+    rev = pd.concat([sub_normal, sub_anormal], ignore_index=True)
+    return rev
+
+set_id = '20835'
+map_id = 'A03'
+columns=tuple(['var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean','var_382_mean', 'var_383_mean'])
+df = read_scatter_matrix_anormaly(set_id, map_id=map_id, columns=columns)
 
 
 if __name__ == "__main__":

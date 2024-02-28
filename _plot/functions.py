@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import List
 
 from wtbonline._pages.tools.utils import var_name_to_point_name
-from wtbonline._common.utils import make_sure_list, make_sure_dataframe
+from wtbonline._common.utils import interchage_mapid_and_tid, make_sure_list, make_sure_dataframe
 
 # =============================================================================
 # function
@@ -167,17 +167,26 @@ def scatter_matrix_anormaly(df=None, columns=None, set_id=None, selectedpoints=[
     columns = make_sure_list(columns)
     fig = go.Figure()
     if df is not None and set_id is not None and len(columns)>0:
-        idx = df[df['is_anormaly']==1].index
-        df['textd'] ='正常'
-        df.loc[idx, 'textd'] = '离群'
-        df['color'] = 'gray'
-        df.loc[idx, 'color'] = 'red'
-        df['opacity'] = 0.2
-        df.loc[idx, 'opacity'] = 1
+        idx_not_susptor= df[df['is_suspector']==-1].index
+        idx_suspetor_without_label = df[(df['is_anormaly']==0) & (df['is_suspector']==1)].index
+        idx_anormaly = df[df['is_anormaly']==1].index
+        idx_not_anormaly = df[df['is_anormaly']==-1].index
+        df.loc[idx_not_susptor, 'textd'] = '非离群'
+        df.loc[idx_suspetor_without_label, 'textd'] ='离群，未标注'
+        df.loc[idx_anormaly, 'textd'] = '异常'
+        df.loc[idx_not_anormaly, 'textd'] = '正常'
+        df.loc[idx_not_susptor, 'color'] = 'gray'
+        df.loc[idx_suspetor_without_label, 'color'] =' yellow'
+        df.loc[idx_anormaly, 'color'] ='red'
+        df.loc[idx_not_anormaly, 'color'] = 'green'        
+        df.loc[idx_not_susptor, 'opacity'] =0.2
+        df.loc[idx_suspetor_without_label, 'opacity'] = 1
+        df.loc[idx_anormaly, 'opacity'] = 1
+        df.loc[idx_not_anormaly, 'opacity'] = 1 
         customdata = df['id'] if 'id' in df.columns else None
         
         dimensions = []
-        labels = var_name_to_point_name(
+        labels = interchage_mapid_and_tid(
             set_id=set_id, 
             var_name=tuple(pd.Series(columns).str.replace('_mean', ''))
             )

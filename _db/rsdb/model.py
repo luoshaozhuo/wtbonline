@@ -85,7 +85,7 @@ class ModelLabel(db.Model):
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
     turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
     sample_id = db.Column(db.Integer, nullable=False, index=True)
-    is_anormaly = db.Column(db.Integer, nullable=False)
+    is_anomaly = db.Column(db.Integer, nullable=False)
     create_time = db.Column(db.DateTime, nullable=False)
 
     user = db.relationship('User', primaryjoin='ModelLabel.username == User.username', backref='model_labels')
