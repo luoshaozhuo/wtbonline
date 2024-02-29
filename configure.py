@@ -87,3 +87,5 @@ SCHEDULER_JOB_INTER_UNIT = ['weeks', 'days', 'hours', 'miniues', 'seconds']
 SCHEDULER_URL='http://scheduler:40000/scheduler/jobs'
 SCHEDULER_TIMEOUT = 10
 
+SIMPLE_PLOT_TYPE = ['时序图', '散点图', '极坐标图', '频谱图']
+SIMPLE_PLOT_SAMPLE_NUM = 5000

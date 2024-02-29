@@ -2,11 +2,12 @@ import dash_mantine_components as dmc
 import pandas as pd
 import numpy as np
 from dash_iconify import DashIconify
+from dash import html
 
 import wtbonline.configure as cfg
 from wtbonline._db.rsdb_interface import RSDBInterface
 
-def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, description=''):
+def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, description='', disabled=False, clearable=False):
     if len(data)>1 and not isinstance(data[0], dict):
         data=[{'label':i, 'value':i} for i in data]
     return dmc.Select(
@@ -17,8 +18,10 @@ def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=c
         style={"width": width},
         value=value,
         data=data,
+        disabled=disabled,
         description=description,
         searchable=True,
+        clearable=clearable
         )
 
 def select_analysis_type(id, data:list, label:str, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH):
@@ -78,10 +81,15 @@ def number_input(id, label, value, min, step=1, description='', size=cfg.TOOLBAR
 def notification(title, msg='', _type='info'):
     return dmc.Notification(
         id=f"simple_notify_{np.random.randint(0, 100)}",
+        styles={'scroll-behavior':'auto'},
         title=title,
         action="show",
         autoClose=False,
-        message=f'{msg}',
+        message=dmc.ScrollArea(
+                offsetScrollbars=True,
+                type="scroll",
+                children=dmc.Text(f'{msg}', style={'maxHeight':'100px', 'white-space':'pre-line'}, size='xs'),
+                ),
         color=cfg.NOTIFICATION[_type]['color'],
         icon=DashIconify(icon=cfg.NOTIFICATION[_type]['icon'], width=20),
         )

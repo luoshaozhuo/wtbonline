@@ -5,8 +5,9 @@ import pandas as pd
 from collections.abc import Iterable
 from typing import List
 
-from wtbonline._pages.tools.utils import var_name_to_point_name
-from wtbonline._common.utils import interchage_mapid_and_tid, make_sure_list, make_sure_dataframe
+from wtbonline._common.utils import interchage_mapid_and_tid, make_sure_list, make_sure_dataframe, interchage_varName_and_pointName
+from wtbonline._common import utils
+from wtbonline._db.rsdb_interface import RSDBInterface
 
 # =============================================================================
 # function
@@ -163,14 +164,14 @@ def spectrum_plot(df, ycol, unit, charateristic_freq=[], sample_spacing=1):
                       annotation_font_size=10, line_width=1, line_dash="dash", line_color="green")
     return fig
 
-def scatter_matrix_anormaly(df=None, columns=None, set_id=None, selectedpoints=[]):
+def scatter_matrix_plot_anomaly(df=None, columns=None, set_id=None, selectedpoints=[]):
     columns = make_sure_list(columns)
     fig = go.Figure()
     if df is not None and set_id is not None and len(columns)>0:
         idx_not_susptor= df[df['is_suspector']==-1].index
-        idx_suspetor_without_label = df[(df['is_anormaly']==0) & (df['is_suspector']==1)].index
-        idx_anormaly = df[df['is_anormaly']==1].index
-        idx_not_anormaly = df[df['is_anormaly']==-1].index
+        idx_suspetor_without_label = df[(df['is_anomaly']==0) & (df['is_suspector']==1)].index
+        idx_anormaly = df[df['is_anomaly']==1].index
+        idx_not_anormaly = df[df['is_anomaly']==-1].index
         df.loc[idx_not_susptor, 'textd'] = '非离群'
         df.loc[idx_suspetor_without_label, 'textd'] ='离群，未标注'
         df.loc[idx_anormaly, 'textd'] = '异常'
@@ -179,20 +180,19 @@ def scatter_matrix_anormaly(df=None, columns=None, set_id=None, selectedpoints=[
         df.loc[idx_suspetor_without_label, 'color'] =' yellow'
         df.loc[idx_anormaly, 'color'] ='red'
         df.loc[idx_not_anormaly, 'color'] = 'green'        
-        df.loc[idx_not_susptor, 'opacity'] =0.2
+        df.loc[idx_not_susptor, 'opacity'] =0.5
         df.loc[idx_suspetor_without_label, 'opacity'] = 1
         df.loc[idx_anormaly, 'opacity'] = 1
         df.loc[idx_not_anormaly, 'opacity'] = 1 
-        customdata = df['id'] if 'id' in df.columns else None
+        customdata = df['id'].to_list() if 'id' in df.columns else None
         
         dimensions = []
-        labels = interchage_mapid_and_tid(
-            set_id=set_id, 
-            var_name=tuple(pd.Series(columns).str.replace('_mean', ''))
+        labels = interchage_varName_and_pointName(
+            set_id=set_id,
+            var_name=tuple(pd.Series(columns).str.replace('_mean', '')),
+            append_unit=True
             )
         for col, label in zip(columns, labels):
-            if col=='is_anormaly' or col=='id':
-                continue
             dimensions.append(dict(label=label, values=df[col]))
         fig.add_trace(
             go.Splom(
@@ -207,10 +207,12 @@ def scatter_matrix_anormaly(df=None, columns=None, set_id=None, selectedpoints=[
                 customdata=customdata,
                 selected={'marker':{'color':'cyan', 'opacity':1, 'size':6}},
                 diagonal=dict(visible=False),
-                selectedpoints=selectedpoints
+                selectedpoints=selectedpoints,
                 )
             )
     fig.update_layout(
+        **{f'xaxis{(i+1)}':{'title':{'font':{'size':12}}} for i in range(len(labels))},
+        **{f'yaxis{(i+1)}':{'title':{'font':{'size':12}}} for i in range(len(labels))},
         clickmode='event+select',
         height=800,
         hovermode='closest',
@@ -314,6 +316,50 @@ def spc_plot_multiple_y(df=None, ycols=None, units=None, ytitles=None, x='ts', x
                     )
     return fig
 
+def get_simple_plot_parameters(plot_type):
+    parameters = {
+        '时序图':{'xtitle':'时间', 'xcol':'ts', 'mode':'markers+lines'},
+        '散点图':{'xtitle':'', 'xcol':'','mode':'markers'},
+        '极坐标图':{'xtitle':'', 'xcol':'','mode':'markers'},
+        '频谱图':{'xtitle':'频率Hz', 'xcol':'ts','mode':'markers+lines'},
+        }
+    rev = parameters['type_']
+    return rev['xtitle'], rev['xcol'], rev['mode'], rev['xtitle']
+
+
+def get_simple_plot_selections(set_id, plot_type):
+    model_point_df = RSDBInterface.read_turbine_model_point(
+        set_id=set_id,
+        columns=['point_name', 'unit', 'set_id', 'datatype'],
+        select=[0,1]
+        )
+    if plot_type=='时序图':
+        x_data = ['时间']
+        x_value = '时间'
+        y_data = model_point_df['point_name']
+        y_value = None
+    elif plot_type=='散点图':
+        x_data = model_point_df['point_name']
+        x_value = None
+        y_data = model_point_df['point_name']
+        y_value = None
+    elif plot_type=='极坐标图':
+        x_data = model_point_df['point_name'][
+                    (model_point_df['point_name'].str.find('角')>-1) & 
+                    (model_point_df['unit']=='°')
+                    ]
+        x_value = None
+        y_data = model_point_df[model_point_df['datatype']=='F']['point_name']
+        y_value = None    
+    elif plot_type=='频谱图':
+        x_data = ['频率']
+        x_value = '频率'
+        y_data = model_point_df[model_point_df['datatype']=='F']['point_name']
+        y_value = None
+    x_data = [{'value':i, 'label':i} for i in x_data]
+    y_data = [{'value':i, 'label':i} for i in y_data]
+    return x_data, x_value, y_data, y_value
+
 def simple_plot(
         *, 
         x_lst:List[List[float]]=[],
@@ -324,14 +370,14 @@ def simple_plot(
         y2title:str='',
         name_lst:List[str]=[],
         mode:str='markers+lines',
-        _type:str='scatter',
+        _type:str='散点图',
         ref_freqs:List[float]=None,
         ):
     name_lst = make_sure_list(name_lst)
     ref_freqs = make_sure_list(ref_freqs)
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     for i, name in enumerate(name_lst):
-        if _type=='polar':
+        if _type=='极坐标图':
             trace = go.Scatterpolar(
                 theta=x_lst[i], 
                 r=y_lst[i],
@@ -341,7 +387,7 @@ def simple_plot(
                 marker=dict(size=3, opacity=0.5)
                 )
             fig.add_trace(trace)
-        elif _type=='spectrum':
+        elif _type=='频谱图':
             x, y = _power_spectrum(y_lst[i])
             df = pd.DataFrame({'x':x, 'y':y})
             df = df[df['x']>0].sort_values('x')
@@ -354,7 +400,7 @@ def simple_plot(
                 marker=dict(size=3, opacity=0.5)
                 )
             fig.add_trace(trace)   
-        elif _type=='scatter':
+        elif _type=='散点图':
             trace = go.Scatter(
                 x=x_lst[i], 
                 y=y_lst[i], 
@@ -364,7 +410,7 @@ def simple_plot(
                 marker=dict(size=3, opacity=0.5)
                 )
             fig.add_trace(trace)
-        elif _type=='line':
+        elif _type=='时序图':
             for y, secondary_y in zip([y_lst[i], y2_lst[i]], [False, True]):
                 if y is None or len(y)<1:
                     continue
@@ -378,7 +424,7 @@ def simple_plot(
                     marker=dict(size=3, opacity=0.5)
                     )
                 fig.add_trace(trace, secondary_y=secondary_y)
-    if _type=='spectrum':
+    if _type=='频谱图':
         for i in ref_freqs:
             fig.add_vline(
                 x=i, 

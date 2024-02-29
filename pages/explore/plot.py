@@ -52,7 +52,8 @@ DATE = cfg.DATE
 TIME_START = cfg.TIME_START
 TIME_END = cfg.TIME_END
 
-GRAPH_TYPE = ['时序图', '散点图', '极坐标图', '频谱图']
+GRAPH_TYPE = cfg.SIMPLE_PLOT_TYPE
+GRAPH_SAMPLE_NUM = cfg.SIMPLE_PLOT_SAMPLE_NUM
 GRAPH_PADDING_TOP = cfg.GRAPH_PADDING_TOP
 DBQUERY_FAIL = cfg.NOTIFICATION_TITLE_DBQUERY_FAIL
 DBQUERY_NODATA = cfg.NOTIFICATION_TITLE_DBQUERY_NODATA
@@ -342,23 +343,10 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
     if msg in error:
         return no_update, no_update, *error
     # 设置绘图参数
-    xtitle=''
-    if plot_type=='时序图':
-        xcol = 'ts'
-        mode = 'markers+lines'
-        _type = 'line'
-        xtitle = '时间'
-    elif plot_type=='散点图':
-        _type = 'scatter'
-        mode = 'markers'
-    elif plot_type=='极坐标图':
-        _type = 'polar'
-        mode = 'markers'
-    elif plot_type=='频谱图':
-        xcol = 'ts'
-        _type = 'spectrum'
-        mode = 'markers+lines'
-        xtitle = '频率Hz'
+    xtitle=cfg.SIMPLE_PLOT_PARAMETERS[plot_type]['xtitle']
+    xcol=cfg.SIMPLE_PLOT_PARAMETERS[plot_type]['xcol']
+    mode=cfg.SIMPLE_PLOT_PARAMETERS[plot_type]['mode']
+    type_=cfg.SIMPLE_PLOT_PARAMETERS[plot_type]['type_']
     
     # 读取绘图数据
     x_lst=[]    
@@ -369,7 +357,7 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
     ytitle=''
     y2title=''
     point_name = tuple(pd.Series([xcol, ycol, y2col]).replace('ts', None).dropna())
-    sample_cnt = int(10000/len(table_lst))
+    sample_cnt = int(GRAPH_SAMPLE_NUM/len(table_lst))
     for dct in table_lst:
         try:
             df, desc_df = utils.read_raw_data(
@@ -397,7 +385,7 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
             y = df[desc_df.loc[ycol, 'var_name']].tolist()
             y_lst.append(y)
             if ytitle=='':
-                if _type == 'spectrum':
+                if type_ == 'spectrum':
                     ytitle = ycol + f"_({desc_df.loc[ycol, 'unit']})^2"
                 else:
                     ytitle = desc_df.loc[ycol, 'column']
@@ -405,7 +393,7 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
             y2 = df[desc_df.loc[y2col, 'var_name']].tolist()
             y2_lst.append(y2)
             if y2title=='':
-                if _type == 'spectrum':
+                if type_ == 'spectrum':
                     y2title = ycol + f"_({desc_df.loc[y2col, 'unit']})^2"
                 else:
                     y2title = desc_df.loc[y2col, 'column']
@@ -425,7 +413,7 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, xcol, ycol, y2col):
         y2title=y2title,
         name_lst=name_lst,
         mode=mode,
-        _type=_type,
+        _type=type_,
         ref_freqs=ref_freqs,    
         )
     return note, fig, *error 

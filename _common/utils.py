@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from typing import Union, Optional
 import numpy as np
 import datetime
+import traceback
 
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
@@ -196,7 +197,7 @@ def dash_try(note_title, func, *args, **kwargs):
         rs = None
         notification = cmpt.notification(
             title=note_title,
-            msg=f'func={func.__name__},args={args},{kwargs},errmsg={e}',
+            msg=f'func={func.__name__}\nargs={args}\nkwargs={kwargs}\n======\n{traceback.format_exc()}',
             _type='error'
             )     
     return rs, notification    
@@ -221,6 +222,22 @@ def interchage_mapid_and_tid(map_id=None, turbine_id=None):
     rev = cfg.WINDFARM_CONFIGURATION[cond]
     return rev[col].iloc[0] if len(rev)>0 else None
 
+def interchage_varName_and_pointName(set_id, var_name=None, point_name=None, append_unit=False, sep='<br />'):
+    values = var_name if point_name is None else point_name
+    col_spc = 'var_name' if point_name is None else 'point_name'
+    col = 'point_name' if point_name is None else 'var_name'
+    df = RSDBInterface.read_turbine_model_point(
+        set_id=set_id,
+        var_name=var_name,
+        point_name=point_name
+        ).drop_duplicates(col_spc).set_index(col_spc)
+    df = df.loc[values, :]
+    if append_unit==True and col_spc=='var_name':
+        rev = df[col] + sep + df['unit']
+    else:
+        rev = df[col]
+    return rev
+
 def get_fault_id(name):
     df = cfg.WINDFARM_FAULT_TYPE[cfg.WINDFARM_FAULT_TYPE['name']==name]
     if len(df)>0:
@@ -229,9 +246,9 @@ def get_fault_id(name):
         rev = None
     return rev
 
-def dash_dbquery(func, *args, **kwargs):
+def dash_dbquery(func,  not_empty=True,  *args, **kwargs):
     df, note = dash_try(note_title=cfg.NOTIFICATION_TITLE_DBQUERY_FAIL, func=func, *args, **kwargs)
-    if df is not None and len(df)==0:
+    if not_empty and df is not None and len(df)==0:
         note = cmpt.notification(
             title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,
             msg=f'func={func.__name__},args={args},{kwargs}',
@@ -358,12 +375,6 @@ def read_scatter_matrix_anormaly(
     sub_normal = sub_normal.sample(count) if sub_normal.shape[0]>count else sub_normal
     rev = pd.concat([sub_normal, sub_anormal], ignore_index=True)
     return rev
-
-set_id = '20835'
-map_id = 'A03'
-columns=tuple(['var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean','var_382_mean', 'var_383_mean'])
-df = read_scatter_matrix_anormaly(set_id, map_id=map_id, columns=columns)
-
 
 if __name__ == "__main__":
     import doctest
