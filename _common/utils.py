@@ -289,6 +289,8 @@ def read_raw_data(
                 start_time=tmp['ts'].max()+pd.Timedelta('0.0001s')
             else:
                 break
+        if len(df)<1:
+            raise ValueError(f'指定时间段内{point_name}无有效数据')
         df = pd.concat(df, ignore_index=True) 
         df = df.sample(sample_cnt) if len(df)>sample_cnt else df  
         df.sort_values('ts', inplace=True)
@@ -375,6 +377,19 @@ def read_scatter_matrix_anormaly(
     sub_normal = sub_normal.sample(count) if sub_normal.shape[0]>count else sub_normal
     rev = pd.concat([sub_normal, sub_anormal], ignore_index=True)
     return rev
+
+def dash_get_username(current_user, is_main=False):
+    note = no_update
+    username = None
+    try:
+        username = current_user.username
+    except Exception as e:
+        if is_main:
+            username = 'test'
+        else:
+            note = cmpt.notification(title='获取用户名失败', msg=repr(e), _type='error')
+    return username, note
+
 
 if __name__ == "__main__":
     import doctest

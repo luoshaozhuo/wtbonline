@@ -1,3 +1,4 @@
+import pstats
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
@@ -180,7 +181,7 @@ def scatter_matrix_plot_anomaly(df=None, columns=None, set_id=None, selectedpoin
         df.loc[idx_suspetor_without_label, 'color'] =' yellow'
         df.loc[idx_anormaly, 'color'] ='red'
         df.loc[idx_not_anormaly, 'color'] = 'green'        
-        df.loc[idx_not_susptor, 'opacity'] =0.5
+        df.loc[idx_not_susptor, 'opacity'] = 0.2
         df.loc[idx_suspetor_without_label, 'opacity'] = 1
         df.loc[idx_anormaly, 'opacity'] = 1
         df.loc[idx_not_anormaly, 'opacity'] = 1 
@@ -316,15 +317,38 @@ def spc_plot_multiple_y(df=None, ycols=None, units=None, ytitles=None, x='ts', x
                     )
     return fig
 
-def get_simple_plot_parameters(plot_type):
-    parameters = {
-        '时序图':{'xtitle':'时间', 'xcol':'ts', 'mode':'markers+lines'},
-        '散点图':{'xtitle':'', 'xcol':'','mode':'markers'},
-        '极坐标图':{'xtitle':'', 'xcol':'','mode':'markers'},
-        '频谱图':{'xtitle':'频率Hz', 'xcol':'ts','mode':'markers+lines'},
-        }
-    rev = parameters['type_']
-    return rev['xtitle'], rev['xcol'], rev['mode'], rev['xtitle']
+def get_simple_plot_parameters(xcol:str, ycol:str, y2col:str, plot_type:str, set_id:str):
+    point_name = pd.Series([xcol, ycol, y2col]).replace(['ts', '时间','频率'], None).dropna()
+    df = RSDBInterface.read_turbine_model_point(
+        set_id=set_id,
+        point_name=point_name,
+        select=None
+        ).drop_duplicates('point_name').set_index('point_name', drop=False)
+    assert len(df)==len(point_name), f'部分字段获取失败，需要{point_name.tolist()}，实际返回{df.index.tolist()}'
+    
+    get_col = lambda x:None if x in [None, ''] else df.loc[x, 'var_name'].lower()
+    get_title = lambda x:None if x in [None, ''] else df.loc[x, 'point_name'] + '_' + df.loc[x, 'unit']
+    
+    ytitle = get_title(ycol)
+    ycol = get_col(ycol)
+    y2title = get_title(y2col)
+    y2col = get_col(y2col)
+    if plot_type == '时序图':
+        xcol = 'ts'
+        xtitle = '时间'
+        mode = 'markers+lines'
+    elif plot_type in ('散点图', '极坐标图'):
+        xtitle = get_title(xcol)
+        xcol = get_col(xcol)
+        mode = 'markers'
+    elif plot_type == '频谱图':
+        xtitle = '频率 Hz'
+        xcol = 'ts'
+        mode = 'markers+lines'
+    else:
+        raise ValueError(f'不支持此种图形类别：{plot_type}')
+    
+    return xcol, xtitle, ycol, ytitle, y2col, y2title, mode
 
 
 def get_simple_plot_selections(set_id, plot_type):
@@ -371,8 +395,12 @@ def simple_plot(
         name_lst:List[str]=[],
         mode:str='markers+lines',
         _type:str='散点图',
-        ref_freqs:List[float]=None,
+        ref_freqs:List[float]=[],
+        height:int=700
         ):
+    # x_lst = make_sure_list(x_lst)
+    # y_lst = make_sure_list(y_lst)
+    # y2_lst = make_sure_list(y2_lst)
     name_lst = make_sure_list(name_lst)
     ref_freqs = make_sure_list(ref_freqs)
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -439,7 +467,7 @@ def simple_plot(
     if y2title not in (None, ''):
         fig.update_yaxes(title_text=y2title, secondary_y=True)
     fig.update_layout(
-        height=700,
+        height=height,
         margin=dict(l=20, r=20, t=20, b=20),
         legend=dict(
             orientation='h',

@@ -167,13 +167,14 @@ if __name__ == '__main__':
 #%% callback
 @callback(
     Output(get_component_id('select_mapid'), 'data'),
+    Output(get_component_id('select_mapid'), 'value'),
     Input(get_component_id('select_setid'), 'value'),
     prevent_initial_call=True
     )
 def callback_update_select_mapid_plot(set_id):
     df = cfg.WINDFARM_CONFIGURATION[cfg.WINDFARM_CONFIGURATION['set_id']==set_id]
     data = [] if df is None else [{'value':i, 'label':i} for i in df['map_id']]
-    return data
+    return data, None
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
