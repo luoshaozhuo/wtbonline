@@ -23,28 +23,10 @@ from wtbonline._common import dash_component as dcmpt
 
 #%% constant
 SECTION = '任务调度'
-SECTION_ORDER = 2
+SECTION_ORDER = 4
 ITEM = '后台任务'
 ITEM_ORDER = 1
 PREFIX = 'scheduler_job'
-
-HEADER_HEIGHT = cfg.HEADER_HEIGHT
-
-TOOLBAR_SIZE = cfg.TOOLBAR_SIZE
-TOOLBAR_PADDING = cfg.TOOLBAR_PADDING
-TOOLBAR_TOGGLE_SIZE = cfg.TOOLBAR_TOGGLE_SIZE
-TOOLBAR_TOGGLE_ICON_WIDTH = cfg.TOOLBAR_TOGGLE_ICON_WIDTH
-TOOLBAR_TOGGLE_POS_TOP = cfg.TOOLBAR_TOGGLE_POS_TOP
-TOOLBAR_TOGGLE_POS_RIGHT = cfg.TOOLBAR_TOGGLE_POS_RIGHT
-TOOLBAR_COMPONENT_SIZE = cfg.TOOLBAR_COMPONENT_SIZE
-TOOLBAR_ICON_WIDTH = cfg.TOOLBAR_ICON_WIDTH
-TOOLBAR_COMPONENT_WIDTH = cfg.TOOLBAR_COMPONENT_WIDTH
-TOOLBAR_FONT_SIZE = cfg.TOOLBAR_FONT_SIZE
-
-NOW = cfg.NOW
-DATE = cfg.DATE
-TIME_START = cfg.TIME_START
-TIME_END = cfg.TIME_END
 
 TABLE_COLUMNS = ['图例号', 'map_id', 'start_time', 'end_time', 'set_id']
 TABLE_FONT_SIZE = '2px'
@@ -97,7 +79,7 @@ def func_render_table():
 def create_toolbar_content():
     return dmc.Stack(
         spacing=0, 
-        px=TOOLBAR_PADDING, 
+        px=cfg.TOOLBAR_PADDING, 
         children=[
             dcmpt.select_job_type(id=get_component_id('select_setting')),
             dmc.DatePicker(
@@ -110,7 +92,7 @@ def create_toolbar_content():
                 style={"width": cfg.TOOLBAR_COMPONENT_WIDTH},
                 openDropdownOnClear =True
                 ),
-            dcmpt.time_input(id=get_component_id('timeinput_start_time'), label="开始时间", value=TIME_START, description="任务开始执行时间"),
+            dcmpt.time_input(id=get_component_id('timeinput_start_time'), label="开始时间", value=cfg.TIME_START, description="任务开始执行时间"),
             dcmpt.number_input(id=get_component_id('numberinput_interval'), label='执行周期', min=1, value=1),
             dcmpt.select(id=get_component_id('slect_interval_unit'), data=UNIT, value=UNIT[0], label='周期单位'),
             dmc.Divider(mt='20px'),
@@ -132,8 +114,8 @@ def create_toolbar_content():
                 fullWidth=True,
                 disabled=True,
                 id=get_component_id('btn_add'),
-                leftIcon=DashIconify(icon="mdi:add_circle_outline", width=TOOLBAR_ICON_WIDTH),
-                size=TOOLBAR_COMPONENT_SIZE,
+                leftIcon=DashIconify(icon="mdi:add_circle_outline", width=cfg.TOOLBAR_ICON_WIDTH),
+                size=cfg.TOOLBAR_COMPONENT_SIZE,
                 children="添加任务",
                 ), 
             ]
@@ -142,8 +124,8 @@ def create_toolbar_content():
 def creat_toolbar():
     return dmc.Aside(
         fixed=True,
-        width={'base': TOOLBAR_SIZE},
-        position={"right": 0, 'top':HEADER_HEIGHT},
+        width={'base': cfg.TOOLBAR_SIZE},
+        position={"right": 0, 'top':cfg.HEADER_HEIGHT},
         zIndex=2,
         children=[
             dmc.ScrollArea(
@@ -160,22 +142,22 @@ def creat_content():
             dmc.Group(
                 children = [
                     dmc.ActionIcon(
-                        DashIconify(icon="mdi:play-circle-outline", width=TOOLBAR_ICON_WIDTH, color='teal'),
+                        DashIconify(icon="mdi:play-circle-outline", width=cfg.TOOLBAR_ICON_WIDTH, color='teal'),
                         variant="subtle",
                         id=get_component_id('acticon_start'),
                         ),
                     dmc.ActionIcon(
-                        DashIconify(icon="mdi:pause-circle-outline", width=TOOLBAR_ICON_WIDTH, color='orange'),
+                        DashIconify(icon="mdi:pause-circle-outline", width=cfg.TOOLBAR_ICON_WIDTH, color='orange'),
                         variant="subtle",
                         id=get_component_id('acticon_pause'),
                         ),
                     dmc.ActionIcon(
-                        DashIconify(icon="mdi:refresh", width=TOOLBAR_ICON_WIDTH, color='blue'),
+                        DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH, color='blue'),
                         variant="subtle",
                         id=get_component_id('acticon_refresh'),
                         ),
                     dmc.ActionIcon(
-                        DashIconify(icon="mdi:stop-circle-outline", width=TOOLBAR_ICON_WIDTH, color='red'),
+                        DashIconify(icon="mdi:stop-circle-outline", width=cfg.TOOLBAR_ICON_WIDTH, color='red'),
                         variant="subtle",
                         id=get_component_id('acticon_delete'),
                         )
@@ -220,7 +202,7 @@ dash.register_page(
 
 layout =  dmc.NotificationsProvider(children=[
     html.Div(id=get_component_id('notification')),
-    dmc.Container(children=[creat_content()], size='lg',pt=HEADER_HEIGHT),
+    dmc.Container(children=[creat_content()], size='lg',pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
         smallerThan="lg",
         styles={"display": "none"},

@@ -4,7 +4,22 @@ import dash_mantine_components as dmc
 import wtbonline._plot as plt
 from wtbonline._db.rsdb_interface import RSDBInterface
 
+THEME_PRIMARY_COLOR = 'indigo'
+THEME_PRIMARY_SHADE = {'light': 5, 'dark':7}
+
 HEADER_HEIGHT = '40px'
+HEADER_PADDING_TOP = '8px'
+HEADER_ICON_WIDTH = 20
+HEADER_ICON_HORIZONTAL_SPACE = '5px'
+HEADER_SWITCH_ICON_WIDTH = 10
+HEADER_SWITCH_SIZE = 'xs'
+HEADER_FONTSIZE = 'sm'
+HEADER_BAGE_SIZE = 'lg'
+HEADER_LABEL = '风电数据助理'
+HEADER_LABEL_ABBREATION =  'WDAS'
+HEADER_MENU_FONTSIZE = '10px'
+HEADER_MENU_ICON_WIDTH = 15
+WINDFARM_NAME = '渤中风电场'
 
 TOOLBAR_SIZE = '205px'
 TOOLBAR_PADDING = '10px'

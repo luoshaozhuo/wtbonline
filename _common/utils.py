@@ -212,7 +212,7 @@ def dash_make_datetime(date:str, time:str):
     return date + ' ' + time.split('T')[1]
 
 def interchage_mapid_and_tid(map_id=None, turbine_id=None):
-    assert not (map_id is None and turbine_id is None), 'neither map_id or turbine_id is specified'
+    assert not (map_id is None and turbine_id is None), 'neither map_id nor turbine_id is specified'
     if map_id is not None:
         cond = cfg.WINDFARM_CONFIGURATION['map_id']==map_id
         col = 'turbine_id'

@@ -24,31 +24,7 @@ ITEM='故障'
 ITEM_ORDER = 2
 PREFIX = 'analysis_fault'
 
-HEADER_HEIGHT = cfg.HEADER_HEIGHT
-
-TOOLBAR_SIZE = cfg.TOOLBAR_SIZE
-TOOLBAR_PADDING = cfg.TOOLBAR_PADDING
-TOOLBAR_TOGGLE_SIZE = cfg.TOOLBAR_TOGGLE_SIZE
-TOOLBAR_TOGGLE_ICON_WIDTH = cfg.TOOLBAR_TOGGLE_ICON_WIDTH
-TOOLBAR_TOGGLE_POS_TOP = cfg.TOOLBAR_TOGGLE_POS_TOP
-TOOLBAR_TOGGLE_POS_RIGHT = cfg.TOOLBAR_TOGGLE_POS_RIGHT
-TOOLBAR_COMPONENT_SIZE = cfg.TOOLBAR_COMPONENT_SIZE
-TOOLBAR_ICON_WIDTH = cfg.TOOLBAR_ICON_WIDTH
-TOOLBAR_COMPONENT_WIDTH = cfg.TOOLBAR_COMPONENT_WIDTH
-TOOLBAR_FONT_SIZE = cfg.TOOLBAR_FONT_SIZE
-TOOLBAR_HIDE_SMALLER_THAN =  cfg.TOOLBAR_HIDE_SMALLER_THAN
-
-CONTAINER_SIZE = cfg.CONTAINER_SIZE
-
-NOW = cfg.NOW
-DATE = cfg.DATE
-TIME_START = cfg.TIME_START
-TIME_END = cfg.TIME_END
-
-GRAPH_PADDING_TOP = cfg.GRAPH_PADDING_TOP
 GRAPH_CONF = cfg.GRAPH_CONF[cfg.GRAPH_CONF['item']==ITEM].set_index('clause')
-NOTIFICATION_TITLE_DBQUERY = cfg.NOTIFICATION_TITLE_DBQUERY_FAIL
-NOTIFICATION_TITLE_GRAPH = cfg.NOTIFICATION_TITLE_GRAPH_FAIL
 
 TABLE_COLUMNS = ['图例号', 'map_id', 'start_time', 'end_time', 'set_id']
 TABLE_FONT_SIZE = '2px'
@@ -61,7 +37,7 @@ get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
 def create_toolbar_content():
     return dmc.Stack(
         spacing=0, 
-        px=TOOLBAR_PADDING, 
+        px=cfg.TOOLBAR_PADDING, 
         children=[
             dcmpt.select_analysis_type(id=get_component_id('select_type'), data=list(GRAPH_CONF.index), label='故障类型'),
             dcmpt.select_setid(id=get_component_id('select_setid')),
@@ -72,8 +48,8 @@ def create_toolbar_content():
                 fullWidth=True,
                 disabled=True,
                 id=get_component_id('btn_refresh'),
-                leftIcon=DashIconify(icon="mdi:refresh", width=TOOLBAR_ICON_WIDTH),
-                size=TOOLBAR_COMPONENT_SIZE,
+                leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
+                size=cfg.TOOLBAR_COMPONENT_SIZE,
                 children="刷新图像",
                 ), 
             ]
@@ -82,8 +58,8 @@ def create_toolbar_content():
 def creat_toolbar():
     return dmc.Aside(
         fixed=True,
-        width={'base': TOOLBAR_SIZE},
-        position={"right": 0, 'top':HEADER_HEIGHT},
+        width={'base': cfg.TOOLBAR_SIZE},
+        position={"right": 0, 'top':cfg.HEADER_HEIGHT},
         zIndex=2,
         children=[
             dmc.ScrollArea(
@@ -118,9 +94,9 @@ dash.register_page(
 
 layout = [
     html.Div(id=get_component_id('notification')),
-    dmc.Container(children=[creat_content()], size=CONTAINER_SIZE,pt=HEADER_HEIGHT),
+    dmc.Container(children=[creat_content()], size=cfg.CONTAINER_SIZE,pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
-        smallerThan=TOOLBAR_HIDE_SMALLER_THAN,
+        smallerThan=cfg.TOOLBAR_HIDE_SMALLER_THAN,
         styles={"display": "none"},
         children=creat_toolbar()
         )
@@ -156,7 +132,7 @@ def callback_update_datepicker_date_fault(map_id, _type):
         return no_update, no_update, no_update, no_update, None    
     turbine_id = utils.interchage_mapid_and_tid(map_id=map_id)
     df, note = utils.dash_try(
-        note_title = NOTIFICATION_TITLE_DBQUERY, 
+        note_title = cfg.NOTIFICATION_TITLE_DBQUERY_FAIL, 
         func=RSDBInterface.read_statistics_fault, 
         turbine_id=turbine_id if turbine_id is not None else '', 
         fault_id=utils.get_fault_id(name=_type),
@@ -172,9 +148,9 @@ def callback_update_datepicker_date_fault(map_id, _type):
         disabledDates = disabledDates[~disabledDates.isin(availableDates)]
         disabledDates = [i.date().isoformat() for i in disabledDates]
     else:
-        minDate = DATE
-        maxDate = DATE
-        disabledDates = [DATE]
+        minDate = cfg.DATE
+        maxDate = cfg.DATE
+        disabledDates = [cfg.DATE]
     return no_update, disabledDates, minDate, maxDate, None
 
 @callback(
@@ -210,10 +186,10 @@ def callback_on_btn_refresh_fault(n, set_id, map_id, _type, dt):
     graph = None
     if len(target_df)>0:
         graph, note = utils.dash_try(
-            note_title=NOTIFICATION_TITLE_GRAPH,   
+            note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,   
             func=GRAPH_CONF.loc[_type]['class'], 
-            target_df = target_df,
-            title = _type
+            target_df=target_df,
+            title=_type
             )
     figure = no_update if graph is None else graph.figs[0]
     return note, figure

@@ -29,7 +29,7 @@ from wtbonline._plot.functions import simple_plot, get_simple_plot_parameters, g
 
 #%% constant
 SECTION = '识别'
-SECTION_ORDER = 1
+SECTION_ORDER = 3
 ITEM='异常状态'
 ITEM_ORDER = 1
 PREFIX =  'recognize_anomaly'
@@ -166,10 +166,10 @@ def creat_content():
             dmc.Col(
                 lg=4,
                 md=12,
-                p=0,
                 children=dmc.Stack(
                     spacing='xs',
                     children=[
+                        dmc.Space(h='10px'),
                         dcmpt.select(id=get_component_id('select_type'), data=cfg.SIMPLE_PLOT_TYPE, value=cfg.SIMPLE_PLOT_TYPE[0], label='类型'),  
                         dcmpt.select(id=get_component_id('select_xaxis'), data=[], value=None, label='x坐标（θ坐标）', description='需要先选择类型以及机型编号'),
                         dcmpt.select(id=get_component_id('select_yaxis'), data=[], value=None, label='y坐标（r坐标）', description='需要先选择类型以及机型编号', disabled=True),
@@ -409,7 +409,7 @@ def callback_update_graph_assist_anomaly(ts, sel_xcol, sel_ycol, sel_y2col, map_
     if note!=no_update:
         return note, {}
     fig, note = utils.dash_try(
-        note_title='绘图失败',
+        note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,
         func=simple_plot,
         x_lst=[None] if xcol in [None, ''] else [df[xcol].tolist()], 
         y_lst=[None] if ycol in [None, ''] else [df[ycol].tolist()], 
@@ -424,23 +424,6 @@ def callback_update_graph_assist_anomaly(ts, sel_xcol, sel_ycol, sel_y2col, map_
         height=500
         )
     return note, fig
-
-@callback(
-    Output(get_component_id('test'), 'figure'),
-    Output(get_component_id('notification'), 'children', allow_duplicate=True),
-    Input(get_component_id('select_xaxis'), 'value'),
-    Input(get_component_id('select_yaxis'), 'value'),
-    Input(get_component_id('select_y2axis'), 'value'),
-    Input(get_component_id('select_mapid'), 'value'),
-    State(get_component_id('select_setid'), 'value'),
-    State(get_component_id('select_type'), 'value'),
-    State(get_component_id('listItem_ts'), 'children'),
-    prevent_initial_call=True
-    )
-def callback_update_graph_assist_anomaly(sel_xcol, sel_ycol, sel_y2col, map_id, set_id, plot_type, ts):
-    if None in [ts,sel_xcol, sel_ycol] or ts=='-':
-        return no_update, None
-    return px.bar(x=["a", "b", "c"], y=[1, 3, 2]), no_update
 
 @callback(
     Output(get_component_id('btn_update'), 'disabled'),

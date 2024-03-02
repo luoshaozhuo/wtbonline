@@ -27,31 +27,7 @@ ITEM='性能'
 ITEM_ORDER = 1
 PREFIX =  'analysis_performance'
 
-HEADER_HEIGHT = cfg.HEADER_HEIGHT
-
-TOOLBAR_SIZE = cfg.TOOLBAR_SIZE
-TOOLBAR_PADDING = cfg.TOOLBAR_PADDING
-TOOLBAR_TOGGLE_SIZE = cfg.TOOLBAR_TOGGLE_SIZE
-TOOLBAR_TOGGLE_ICON_WIDTH = cfg.TOOLBAR_TOGGLE_ICON_WIDTH
-TOOLBAR_TOGGLE_POS_TOP = cfg.TOOLBAR_TOGGLE_POS_TOP
-TOOLBAR_TOGGLE_POS_RIGHT = cfg.TOOLBAR_TOGGLE_POS_RIGHT
-TOOLBAR_COMPONENT_SIZE = cfg.TOOLBAR_COMPONENT_SIZE
-TOOLBAR_ICON_WIDTH = cfg.TOOLBAR_ICON_WIDTH
-TOOLBAR_COMPONENT_WIDTH = cfg.TOOLBAR_COMPONENT_WIDTH
-TOOLBAR_FONT_SIZE = cfg.TOOLBAR_FONT_SIZE
-TOOLBAR_HIDE_SMALLER_THAN =  cfg.TOOLBAR_HIDE_SMALLER_THAN
-
-CONTAINER_SIZE = cfg.CONTAINER_SIZE
-
-NOW = cfg.NOW
-DATE = cfg.DATE
-TIME_START = cfg.TIME_START
-TIME_END = cfg.TIME_END
-
-GRAPH_PADDING_TOP = cfg.GRAPH_PADDING_TOP
 GRAPH_CONF = cfg.GRAPH_CONF[cfg.GRAPH_CONF['item']==ITEM].set_index('clause')
-NOTIFICATION_TITLE_DBQUERY = cfg.NOTIFICATION_TITLE_DBQUERY_FAIL
-NOTIFICATION_TITLE_GRAPH = cfg.NOTIFICATION_TITLE_GRAPH_FAIL
 
 TABLE_COLUMNS = cfg.TOOLBAR_TABLE_COLUMNS
 TABLE_FONT_SIZE = cfg.TOOLBAR_TABLE_FONT_SIZE
@@ -64,25 +40,25 @@ get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
 def create_toolbar_content():
     return dmc.Stack(
         spacing=0, 
-        px=TOOLBAR_PADDING, 
+        px=cfg.TOOLBAR_PADDING, 
         children=[
             dcmpt.select_analysis_type(id=get_component_id('select_type'), data=list(GRAPH_CONF.index), label='分析类型'),
             dcmpt.select_setid(id=get_component_id('select_setid')),
             dcmpt.select_mapid(id=get_component_id('select_mapid')),
             dcmpt.date_picker(id=get_component_id('datepicker_start'), label="开始日期", description="可选日期取决于24小时统计数据"),
-            dcmpt.time_input(id=get_component_id('time_start'), label="开始时间", value=TIME_START),
+            dcmpt.time_input(id=get_component_id('time_start'), label="开始时间", value=cfg.TIME_START),
             dcmpt.date_picker(id=get_component_id('datepicker_end'), label="结束日期", description="可选日期大于等于开始日期"),
-            dcmpt.time_input(id=get_component_id('time_end'), label="结束时间", value=TIME_END),
+            dcmpt.time_input(id=get_component_id('time_end'), label="结束时间", value=cfg.TIME_END),
             dmc.Space(h='10px'),
             dmc.ActionIcon(
-                DashIconify(icon="mdi:add-box", width=TOOLBAR_ICON_WIDTH),
+                DashIconify(icon="mdi:add-box", width=cfg.TOOLBAR_ICON_WIDTH),
                 variant="subtle",
                 id=get_component_id('icon_add'),
                 ),
             dmc.ScrollArea(
                 offsetScrollbars=True,
                 type="scroll",
-                style={"width": TOOLBAR_COMPONENT_WIDTH, "height": TABLE_HEIGHT, 'border':'1px solid silver'},
+                style={"width": cfg.TOOLBAR_COMPONENT_WIDTH, "height": TABLE_HEIGHT, 'border':'1px solid silver'},
                 children=dash_table.DataTable(
                     id=get_component_id('table'),
                     columns=[{"name": i, "id": i} for i in TABLE_COLUMNS],
@@ -96,8 +72,8 @@ def create_toolbar_content():
                 fullWidth=True,
                 disabled=True,
                 id=get_component_id('btn_refresh'),
-                leftIcon=DashIconify(icon="mdi:refresh", width=TOOLBAR_ICON_WIDTH),
-                size=TOOLBAR_COMPONENT_SIZE,
+                leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
+                size=cfg.TOOLBAR_COMPONENT_SIZE,
                 children="刷新图像",
                 ), 
             dmc.Space(h='100px'),
@@ -107,8 +83,8 @@ def create_toolbar_content():
 def creat_toolbar():
     return dmc.Aside(
         fixed=True,
-        width={'base': TOOLBAR_SIZE},
-        position={"right": 0, 'top':HEADER_HEIGHT},
+        width={'base': cfg.TOOLBAR_SIZE},
+        position={"right": 0, 'top':cfg.HEADER_HEIGHT},
         zIndex=2,
         children=[
             dmc.ScrollArea(
@@ -143,9 +119,9 @@ dash.register_page(
 
 layout = [
     html.Div(id=get_component_id('notification')),
-    dmc.Container(children=[creat_content()], size=CONTAINER_SIZE,pt=HEADER_HEIGHT),
+    dmc.Container(children=[creat_content()], size=cfg.CONTAINER_SIZE, pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
-        smallerThan=TOOLBAR_HIDE_SMALLER_THAN,
+        smallerThan=cfg.TOOLBAR_HIDE_SMALLER_THAN,
         styles={"display": "none"},
         children=creat_toolbar()
         )
@@ -178,9 +154,11 @@ def callback_update_select_mapid_performance(set_id):
     prevent_initial_call=True
     )
 def callback_update_datepicker_start_performance(map_id):
+    if map_id is None:
+        return [no_update]*5
     turbine_id = utils.interchage_mapid_and_tid(map_id=map_id)
     df, note = utils.dash_try(
-        note_title = NOTIFICATION_TITLE_DBQUERY, 
+        note_title = cfg.NOTIFICATION_TITLE_DBQUERY_FAIL, 
         func=RSDBInterface.read_statistics_daily, 
         turbine_id=turbine_id if turbine_id is not None else '', 
         columns=['date']
@@ -195,9 +173,9 @@ def callback_update_datepicker_start_performance(map_id):
         disabledDates = disabledDates[~disabledDates.isin(availableDates)]
         disabledDates = [i.date().isoformat() for i in disabledDates]
     else:
-        minDate = DATE
-        maxDate = DATE
-        disabledDates = [DATE]
+        minDate = cfg.DATE
+        maxDate = cfg.DATE
+        disabledDates = [cfg.DATE]
     return no_update, disabledDates, minDate, maxDate, None
 
 @callback(
@@ -277,7 +255,7 @@ def callback_on_btn_refresh_performance(n, tbl_lst, _type):
     note = no_update
     if len(target_df)>0:
         graph, note = utils.dash_try(
-            note_title=NOTIFICATION_TITLE_GRAPH,   
+            note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,   
             func=GRAPH_CONF.loc[_type]['class'], 
             target_df = target_df,
             title = _type
