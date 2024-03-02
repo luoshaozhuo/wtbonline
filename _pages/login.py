@@ -11,6 +11,7 @@ Created on Fri Apr 21 11:58:00 2023
 # imoprt
 # =============================================================================
 import dash_bootstrap_components as dbc
+import dash
 from dash import html, dcc, callback, Input, Output, State, no_update
 from flask_login import login_user
 from werkzeug.security import check_password_hash
@@ -20,49 +21,57 @@ from sqlalchemy import create_engine
 from wtbonline._db.config import RSDB_URI
 from wtbonline._db.rsdb.model import User
 
-# =============================================================================
-# constant
-# =============================================================================
-def get_layout():
-    layout = html.Div([
-            dcc.Location(id='login_location', refresh=False),
-            dbc.Alert(
-                "用户名密码错误",
-                id="login_alert",
-                color = 'danger',
-                duration=3000,
-                is_open=False,
+#%% constant
+PREFIX = 'user_password'
+
+#%% function
+get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
+
+if __name__ == '__main__':     
+    import dash_bootstrap_components as dbc
+    app = dash.Dash(__name__, assets_folder='../assets', suppress_callback_exceptions=True, external_stylesheets=[dbc.themes.BOOTSTRAP])
+    
+dash.register_page(__name__)
+
+layout = html.Div([
+        dcc.Location(id='login_location', refresh=False),
+        dbc.Alert(
+            "用户名密码错误",
+            id="login_alert",
+            color = 'danger',
+            duration=3000,
+            is_open=False,
+            ),
+        html.Div([
+            dbc.Container(children=[
+                dcc.Input(
+                    placeholder='用户名',
+                    type='text',
+                    id='login_input_username',
+                    className='form-control form-control-sm',
+                    n_submit=0,
                 ),
-            html.Div([
-                dbc.Container(children=[
-                    dcc.Input(
-                        placeholder='用户名',
-                        type='text',
-                        id='login_input_username',
-                        className='form-control form-control-sm',
-                        n_submit=0,
-                    ),
-                    html.Br(),
-                    dcc.Input(
-                        placeholder='密码',
-                        type='password',
-                        id='login_input_password',
-                        className='form-control form-control-sm',
-                        n_submit=0,
-                    ),
-                    html.Br(),
-                    html.Button(
-                        children='登录',
-                        n_clicks=0,
-                        type='submit',
-                        id='login_button_login',
-                        className='btn btn-primary btn-sm'
-                    ),
-                    html.Br(),
-                ], className='form-group'),
-            ], className='w-25 position-absolute start-50 top-50 translate-middle')
-        ])
-    return layout
+                html.Br(),
+                dcc.Input(
+                    placeholder='密码',
+                    type='password',
+                    id='login_input_password',
+                    className='form-control form-control-sm',
+                    n_submit=0,
+                ),
+                html.Br(),
+                html.Button(
+                    children='登录',
+                    n_clicks=0,
+                    type='submit',
+                    id='login_button_login',
+                    className='btn btn-primary btn-sm'
+                ),
+                html.Br(),
+            ], className='form-group'),
+        ], className='w-25 position-absolute start-50 top-50 translate-middle')
+    ])
+
 
 # =============================================================================
 # callback

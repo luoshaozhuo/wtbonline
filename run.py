@@ -3,10 +3,11 @@
 创建日期： 2024.02.18
 描述：gunicorn调用此文件启动应用
 '''
-
+import datetime
 import dash
 from dash import Dash
-
+from wtbonline.login_manager import login_manager
+import secrets
 from appshell import create_appshell
 
 app = Dash(
@@ -20,5 +21,9 @@ app = Dash(
 app.layout = create_appshell(dash.page_registry.values())
 server = app.server
 
+server.secret_key = secrets.token_hex(16)
+server.permanent_session_lifetime = datetime.timedelta(seconds=10*60)
+login_manager.init_app(server)
+
 if __name__ == "__main__":
-    app.run_server(debug=True, host='0.0.0.0', port=40006)
+    app.run_server(debug=False, host='0.0.0.0', port=40006)

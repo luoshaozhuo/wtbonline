@@ -129,13 +129,16 @@ layout = [
     dmc.Container(
         size=cfg.CONTAINER_SIZE, 
         pt=cfg.HEADER_HEIGHT,
-        children=dmc.Grid(
-            align='flex-start',
-            children=[
-                dmc.Col(span='content', children=creaet_controlers()),
-                dmc.Col(span=4, offset=1, children=create_table())
-                ]
-            )
+        children=[
+            dmc.Space(h=30),
+                dmc.Grid(
+                align='flex-start',
+                children=[
+                    dmc.Col(span='content', children=creaet_controlers()),
+                    dmc.Col(span=4, offset=1, children=create_table())
+                    ]
+                )
+            ]
         ),
     ]
 

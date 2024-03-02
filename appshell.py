@@ -9,6 +9,7 @@ import dash_mantine_components as dmc
 from dash import Output, Input, html, dcc, page_container, State, callback, ctx, no_update
 from dash_iconify import DashIconify
 import pandas as pd
+from flask_login import current_user, logout_user
 
 from wtbonline import configure as cfg
 
@@ -86,6 +87,8 @@ def create_header_first_column():
 def create_dropdown_menu_account():
     return dmc.Menu([
             dmc.MenuTarget(dmc.ActionIcon(
+                id='menu',
+                display='none',
                 variant="transparent",
                 radius=30,
                 color = dmc.theme.DEFAULT_COLORS['indigo'][3],
@@ -96,13 +99,16 @@ def create_dropdown_menu_account():
                     "修改密码",
                     id='btn_change_passwd',
                     icon=DashIconify(icon="mdi:key-chain", width=cfg.HEADER_MENU_ICON_WIDTH),
-                    style={'fontSize':cfg.HEADER_MENU_FONTSIZE}
+                    style={'fontSize':cfg.HEADER_MENU_FONTSIZE},
+                    href='/user/password',
                     ),
                 dmc.MenuItem(
                     "管理账户",
+                    display='none',
                     id='btn_manage_user',
                     icon=DashIconify(icon="mdi:user-add", width=cfg.HEADER_MENU_ICON_WIDTH),
-                    style={'fontSize':cfg.HEADER_MENU_FONTSIZE}
+                    style={'fontSize':cfg.HEADER_MENU_FONTSIZE},
+                    href='/user/administrate',
                     ),
                 dmc.MenuItem(
                     "退出登录",
@@ -158,7 +164,8 @@ def create_header(nav_data):
                     **params, 
                     children=dmc.Center(
                         h='100%', style={'float':'right'}, 
-                        children=create_header_last_column())
+                        children=create_header_last_column()
+                        )
                     ),                
                 ]
             ),
@@ -199,6 +206,8 @@ def create_side_nav_content(nav_data):
 
 def create_side_navbar(nav_data):
     return dmc.Navbar(
+        id='navbar',
+        display='none',
         fixed=True,
         position={"top": cfg.HEADER_HEIGHT},
         width={"base": NAVBAR_SIZE},
@@ -266,3 +275,21 @@ def create_appshell(nav_data):
 )
 def callback_open_navbar(n_clicks):
     return True
+
+@callback(
+    Output('url', 'pathname'),
+    Output('menu', 'display'),
+    Output('navbar', 'display'),
+    Output('btn_manage_user', 'display'),
+    Input('url', 'pathname'),
+    Input('btn_logout', 'n_clicks'),
+    )
+def callback_show_Page(pathname, n):
+    if pathname == '/login' or not current_user.is_authenticated or ctx.triggered_id=='btn_logout':
+        pathname = '/login'
+        display = 'none'
+        btn_manage_user = 'none'
+    else:
+        btn_manage_user = 'flex' if current_user.username=='admin' else 'none'
+        display = 'inline'
+    return pathname, display, display, btn_manage_user

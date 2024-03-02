@@ -139,6 +139,7 @@ def creat_toolbar():
 def creat_content():
     return dmc.Stack(
         children=[
+            dmc.Space(h='20px'),
             dmc.Group(
                 children = [
                     dmc.ActionIcon(
