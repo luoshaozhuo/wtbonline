@@ -7,13 +7,11 @@ Created on Fri Apr 21 11:58:00 2023
 登录页
 """
 
-# =============================================================================
-# imoprt
-# =============================================================================
+#%% import
 import dash_bootstrap_components as dbc
 import dash
 import dash_mantine_components as dmc
-from dash import html, dcc, callback, Input, Output, State, no_update
+from dash import dcc, callback, Input, Output, State, no_update
 from flask_login import login_user
 from werkzeug.security import check_password_hash
 from sqlalchemy.orm import sessionmaker
@@ -22,14 +20,11 @@ from functools import partial
 
 from wtbonline._db.config import RSDB_URI
 from wtbonline._db.rsdb.model import User
-from wtbonline._db.rsdb_interface import RSDBInterface
-import wtbonline.configure as cfg
 from wtbonline._common import utils
-from wtbonline._common.dash_component import notification
 
 
 #%% constant
-PREFIX = 'user_password'
+PREFIX = 'login'
 
 #%% function
 get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)

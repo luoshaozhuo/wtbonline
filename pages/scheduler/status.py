@@ -5,11 +5,12 @@
 '''
 #%% import
 import dash
-import dash_mantine_components as dmc
 from dash import html
+import dash_mantine_components as dmc
 from functools import partial
+from dash_extensions import Lottie
 
-from wtbonline._common import utils 
+from wtbonline._common import utils
 
 #%% constant
 SECTION = '任务调度'
@@ -25,9 +26,7 @@ get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
 
 #%% layout
 if __name__ == '__main__':     
-    import dash
-    import dash_bootstrap_components as dbc
-    app = dash.Dash(__name__, assets_folder='../assets', suppress_callback_exceptions=True, external_stylesheets=[dbc.themes.BOOTSTRAP])
+    app = dash.Dash(__name__, assets_folder='../../assets', suppress_callback_exceptions=True)
 
 dash.register_page(
     __name__,
@@ -37,14 +36,27 @@ dash.register_page(
     item_order=ITEM_ORDER,
     )
 
-layout = [html.Div('comming soon')]
+layout = dmc.Center(
+    style={'height':'100vh'},
+    children=dmc.Stack(
+        align='center',
+        children=[
+            dmc.Text('我在哪里？', size='xs'),
+            Lottie(
+                options=dict(loop=True, autoplay=True),
+                isClickToPauseDisabled=True,
+                url="/assets/unavailable.json",
+                height='100px',
+                )
+            ]
+        )
+    )
 
-if __name__ == '__main__':  
-    layout =  dmc.NotificationsProvider(children=layout)
 
 #%% callback
 
 #%% main
-if __name__ == '__main__':     
+if __name__ == '__main__':
+    layout =  dmc.NotificationsProvider(children=layout)
     app.layout = layout
     app.run_server(debug=True)

@@ -19,7 +19,7 @@ HEADER_LABEL = '风电数据助理'
 HEADER_LABEL_ABBREATION =  'WDAS'
 HEADER_MENU_FONTSIZE = '10px'
 HEADER_MENU_ICON_WIDTH = 15
-WINDFARM_NAME = '渤中风电场'
+WINDFARM_NAME = RSDBInterface.read_windfarm_infomation(limit=1).squeeze()['farm_name']
 
 TOOLBAR_SIZE = '205px'
 TOOLBAR_PADDING = '10px'

@@ -210,9 +210,6 @@ layout = [
         )   
     ]
 
-if __name__ == '__main__':  
-    layout =  dmc.NotificationsProvider(children=layout)
-
 
 #%% callback
 @callback(
@@ -481,5 +478,6 @@ def callback_on_btn_update_anomaly(n, selectedData, set_id, map_id, label):
 
 #%% main
 if __name__ == '__main__':     
+    layout =  dmc.NotificationsProvider(children=layout)
     app.layout = layout
     app.run_server(debug=False)

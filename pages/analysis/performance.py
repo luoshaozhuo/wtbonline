@@ -107,7 +107,7 @@ def creat_content():
 if __name__ == '__main__':     
     import dash
     import dash_bootstrap_components as dbc
-    app = dash.Dash(__name__, assets_folder='../assets', suppress_callback_exceptions=True, external_stylesheets=[dbc.themes.BOOTSTRAP])
+    app = dash.Dash(__name__, assets_folder='../assets', suppress_callback_exceptions=True)
 
 dash.register_page(
     __name__,
@@ -126,11 +126,6 @@ layout = [
         children=creat_toolbar()
         )
     ]
-
-if __name__ == '__main__':  
-    layout =  dmc.NotificationsProvider(children=layout)
-
-
 
 #%% callback
 @callback(
@@ -265,6 +260,7 @@ def callback_on_btn_refresh_performance(n, tbl_lst, _type):
 
 
 #%% main
-if __name__ == '__main__':     
+if __name__ == '__main__':  
+    layout =  dmc.NotificationsProvider(children=layout)   
     app.layout = layout
     app.run_server(debug=True)

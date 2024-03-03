@@ -8,6 +8,7 @@ import dash
 import dash_mantine_components as dmc
 from dash import html
 from functools import partial
+from dash_extensions import Lottie
 
 from wtbonline._common import utils 
 
@@ -37,14 +38,26 @@ dash.register_page(
     item_order=ITEM_ORDER,
     )
 
-layout = [html.Div('comming soon')]
-
-if __name__ == '__main__':  
-    layout =  dmc.NotificationsProvider(children=layout)
+layout = dmc.Center(
+    style={'height':'100vh'},
+    children=dmc.Stack(
+        align='center',
+        children=[
+            dmc.Text('我在哪里？', size='xs'),
+            Lottie(
+                options=dict(loop=True, autoplay=True),
+                isClickToPauseDisabled=True,
+                url="/assets/unavailable.json",
+                height='100px',
+                )
+            ]
+        )
+    )
 
 #%% callback
 
 #%% main
-if __name__ == '__main__':     
+if __name__ == '__main__':
+    layout =  dmc.NotificationsProvider(children=layout)     
     app.layout = layout
     app.run_server(debug=True)
