@@ -25,11 +25,13 @@ def udpate_statistic_fault(*args, **kwargs):
     task_id = kwargs.get('task_id', 'NA')
     set_id = kwargs.get('set_id', None)
     start_time = kwargs.get('start_time', None)
-    if start_time is not None:
+    if not start_time in [None, '']:
         start_time = pd.to_datetime(start_time)
     end_time = kwargs.get('end_time', None)
-    if end_time is not None:
+    if not end_time in [None, '']:
         end_time = pd.to_datetime(end_time)
+    else:
+        end = pd.to_datetime((pd.Timestamp.now()-pd.Timedelta('1d')))
 
     # 获取所有set_id, turbine_id组合
     candidate_df = get_all_table_tags(set_id=set_id)
@@ -46,21 +48,19 @@ def udpate_statistic_fault(*args, **kwargs):
     for _, (set_id, turbine_id) in candidate_df[['set_id','device']].iterrows():  
         # 从statistics_fault最后一条记录的起始时间开始搜索，若没有记录，从头搜索
         start = start_time
-        if start is None:
-            start = RSDB.read_sql(sql_rsdb%turbine_id)['date'].iloc[0]
+        if start in (None, ''):
             try:
+                sql = sql_rsdb%turbine_id
+                start = RSDB.read_sql(sql_rsdb%turbine_id)['date'].iloc[0]
                 if start is not None:
-                    start = pd.to_datetime(pd.to_datetime(start)) + pd.Timedelta('1d')
+                    start = pd.to_datetime(start) + pd.Timedelta('1d')
                 else:
-                    start = TDFC.query(sql_tsdb%turbine_id)['ts'].iloc[0]
+                    sql = sql_tsdb%turbine_id
+                    start = TDFC.query(sql)['ts'].iloc[0]
             except Exception as e:
-                _LOGGER.error(f'task_id={task_id} 无法从statistics_fault或windfarm确定{set_id} {turbine_id}的数据记录开始时间, {e}')
+                _LOGGER.error(f'task_id={task_id} 无法从statistics_fault或windfarm确定{set_id} {turbine_id}的数据记录开始时间, {sql}, {e}')
                 continue
-
-        end = end_time
-        if end is None:
-            end = pd.to_datetime((pd.Timestamp.now()-pd.Timedelta('1d')))
-        
+            
         # 无论start_time以及end_time是否指定时间，都是按天统计
         ranges = pd.date_range(start=start.date(), end=end.date(), freq='1D')
         for d_start in ranges:
@@ -97,4 +97,5 @@ def udpate_statistic_fault(*args, **kwargs):
                 continue
 
 if __name__ == '__main__':
-    udpate_statistic_fault()
+    # udpate_statistic_fault()
+    udpate_statistic_fault(end_time=None, delta=20, size=3000, minimum=20, task_id='2024-03-03-513867')

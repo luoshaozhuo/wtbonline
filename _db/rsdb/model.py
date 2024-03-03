@@ -314,14 +314,14 @@ class TimedTask(db.Model):
     __tablename__ = 'timed_task'
 
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='任务id')
-    status = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='start/pause/delete')
+    task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
+    status = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='状态，如create，added，summit，fail')
     func = db.Column(db.String(100, 'utf8mb4_general_ci'), nullable=False)
-    setting = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='interval/date')
-    start_time = db.Column(db.DateTime, nullable=False)
-    function_parameter = db.Column(db.String(255, 'utf8mb4_general_ci'))
-    task_parameter = db.Column(db.String(255, 'utf8mb4_general_ci'))
-    username = db.Column(db.ForeignKey('user.username', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True, info='任务发布者')
+    type = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='任务类型')
+    start_time = db.Column(db.DateTime, nullable=False, info='任务初始开始时间')
+    function_parameter = db.Column(db.String(255, 'utf8mb4_general_ci'), info='传递给任务函数的参数')
+    task_parameter = db.Column(db.String(255, 'utf8mb4_general_ci'), info='传递给scheduler的参数')
+    username = db.Column(db.ForeignKey('user.username', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True)
     update_time = db.Column(db.DateTime, nullable=False)
 
     user = db.relationship('User', primaryjoin='TimedTask.username == User.username', backref='timed_tasks')

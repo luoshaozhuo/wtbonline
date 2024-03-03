@@ -21,6 +21,7 @@ import wtbonline.configure as cfg
 from wtbonline._common import utils 
 from wtbonline._common import dash_component as dcmpt
 
+
 #%% constant
 SECTION = '任务调度'
 SECTION_ORDER = 4
@@ -35,7 +36,7 @@ TABLE_HEIGHT = '200PX'
 COLUMNS_DCT = {
     'task_id':'任务id', 
     'status':'状态', 
-    'setting':'类型', 
+    'type':'类型', 
     'task_parameter':'参数', 
     'func':'目标函数', 
     'function_parameter':'目标函数参数', 
@@ -48,26 +49,20 @@ TABLE_HEADERS = list(COLUMNS_DCT.values())
 
 UNIT = [{'label':i, 'value':i} for i in cfg.SCHEDULER_JOB_INTER_UNIT]
 
+JOB_DF = cfg.SCHEDULER_JOB_PARAMETER.set_index('name')
+
 #%% function
 get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
 
 def func_read_task_table():
-    # apschduler_df, note = utils.dash_try(
-    #     cfg.NOTIFICATION_TITLE_DBQUERY_FAIL,
-    #     RSDBInterface.read_apscheduler_jobs
-    #     )
     apschduler_df, note = utils.dash_dbquery(func=RSDBInterface.read_apscheduler_jobs, not_empty=False)
     if note!=no_update:
         return no_update, note
+    apschduler_df['next_run_time'] = pd.to_datetime(apschduler_df['next_run_time'].astype(int), unit='s') + pd.Timedelta('8h')
     timed_task_df, note = utils.dash_dbquery(func=RSDBInterface.read_timed_task, not_empty=False)
-    # timed_task_df, note = utils.dash_try(
-    #     cfg.NOTIFICATION_TITLE_DBQUERY,
-    #     RSDBInterface.read_timed_task
-    #     ) 
     if note!=no_update:
         return no_update, note   
     df = pd.merge(timed_task_df, apschduler_df, how='left', left_on='task_id', right_on='id')
-    df['next_run_time'] = pd.to_datetime(df['next_run_time'], unit='s') + pd.Timedelta('8h')
     return df[TABLE_COLUMNS], no_update
 
 def func_render_table():
@@ -83,7 +78,7 @@ def create_toolbar_content():
         spacing=0, 
         px=cfg.TOOLBAR_PADDING, 
         children=[
-            dcmpt.select_job_type(id=get_component_id('select_setting')),
+            dcmpt.select_job_type(id=get_component_id('select_type'),  withAsterisk=True),
             dmc.DatePicker(
                 id=get_component_id('datepicker_start_date'),
                 size=cfg.TOOLBAR_COMPONENT_SIZE,
@@ -92,13 +87,36 @@ def create_toolbar_content():
                 description="任务开始执行日期",
                 minDate = pd.Timestamp.now().date(),
                 style={"width": cfg.TOOLBAR_COMPONENT_WIDTH},
-                openDropdownOnClear =True
+                openDropdownOnClear =True,
+                withAsterisk=True
                 ),
-            dcmpt.time_input(id=get_component_id('timeinput_start_time'), label="开始时间", value=cfg.TIME_START, description="任务开始执行时间"),
-            dcmpt.number_input(id=get_component_id('numberinput_interval'), label='执行周期', min=1, value=1),
-            dcmpt.select(id=get_component_id('slect_interval_unit'), data=UNIT, value=UNIT[0], label='周期单位'),
+            dcmpt.time_input(
+                id=get_component_id('input_start_time'), 
+                label="开始时间", 
+                value=cfg.TIME_START, 
+                description="任务开始执行时间",  
+                withAsterisk=True
+                ),
+            dcmpt.number_input(
+                id=get_component_id('input_interval'), 
+                label='执行周期', 
+                min=1, 
+                value=1
+                ),
+            dcmpt.select(
+                id=get_component_id('select_interval_unit'), 
+                data=UNIT, 
+                value=cfg.SCHEDULER_JOB_INTER_UNIT[0], 
+                label='周期单位'
+                ),
             dmc.Divider(mt='20px'),
-            dcmpt.select(id=get_component_id('slect_func'), data=list(cfg.SCHEDULER_JOB_FUNC.keys()), value=None, label='任务函数'),
+            dcmpt.select(
+                id=get_component_id('select_func'), 
+                data=list(JOB_DF.index), 
+                value=list(JOB_DF.index)[0], 
+                label='任务函数',  
+                withAsterisk=True
+                ),
             dmc.DatePicker(
                 id=get_component_id('datepicker_end_date'),
                 size=cfg.TOOLBAR_COMPONENT_SIZE,
@@ -108,9 +126,21 @@ def create_toolbar_content():
                 style={"width": cfg.TOOLBAR_COMPONENT_WIDTH},
                 openDropdownOnClear =True
                 ),
-            dcmpt.number_input(id=get_component_id('numberinput_delta'), label='目标函数数据范围（天）', min=1, value=20, description="从结束日期往前数"),
-            dcmpt.number_input(id=get_component_id('numberinput_minimun_sample'), label='最少记录数', min=1, value=3000, description="少于此数函数停止执行"),
-            dcmpt.number_input(id=get_component_id('numberinput_num_output'), label='输出记录数', min=1, value=20),
+            dcmpt.number_input(
+                id=get_component_id('input_delta'), 
+                label='目标函数数据范围（天）', 
+                min=1, 
+                value=20, 
+                description="从结束日期往前数"
+                ),
+            dcmpt.number_input(
+                id=get_component_id('input_minimun_sample'), 
+                label='最少记录数', 
+                min=1, 
+                value=3000, 
+                description="少于此数函数停止执行"
+                ),
+            dcmpt.number_input(id=get_component_id('input_num_output'), label='输出记录数', min=1, value=20),
             dmc.Space(h='20px'),
             dmc.Button(
                 fullWidth=True,
@@ -160,7 +190,7 @@ def creat_content():
                         id=get_component_id('acticon_refresh'),
                         ),
                     dmc.ActionIcon(
-                        DashIconify(icon="mdi:stop-circle-outline", width=cfg.TOOLBAR_ICON_WIDTH, color='red'),
+                        DashIconify(icon="mdi:remove-circle-outline", width=cfg.TOOLBAR_ICON_WIDTH, color='red'),
                         variant="subtle",
                         id=get_component_id('acticon_delete'),
                         )
@@ -221,14 +251,14 @@ layout =  dmc.NotificationsProvider(children=[
     Input(get_component_id('datatable_job'), 'selected_rows'),
     State(get_component_id('datatable_job'), 'data'),
     )
-def callback_enable_actionicons_job(rows, data):
+def callback_disable_actionicons_job(rows, data):
     rev = [True]*3
     if (data is not None) and len(data)>0 and (rows is not None) and len(rows)>0:
         row = pd.DataFrame(data).iloc[rows[0]].squeeze()
         status = row['状态']
         if status=='JOB_ADDED':
             rev = [True, False, False]
-        elif row['类型']=='interval' and status in ('JOB_EXECUTED', 'JOB_ERROR', 'JOB_MISSED'):
+        elif row['类型']=='定时任务' and status in ('JOB_EXECUTED', 'JOB_ERROR', 'JOB_MISSED'):
             rev = [True, False, False]
         elif status=='JOB_STOP':
             rev = [False, True, False]
@@ -247,89 +277,109 @@ def callback_on_refresh_job(n):
     return note, data
 
 @callback(
-    Output(get_component_id('numberinput_interval'), 'disabled'),
-    Output(get_component_id('slect_interval_unit'), 'disabled'),
-    Output(get_component_id('timeinput_start_time'), 'value'),
-    Input(get_component_id('select_setting'), 'value'),
-    prevent_initial_call=True,
+    Output(get_component_id('input_interval'), 'disabled'),
+    Output(get_component_id('select_interval_unit'), 'disabled'),
+    Output(get_component_id('input_start_time'), 'value'),
+    Output(get_component_id('input_interval'), 'withAsterisk'),
+    Output(get_component_id('select_interval_unit'), 'withAsterisk'),
+    Input(get_component_id('select_type'), 'value'),
     )
-def callback_on_select_type_job(setting):
-    disabled = False if setting=='interval' else True
-    start_time = '2022-02-02T00:00:00' if setting=='interval' else pd.Timestamp.now()
-    return disabled, disabled, start_time
+def callback_on_select_type_job(type_):
+    disabled = False if type_=='定时任务' else True
+    withAsterisk = not disabled
+    start_time = '2022-02-02T00:00:00' if type_=='定时任务' else pd.Timestamp.now()
+    return disabled, disabled, start_time, withAsterisk, withAsterisk
 
 @callback(
     Output(get_component_id('btn_add'), 'disabled'),
     Output(get_component_id('datepicker_end_date'), 'disabled'),
-    Output(get_component_id('numberinput_minimun_sample'), 'disabled'),
-    Output(get_component_id('numberinput_num_output'), 'disabled'),
-    Output(get_component_id('numberinput_delta'), 'disabled'),
-    Input(get_component_id('slect_func'), 'value'),
+    Output(get_component_id('input_delta'), 'disabled'),
+    Output(get_component_id('input_minimun_sample'), 'disabled'),
+    Output(get_component_id('input_num_output'), 'disabled'),
+    Output(get_component_id('datepicker_end_date'), 'withAsterisk'),
+    Output(get_component_id('input_delta'), 'withAsterisk'),
+    Output(get_component_id('input_minimun_sample'), 'withAsterisk'),
+    Output(get_component_id('input_num_output'), 'withAsterisk'),
+    Input(get_component_id('select_func'), 'value'),
+    Input(get_component_id('datepicker_end_date'), 'value'),
+    Input(get_component_id('input_delta'), 'value'),
+    Input(get_component_id('input_minimun_sample'), 'value'),
+    Input(get_component_id('input_num_output'), 'value'),
     )
-def callback_on_select_func_job(func):
-    btn_add = True if (func is None or func=='') else False
-    end_date = False if func in ['训练离群值识别模型', '离群值识别', '数据统计报告'] else True
-    minimum = False if func in ['训练离群值识别模型'] else True
-    size = False if func in ['离群值识别'] else True
-    delta = False if func in ['训练离群值识别模型', '离群值识别', '数据统计报告'] else True
-    return btn_add, end_date, minimum, size, delta
+def callback_update_input_component_job(name, v_end_date, v_delta, v_minimun_sample, v_num_output):
+    if name is None:
+        return True, *[True]*4, *[False]*4
+    end_date = JOB_DF.loc[name, 'end_date']
+    delta = JOB_DF.loc[name, 'delta']
+    minimun_sample = JOB_DF.loc[name, 'minimun_sample']
+    num_output = JOB_DF.loc[name, 'num_output']
+    withAsterisk = [end_date, delta, minimun_sample, num_output]
+    disabled = [not i for i in withAsterisk]
+    # 必须字段不可以为空
+    btn_add = pd.Series([v_end_date, v_delta, v_minimun_sample, v_num_output])
+    btn_add = btn_add.isin([None, '']) | btn_add.isna()
+    btn_add = btn_add[withAsterisk].any()
+    return btn_add, *disabled, *withAsterisk
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('datatable_job'), 'data', allow_duplicate=True),
+    Output(get_component_id('datepicker_start_date'), 'error'),
     Input(get_component_id('btn_add'), 'n_clicks'),
-    State(get_component_id('select_setting'), 'value'),
+    State(get_component_id('select_type'), 'value'),
     State(get_component_id('datepicker_start_date'), 'value'),
-    State(get_component_id('timeinput_start_time'), 'value'), 
-    State(get_component_id('numberinput_interval'), 'value'),
-    State(get_component_id('slect_interval_unit'), 'value'),
-    State(get_component_id('slect_func'), 'value'),
+    State(get_component_id('input_start_time'), 'value'), 
+    State(get_component_id('input_interval'), 'value'),
+    State(get_component_id('select_interval_unit'), 'value'),
+    State(get_component_id('select_func'), 'value'),
     State(get_component_id('datepicker_end_date'), 'value'),
-    State(get_component_id('numberinput_delta'), 'value'), 
-    State(get_component_id('numberinput_minimun_sample'), 'value'), 
-    State(get_component_id('numberinput_num_output'), 'value'),    
+    State(get_component_id('input_delta'), 'value'), 
+    State(get_component_id('input_minimun_sample'), 'value'), 
+    State(get_component_id('input_num_output'), 'value'),    
     prevent_initial_call=True,
     )
 def callback_on_btn_add_job(
-    n, setting, start_date, start_time, interval, unit, func, end_date, delta, 
+    n, type_, start_date, start_time, interval, unit, func, end_date, delta, 
     minimum_sample, num_output
     ):
+    # 检查输入
+    if start_date in [None, '']:
+        return no_update, no_update, '选择一个日期'     
     esisted_job, note = utils.dash_dbquery(RSDBInterface.read_timed_task)
     if esisted_job is None:
         return note, no_update
     if func=='统计10分钟样本' and func in esisted_job['func']:
        return dcmpt(title='重复任务', msg='请先删除重复任务', _type='error'), no_update 
-   # 任务发布者
+   # 获取任务发布者
     username, note = utils.dash_get_username(current_user, __name__=='__main__')
     if note!=no_update:
         return note, no_update 
     task_id = str(pd.Timestamp.now().date()) + '-' + str(np.random.randint(0, 10**6))
     job_start_time = ' '.join([start_date, start_time.split('T')[1]])
     task_parameter = {'misfire_grace_time':cfg.MISFIRE_GRACE_TIME}
-    if setting=='interval':
+    if type_=='定时任务':
         task_parameter.update({unit:interval})
-    
+    # 构造任务参数
     end_time = end_date+' 00:00:00' if (end_date is not None and end_date!='') else ''
     function_parameter = dict(
         end_time = end_time,
         delta = delta,
-        size = minimum_sample,
-        minimum = num_output,
+        minimum = minimum_sample,
+        size = num_output,
         task_id = task_id
         )
-    
     dct = dict(
         task_id=task_id,
         status='CREATED',
         func=func,
-        setting=setting,
+        type=type_,
         start_time=job_start_time,
         task_parameter=f'{task_parameter}',
         function_parameter=f'{function_parameter}',
         username=username,
         update_time=pd.Timestamp.now()
         )
-    
+    # 更新数据库
     _, note = utils.dash_dbquery(
         func =  RSDBInterface.insert,
         df = dct,
@@ -337,8 +387,16 @@ def callback_on_btn_add_job(
         )
     if note != no_update:
         return note, no_update
+    # 更新页面表格
     data, note = func_render_table()
-    return note, data
+    if note == no_update:
+        note = dcmpt.notification(
+            title='已添加任务',
+            msg=f'{type_} {func}',
+            _type='success',
+            autoClose=2000
+            )
+    return note, data, ''
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
@@ -365,11 +423,11 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
                     task_parameter = eval(row['参数'])
                     funtion_parameter = eval(row['目标函数参数'])
                     funtion_parameter.update({"task_id":row['任务id']})
-                    key_ = 'run_date' if row['类型']=='date' else 'start_date'
+                    key_ = 'run_date' if row['类型']=='一次性任务' else 'start_date'
                     kwargs = {
                         'id':f"{row['任务id']}", 
-                        'func':row['目标函数'], 
-                        'trigger':row['类型'],
+                        'func':JOB_DF.loc[row['目标函数'], 'func'],
+                        'trigger':cfg.SCHEDULER_JOB_TYPE[row['类型']],
                         key_:row['开始时间'],
                         'kwargs':funtion_parameter,
                         }
@@ -382,29 +440,33 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
             elif _id==get_component_id('acticon_delete'):
                 response = requests.delete(url+f"/{row['任务id']}", timeout=timeout)
         except Exception as e:
-            _type = 'error'
-            response = None
-            title = cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL
-            msg = f'{row["任务id"]} {row["目标函数"]} {e}'
+            note = dcmpt.notification(
+                title=cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL, 
+                msg=f'{row["任务id"]} {row["目标函数"]} 错误信息 {e}',
+                _type='error'
+                ) 
             break
         if response.ok == True:
-            _type = 'success'
-            title = cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS
-            msg =  f'{row["任务id"]} {row["目标函数"]}'
+            data, note = func_render_table()
+            note = dcmpt.notification(
+                title=cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS, 
+                msg=f'{row["任务id"]} {row["目标函数"]}', 
+                _type='success',
+                autoClose=2000
+                )
             break
         time.sleep(1)
     else:
-        data, note = func_render_table()
-        if note!=no_update:
-            return note, no_update, no_update 
-        _type = 'error'
-        title = cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL
-        msg = msg = f'{row["任务id"]} {row["目标函数"]} 提交超时'
-    note = dcmpt.notification(title, msg, _type), no_update, no_update       
+        # 尝试三次失败后输出错误提示
+        note = dcmpt.notification(
+            title=cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL, 
+            msg=f'{row["任务id"]} {row["目标函数"]} 提交超时 {response.text}', 
+            _type='error'
+            )       
     return note, data, []
 
 
 #%% main
 if __name__ == '__main__':     
     app.layout = layout
-    app.run_server(debug=False)
+    app.run_server(debug=True)

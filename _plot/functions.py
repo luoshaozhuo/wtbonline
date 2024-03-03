@@ -178,7 +178,7 @@ def scatter_matrix_plot_anomaly(df=None, columns=None, set_id=None, selectedpoin
         df.loc[idx_anormaly, 'textd'] = '异常'
         df.loc[idx_not_anormaly, 'textd'] = '正常'
         df.loc[idx_not_susptor, 'color'] = 'gray'
-        df.loc[idx_suspetor_without_label, 'color'] =' yellow'
+        df.loc[idx_suspetor_without_label, 'color'] ='yellow'
         df.loc[idx_anormaly, 'color'] ='red'
         df.loc[idx_not_anormaly, 'color'] = 'green'        
         df.loc[idx_not_susptor, 'opacity'] = 0.2

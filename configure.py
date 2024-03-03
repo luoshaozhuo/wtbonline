@@ -70,8 +70,8 @@ GRAPH_CONF = pd.DataFrame(
 NOTIFICATION_TITLE_DBQUERY_FAIL = '数据库操作失败'
 NOTIFICATION_TITLE_DBQUERY_NODATA = '查无数据'
 NOTIFICATION_TITLE_GRAPH_FAIL = '绘图失败'
-NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL = '后台任务提交失败'
-NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS = '后台任务提交成功'
+NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL = '后台操作失败'
+NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS = '后台操作成功'
 
 WINDFARM_CONFIGURATION =  RSDBInterface.read_windfarm_configuration()
 WINDFARM_INFORMATION =  RSDBInterface.read_windfarm_infomation()
@@ -84,19 +84,24 @@ NOTIFICATION = {
     'warning':{'color':'yellow', 'icon':'mdi:error-outline'},
     }
 
-SCHEDULER_JOB_TYPE = ['定时任务', '一次性任务']
-SCHEDULER_JOB_FUNC = { 
-    "初始化数据库":"wtbonline._process.preprocess.init_tsdb:init_tdengine",
-    "拉取原始数据":"wtbonline._process.preprocess.load_tsdb:update_tsdb",
-    "拉取PLC数据":"wtbonline._process.preprocess.load_ibox_files:update_ibox_files",
-    "统计10分钟样本":"wtbonline._process.statistics.sample:update_statistic_sample",
-    "统计24小时样本":"wtbonline._process.statistics.daily:udpate_statistic_daily",
-    "检测故障":"wtbonline._process.statistics.fault:udpate_statistic_fault",
-    "训练离群值识别模型":"wtbonline._process.model.anormlay.train:train_all",
-    "离群值识别":"wtbonline._process.model.anormlay.predict:predict_all",
-    "数据统计报告":"wtbonline._report.brief_report:build_brief_report_all",
-    "清理缓存":"wtbonline._pages.tools.utils:clear_cache"
+SCHEDULER_JOB_TYPE ={
+    '定时任务':'interval',
+    '一次性任务':'date',
     }
+SCHEDULER_JOB_PARAMETER = pd.DataFrame( 
+    [
+        ['初始化数据库', 'wtbonline._process.preprocess.init_tsdb:init_tdengine', False, False, False, False],
+        ['拉取原始数据', 'wtbonline._process.preprocess.load_tsdb:update_tsdb', False, False, False, False],
+        ['拉取PLC数据', 'wtbonline._process.preprocess.load_ibox_files:update_ibox_files', False, False, False, False],
+        ['统计10分钟样本', 'wtbonline._process.statistics.sample:update_statistic_sample', False, False, False, False],
+        ['统计24小时样本', 'wtbonline._process.statistics.daily:udpate_statistic_daily', False, False, False, False],
+        ['检测故障', 'wtbonline._process.statistics.fault:udpate_statistic_fault', False, False, False, False],
+        ['训练离群值识别模型', 'wtbonline._process.model.anormlay.train:train_all', True, True, True, False],
+        ['离群值识别', 'wtbonline._process.model.anormlay.predict:predict_all',  True, True, False, True],
+        ['数据统计报告', 'wtbonline._report.brief_report:build_brief_report_all',  True, True, False, False],
+        ],
+    columns=['name', 'func', 'end_date', 'delta', 'minimun_sample', 'num_output']
+    )
 MISFIRE_GRACE_TIME = 600 # 600s
 SCHEDULER_JOB_INTER_UNIT = ['weeks', 'days', 'hours', 'miniues', 'seconds']
 SCHEDULER_URL='http://scheduler:40000/scheduler/jobs'
