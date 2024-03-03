@@ -43,7 +43,7 @@ from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.common import make_sure_dataframe
 from wtbonline._db.common import make_sure_list, make_sure_datetime
 from wtbonline._logging import get_logger, log_it
-from wtbonline._plot.functions import line_plot, scatter_matrix_anormaly
+from wtbonline._plot.functions import line_plot, scatter_matrix_plot_anomaly
 import wtbonline._plot as plt
 import wtbonline._process.inspector as insp
 from wtbonline._process.tools.filter import filter_for_modeling
@@ -824,7 +824,7 @@ def chapter_4(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
     stat_abnormal['is_anormaly'] = True
     plot_df = pd.concat([stat_abnormal, stat_normal], axis=0, ignore_index=True).drop_duplicates('bin', keep='first')
     columns = ['var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean', 'var_382_mean', 'var_383_mean']
-    fig = scatter_matrix_anormaly(plot_df, set_id=set_id, columns=columns)
+    fig = scatter_matrix_plot_anomaly(plot_df, set_id=set_id, columns=columns)
 
     map_id = _standard(set_id, plot_df.head(1)).squeeze()['map_id']
 

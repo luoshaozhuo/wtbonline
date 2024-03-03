@@ -52,16 +52,18 @@ UNIT = [{'label':i, 'value':i} for i in cfg.SCHEDULER_JOB_INTER_UNIT]
 get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
 
 def func_read_task_table():
-    apschduler_df, note = utils.dash_try(
-        cfg.NOTIFICATION_TITLE_DBQUERY,
-        RSDBInterface.read_apscheduler_jobs
-        )
+    # apschduler_df, note = utils.dash_try(
+    #     cfg.NOTIFICATION_TITLE_DBQUERY_FAIL,
+    #     RSDBInterface.read_apscheduler_jobs
+    #     )
+    apschduler_df, note = utils.dash_dbquery(func=RSDBInterface.read_apscheduler_jobs, not_empty=False)
     if note!=no_update:
         return no_update, note
-    timed_task_df, note = utils.dash_try(
-        cfg.NOTIFICATION_TITLE_DBQUERY,
-        RSDBInterface.read_timed_task
-        ) 
+    timed_task_df, note = utils.dash_dbquery(func=RSDBInterface.read_timed_task, not_empty=False)
+    # timed_task_df, note = utils.dash_try(
+    #     cfg.NOTIFICATION_TITLE_DBQUERY,
+    #     RSDBInterface.read_timed_task
+    #     ) 
     if note!=no_update:
         return no_update, note   
     df = pd.merge(timed_task_df, apschduler_df, how='left', left_on='task_id', right_on='id')
@@ -298,11 +300,9 @@ def callback_on_btn_add_job(
     if func=='统计10分钟样本' and func in esisted_job['func']:
        return dcmpt(title='重复任务', msg='请先删除重复任务', _type='error'), no_update 
    # 任务发布者
-    try:
-        username = current_user.username
-    except:
-        username = 'timed_task_test'
-
+    username, note = utils.dash_get_username(current_user, __name__=='__main__')
+    if note!=no_update:
+        return note, no_update 
     task_id = str(pd.Timestamp.now().date()) + '-' + str(np.random.randint(0, 10**6))
     job_start_time = ' '.join([start_date, start_time.split('T')[1]])
     task_parameter = {'misfire_grace_time':cfg.MISFIRE_GRACE_TIME}
@@ -404,8 +404,7 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
     return note, data, []
 
 
-
 #%% main
 if __name__ == '__main__':     
     app.layout = layout
-    app.run_server(debug=True)
+    app.run_server(debug=False)
