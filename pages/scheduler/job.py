@@ -27,7 +27,7 @@ SECTION = '任务调度'
 SECTION_ORDER = 4
 ITEM = '后台任务'
 ITEM_ORDER = 1
-PREFIX = 'scheduler_job'
+PREFIX = 'scheduler_job2'
 
 TABLE_COLUMNS = ['图例号', 'map_id', 'start_time', 'end_time', 'set_id']
 TABLE_FONT_SIZE = '2px'
@@ -321,7 +321,7 @@ def callback_update_input_component_job(name, v_end_date, v_delta, v_minimun_sam
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-    Output(get_component_id('datatable_job'), 'data', allow_duplicate=True),
+    Output(get_component_id('acticon_refresh'), 'n_clicks'),
     Output(get_component_id('datepicker_start_date'), 'error'),
     Input(get_component_id('btn_add'), 'n_clicks'),
     State(get_component_id('select_type'), 'value'),
@@ -333,25 +333,26 @@ def callback_update_input_component_job(name, v_end_date, v_delta, v_minimun_sam
     State(get_component_id('datepicker_end_date'), 'value'),
     State(get_component_id('input_delta'), 'value'), 
     State(get_component_id('input_minimun_sample'), 'value'), 
-    State(get_component_id('input_num_output'), 'value'),    
+    State(get_component_id('input_num_output'), 'value'),  
+    State(get_component_id('acticon_refresh'), 'n_clicks'),  
     prevent_initial_call=True,
     )
 def callback_on_btn_add_job(
     n, type_, start_date, start_time, interval, unit, func, end_date, delta, 
-    minimum_sample, num_output
+    minimum_sample, num_output, n2
     ):
     # 检查输入
     if start_date in [None, '']:
         return no_update, no_update, '选择一个日期'     
     esisted_job, note = utils.dash_dbquery(RSDBInterface.read_timed_task)
     if esisted_job is None:
-        return note, no_update
+        return note, no_update, ''
     if func=='统计10分钟样本' and func in esisted_job['func']:
-       return dcmpt(title='重复任务', msg='请先删除重复任务', _type='error'), no_update 
+       return dcmpt(title='重复任务', msg='请先删除重复任务', _type='error'), no_update, ''
    # 获取任务发布者
     username, note = utils.dash_get_username(current_user, __name__=='__main__')
     if note is not None:
-        return note, no_update 
+        return note, no_update, ''
     task_id = str(pd.Timestamp.now().date()) + '-' + str(np.random.randint(0, 10**6))
     job_start_time = ' '.join([start_date, start_time.split('T')[1]])
     task_parameter = {'misfire_grace_time':cfg.MISFIRE_GRACE_TIME}
@@ -384,17 +385,16 @@ def callback_on_btn_add_job(
         tbname = 'timed_task'
         )
     if note is not None:
-        return note, no_update
+        return note, no_update, ''
     # 更新页面表格
-    data, note = func_render_table()
-    if note is None:
-        note = dcmpt.notification(
-            title='已添加任务',
-            msg=f'{type_} {func}',
-            _type='success',
-            autoClose=2000
-            )
-    return note, data, ''
+    n2 = 0 if n2 is None else n2+1
+    note = dcmpt.notification(
+        title='已添加任务',
+        msg=f'{type_} {func}',
+        _type='success',
+        autoClose=2000
+        )
+    return note, n2, ''
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
