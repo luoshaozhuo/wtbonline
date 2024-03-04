@@ -51,6 +51,7 @@ layout = dmc.Center(
                     label="用户名:",
                     placeholder='username',
                     size='xs',
+                    withAsterisk=True,
                     ),
                 dmc.PasswordInput(
                     id=get_component_id('input_password'),
@@ -58,8 +59,9 @@ layout = dmc.Center(
                     style={"width": 200},
                     size='xs',
                     label="密码",
+                    withAsterisk=True,
                     ),
-                dmc.Button("登录", id=get_component_id("btn_login"), size='xs', disabled=True),
+                dmc.Button("登录", id=get_component_id("btn_login"), size='xs'),
                 ]
             ), 
         ]
@@ -68,14 +70,6 @@ layout = dmc.Center(
 # =============================================================================
 # callback
 # =============================================================================
-@callback(
-    Output(get_component_id("btn_login"), 'disabled'),
-    Input(get_component_id("input_username"), 'value'),
-    Input(get_component_id("input_password"), 'value'),   
-    )
-def callback_disable_btn_login(u, p):
-    return True if None in [u, p] or '' in [u, p] else False
-
 @callback(
     Output(get_component_id("location"), 'pathname'),
     Output(get_component_id("location"), 'refresh'),
@@ -87,13 +81,21 @@ def callback_disable_btn_login(u, p):
     prevent_initial_call=True,
     )
 def on_login_button_login(n_clicks, username, password):
-    error = '用户名或密码错误'
-    with sessionmaker(create_engine(RSDB_URI))() as session:
-        user = session.query(User).filter_by(username=username).first()
-    if user and password and check_password_hash(user.password, password):
-        login_user(user)
-        return '/', True, '', ''
-    return no_update, False, error, error
+    location = no_update
+    refresh = False
+    error_username = '忘记什么了吧' if username in [None, ''] else ''
+    error_password = '忘记什么了吧' if password in [None, ''] else ''
+    if error_username=='' and error_password=='':
+        with sessionmaker(create_engine(RSDB_URI))() as session:
+            user = session.query(User).filter_by(username=username).first()
+        if user and password and check_password_hash(user.password, password):
+            login_user(user)
+            location = '/'
+            refresh = True
+            error_username = error_password = ''
+        else:
+            error_username = error_password = '用户名或密码错误'
+    return location, refresh, error_username, error_password
 
 if __name__ == '__main__':
     app.layout = layout

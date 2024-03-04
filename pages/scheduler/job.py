@@ -233,7 +233,7 @@ dash.register_page(
     item_order=ITEM_ORDER,
     )
 
-layout =  dmc.NotificationsProvider(children=[
+layout = [
     html.Div(id=get_component_id('notification')),
     dmc.Container(children=[creat_content()], size='lg',pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
@@ -241,7 +241,7 @@ layout =  dmc.NotificationsProvider(children=[
         styles={"display": "none"},
         children=creat_toolbar()
         )
-    ])
+    ]
 
 #%% callback
 @callback(
@@ -468,5 +468,6 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
 
 #%% main
 if __name__ == '__main__':     
+    layout =  dmc.NotificationsProvider(children=layout)
     app.layout = layout
     app.run_server(debug=True)
