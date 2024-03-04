@@ -9,6 +9,7 @@ from typing import List
 from wtbonline._common.utils import interchage_mapid_and_tid, make_sure_list, make_sure_dataframe, interchage_varName_and_pointName
 from wtbonline._common import utils
 from wtbonline._db.rsdb_interface import RSDBInterface
+import wtbonline.configure as cfg
 
 # =============================================================================
 # function
@@ -177,10 +178,10 @@ def scatter_matrix_plot_anomaly(df=None, columns=None, set_id=None, selectedpoin
         df.loc[idx_suspetor_without_label, 'textd'] ='离群，未标注'
         df.loc[idx_anormaly, 'textd'] = '异常'
         df.loc[idx_not_anormaly, 'textd'] = '正常'
-        df.loc[idx_not_susptor, 'color'] = 'gray'
-        df.loc[idx_suspetor_without_label, 'color'] ='yellow'
-        df.loc[idx_anormaly, 'color'] ='red'
-        df.loc[idx_not_anormaly, 'color'] = 'green'        
+        df.loc[idx_not_susptor, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['非离群']
+        df.loc[idx_suspetor_without_label, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['离群，未标注']
+        df.loc[idx_anormaly, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['异常']
+        df.loc[idx_not_anormaly, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['正常']
         df.loc[idx_not_susptor, 'opacity'] = 0.2
         df.loc[idx_suspetor_without_label, 'opacity'] = 1
         df.loc[idx_anormaly, 'opacity'] = 1

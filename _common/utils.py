@@ -192,7 +192,7 @@ def dash_try(note_title, func, *args, **kwargs):
     '''
     try:
         rs = func(*args, **kwargs)
-        notification = no_update
+        notification = None
     except Exception as e:
         rs = None
         notification = cmpt.notification(
@@ -379,7 +379,7 @@ def read_scatter_matrix_anormaly(
     return rev
 
 def dash_get_username(current_user, is_main=False):
-    note = no_update
+    note = None
     username = None
     try:
         username = current_user.username

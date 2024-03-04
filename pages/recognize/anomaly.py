@@ -252,7 +252,7 @@ def callback_on_select_mapid_anomaly(map_id, set_id):
         columns=SCATTER_PLOT_VARIABLES,
         sample_cnt=cfg.SIMPLE_PLOT_SAMPLE_NUM,
         )
-    if note==no_update:
+    if note is None:
         graph_scatter, note = utils.dash_try(
         note_title='绘图失败',
         func=scatter_matrix_plot_anomaly,
@@ -260,7 +260,7 @@ def callback_on_select_mapid_anomaly(map_id, set_id):
         columns=SCATTER_PLOT_VARIABLES,
         set_id=set_id
         )
-    if note==no_update:
+    if note is None:
         disabled = len(df[(df['is_suspector']==1) & (df['is_anomaly']==0)])<1
     else:
         disabled = True
@@ -283,7 +283,7 @@ def callback_on_select_data_anomaly(selectedData, fig):
     点击next时，更新辅助图及样本信息
     '''
     columns=['var_94_mean', 'var_355_mean', 'var_246_mean', 'var_101_mean', 'bin']
-    note = no_update
+    note = None
     id_ = ts = wspd = rspd = power = pitchAngle = '-'
     selected_points = fig['data'][0].get('selectedpoints', [])
     if len(selected_points)>0:
@@ -293,7 +293,7 @@ def callback_on_select_data_anomaly(selectedData, fig):
             id_=sample_id,
             columns=columns
             )
-        if note==no_update:
+        if note is None:
             sr = df.round(2).squeeze()
             id_ = sample_id    
             ts = sr['bin']
@@ -344,7 +344,7 @@ def callback_update_graph_assist_selections_anomaly(plot_type, set_id):
         set_id=set_id,
         plot_type=plot_type
         )
-    if note != no_update:
+    if note is not None:
         return note, *[no_update]*6
     x_data, x_value, y_data, y_value = rs
     return no_update, x_data, x_value, y_data, y_value, y_data, y_value
@@ -381,9 +381,9 @@ def callback_disable_slect_y2axis_anomaly(v, plot_type):
     )
 def callback_update_graph_assist_anomaly(ts, sel_xcol, sel_ycol, sel_y2col, map_id, set_id, plot_type):
     if None in [ts,sel_xcol, sel_ycol] or ts=='-':
-        return no_update, {}
+        return None, {}
     # 读取绘图数据
-    note = no_update
+    note = None
     try:
         xcol, xtitle, ycol, ytitle, y2col, y2title, mode = get_simple_plot_parameters(sel_xcol, sel_ycol, sel_y2col, plot_type, set_id)
         point_name = tuple(pd.Series([sel_xcol, sel_ycol, sel_y2col]).replace(['时间', '频率'], None).dropna())
@@ -403,7 +403,7 @@ def callback_update_graph_assist_anomaly(ts, sel_xcol, sel_ycol, sel_y2col, map_
     else:
         if len(df)<1:
             note = dcmpt.notification(title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA, msg='查无数据', _type='warning')
-    if note!=no_update:
+    if note is not None:
         return note, {}
     fig, note = utils.dash_try(
         note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,
@@ -444,12 +444,12 @@ def callback_disable_btn_update_anomaly(ts, label):
     )
 def callback_on_btn_update_anomaly(n, selectedData, set_id, map_id, label):
     if selectedData is None or len(selectedData)==0 or label is None:
-        return no_update, no_update
+        return None, no_update
     _ = Patch()
     patched_fig = Patch()
     # 获取当前用户名
     username, note = utils.dash_get_username(current_user, __name__ == '__main__')
-    if note!=no_update:
+    if note is not None:
         return note, no_update
     # 构造新记录
     create_time = pd.Timestamp.now()
@@ -467,11 +467,11 @@ def callback_on_btn_update_anomaly(n, selectedData, set_id, map_id, label):
         df = new_record,
         tbname = 'model_label'
         )
-    if note!=no_update:
+    if note is not None:
         return note, no_update
     idx = selectedData['points'][0]['pointNumber']
     patched_fig['data'][0]['text'][idx] = label
-    patched_fig['data'][0]['marker']['color'][idx] = 'red' if label=='异常' else 'green'
+    patched_fig['data'][0]['marker']['color'][idx] = cfg.ANOMALY_MATRIX_PLOT_COLOR[label]
     patched_fig['data'][0]['marker']['opacity'][idx] = 1
     return no_update, patched_fig
 
@@ -480,4 +480,4 @@ def callback_on_btn_update_anomaly(n, selectedData, set_id, map_id, label):
 if __name__ == '__main__':     
     layout =  dmc.NotificationsProvider(children=layout)
     app.layout = layout
-    app.run_server(debug=False)
+    app.run_server(debug=True)

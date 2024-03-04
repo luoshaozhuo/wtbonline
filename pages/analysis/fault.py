@@ -175,7 +175,7 @@ def callback_on_btn_refresh_fault(n, set_id, map_id, _type, dt):
         turbine_id = turbine_id,
         date = dt
         )
-    if note!=no_update:
+    if note is not None:
         return note, no_update
     dt = df['timestamp'].iloc[0]
     delta = pd.Timedelta('10m')

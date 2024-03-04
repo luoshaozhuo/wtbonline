@@ -218,7 +218,7 @@ def callback_on_slect_type_plot(_type, set_id):
         columns=cols, 
         select=[0, 1]
         )
-    if note!=no_update:
+    if note is not None:
         return note, *[no_update]*6
     if _type=='时序图':
         x_data = ['时间']
@@ -307,7 +307,7 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, sel_xcol, sel_ycol, se
     msg = '未选中任何数据'
     error = ['未选中任何数据' if i is None else '' for i in [sel_xcol, sel_ycol]]
     if msg in error:
-        return no_update, no_update, *error
+        return None, no_update, *error
     # 设置绘图参数
     x_lst=[]    
     y_lst=[]
@@ -318,7 +318,7 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, sel_xcol, sel_ycol, se
     # 读取绘图数据
     point_name = tuple(pd.Series([sel_xcol, sel_ycol, sel_y2col]).replace(['时间', '频率'], None).dropna())
     sample_cnt = int(cfg.SIMPLE_PLOT_SAMPLE_NUM/len(table_lst))
-    note = no_update
+    note = None
     for dct in table_lst:
         try:
             df, _ = utils.read_raw_data(
@@ -348,7 +348,7 @@ def callback_on_btn_refresh_plot(n, plot_type, table_lst, sel_xcol, sel_ycol, se
             y2_lst.append(y2)
         else:
             y2_lst.append(None)
-    if note!=no_update:
+    if note is not None:
         return note, no_update, *error     
     fig, note = utils.dash_try(
         note_title='绘图失败',

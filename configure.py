@@ -109,3 +109,10 @@ SCHEDULER_TIMEOUT = 10
 
 SIMPLE_PLOT_TYPE = ['时序图', '散点图', '极坐标图', '频谱图']
 SIMPLE_PLOT_SAMPLE_NUM = 5000
+
+ANOMALY_MATRIX_PLOT_COLOR = {
+    '非离群':'gray',
+    '正常':'#2ca02c',
+    '异常':'red',
+    '离群，未标注':'blue',
+    }

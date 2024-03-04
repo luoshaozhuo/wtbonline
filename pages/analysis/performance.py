@@ -247,7 +247,7 @@ def callback_update_btn_resresh_performance(tbl_lst):
 def callback_on_btn_refresh_performance(n, tbl_lst, _type):
     target_df = pd.DataFrame(tbl_lst)
     graph = None
-    note = no_update
+    note = None
     if len(target_df)>0:
         graph, note = utils.dash_try(
             note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,   
