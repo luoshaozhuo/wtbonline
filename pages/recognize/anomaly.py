@@ -377,9 +377,10 @@ def callback_disable_slect_y2axis_anomaly(v, plot_type):
     Input(get_component_id('select_mapid'), 'value'),
     State(get_component_id('select_setid'), 'value'),
     State(get_component_id('select_type'), 'value'),
+    State(get_component_id('listItem_rspd'), 'children'),
     prevent_initial_call=True
     )
-def callback_update_graph_assist_anomaly(ts, sel_xcol, sel_ycol, sel_y2col, map_id, set_id, plot_type):
+def callback_update_graph_assist_anomaly(ts, sel_xcol, sel_ycol, sel_y2col, map_id, set_id, plot_type, rspd):
     if None in [ts,sel_xcol, sel_ycol] or ts=='-':
         return None, {}
     # 读取绘图数据
@@ -405,6 +406,8 @@ def callback_update_graph_assist_anomaly(ts, sel_xcol, sel_ycol, sel_y2col, map_
             note = dcmpt.notification(title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA, msg='查无数据', _type='warning')
     if note is not None:
         return note, {}
+    rspd_hz = float(rspd.split(' ')[0])/60.0
+    ref_freqs = pd.Series([1,2,3])*rspd_hz
     fig, note = utils.dash_try(
         note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,
         func=simple_plot,
@@ -417,7 +420,7 @@ def callback_update_graph_assist_anomaly(ts, sel_xcol, sel_ycol, sel_y2col, map_
         name_lst=[ts],
         mode=mode,
         _type=plot_type,
-        ref_freqs=[],
+        ref_freqs=ref_freqs,
         height=500
         )
     return note, fig

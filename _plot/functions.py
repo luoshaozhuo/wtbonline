@@ -399,9 +399,6 @@ def simple_plot(
         ref_freqs:List[float]=[],
         height:int=700
         ):
-    # x_lst = make_sure_list(x_lst)
-    # y_lst = make_sure_list(y_lst)
-    # y2_lst = make_sure_list(y2_lst)
     name_lst = make_sure_list(name_lst)
     ref_freqs = make_sure_list(ref_freqs)
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -454,10 +451,14 @@ def simple_plot(
                     )
                 fig.add_trace(trace, secondary_y=secondary_y)
     if _type=='频谱图':
+        j=0
         for i in ref_freqs:
+            j=j+1
+            if i>df['x'].max():
+                continue
             fig.add_vline(
                 x=i, 
-                annotation_text=f"特征频率{i}",
+                annotation_text=f"{j}",
                 annotation_font_size=10, 
                 line_width=1, 
                 line_dash="dash", 

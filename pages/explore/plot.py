@@ -143,13 +143,12 @@ def callback_update_select_mapid_plot(set_id):
     Output(get_component_id('datepicker_start'), 'disabledDates'),
     Output(get_component_id('datepicker_start'), 'minDate'),
     Output(get_component_id('datepicker_start'), 'maxDate'),
-    Output(get_component_id('datepicker_start'), 'value'),
     Input(get_component_id('select_mapid'), 'value'),
     prevent_initial_call=True
     )
 def callback_update_datepicker_start_plot(map_id):
     if map_id is None:
-        return [no_update]*5
+        return [no_update]*4
     turbine_id = utils.interchage_mapid_and_tid(map_id=map_id)
     df, note = utils.dash_try(
         note_title = cfg.NOTIFICATION_TITLE_DBQUERY_FAIL, 
@@ -170,7 +169,7 @@ def callback_update_datepicker_start_plot(map_id):
         minDate = cfg.DATE
         maxDate = cfg.DATE
         disabledDates = [cfg.DATE]
-    return no_update, disabledDates, minDate, maxDate, None
+    return no_update, disabledDates, minDate, maxDate
 
 @callback(
     Output(get_component_id('datepicker_end'), 'disabledDates'),
