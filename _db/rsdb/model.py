@@ -10,8 +10,8 @@ class AppConfiguration(db.Model):
     __tablename__ = 'app_configuration'
 
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(255, 'utf8mb4_general_ci'))
-    value = db.Column(db.String(255, 'utf8mb4_general_ci'))
+    key = db.Column(db.String(255, 'utf8mb4_general_ci'), info='键值')
+    value = db.Column(db.String(255, 'utf8mb4_general_ci'), info='实际值')
 
 
 
@@ -19,14 +19,14 @@ class AppServer(db.Model):
     __tablename__ = 'app_server'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20, 'utf8mb4_general_ci'))
-    host = db.Column(db.String(20, 'utf8mb4_general_ci'))
-    remote = db.Column(db.Integer)
-    type = db.Column(db.String(20, 'utf8mb4_general_ci'))
-    port = db.Column(db.Integer)
-    user = db.Column(db.String(255, 'utf8mb4_general_ci'))
-    password = db.Column(db.String(255, 'utf8mb4_general_ci'))
-    database = db.Column(db.String(20, 'utf8mb4_general_ci'))
+    name = db.Column(db.String(20, 'utf8mb4_general_ci'), info='服务器名')
+    host = db.Column(db.String(20, 'utf8mb4_general_ci'), info='地址')
+    remote = db.Column(db.Integer, info='是否远程服务器')
+    type = db.Column(db.String(20, 'utf8mb4_general_ci'), info='用retapi还是cli接口')
+    port = db.Column(db.Integer, info='端口')
+    user = db.Column(db.String(255, 'utf8mb4_general_ci'), info='用户名')
+    password = db.Column(db.String(255, 'utf8mb4_general_ci'), info='密码')
+    database = db.Column(db.String(20, 'utf8mb4_general_ci'), info='库名')
 
 
 
@@ -46,7 +46,7 @@ class Model(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    farm_name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
+    farm_name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='风电场名')
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='与tdengine里的set_id对应')
     turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, info='与tdengine里的sdevice对应')
     uuid = db.Column(db.String(50, 'utf8mb4_general_ci'), nullable=False, unique=True, info='模型唯一码')
@@ -67,8 +67,8 @@ class ModelAnormaly(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
     turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
-    sample_id = db.Column(db.Integer, nullable=False, index=True)
-    bin = db.Column(db.DateTime, nullable=False)
+    sample_id = db.Column(db.Integer, nullable=False, index=True, info='statistics_sample的记录ID')
+    bin = db.Column(db.DateTime, nullable=False, info='样本开始时间')
     model_uuid = db.Column(db.String(100, 'utf8mb4_general_ci'), nullable=False)
     create_time = db.Column(db.DateTime, nullable=False)
 
@@ -81,11 +81,11 @@ class ModelLabel(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.ForeignKey('user.username', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True)
+    username = db.Column(db.ForeignKey('user.username', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True, info='用户名')
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
     turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
-    sample_id = db.Column(db.Integer, nullable=False, index=True)
-    is_anomaly = db.Column(db.Integer, nullable=False)
+    sample_id = db.Column(db.Integer, nullable=False, index=True, info='statistics_sample的id')
+    is_anomaly = db.Column(db.Integer, nullable=False, info='是否异常值')
     create_time = db.Column(db.DateTime, nullable=False)
 
     user = db.relationship('User', primaryjoin='ModelLabel.username == User.username', backref='model_labels')
@@ -332,11 +332,11 @@ class TimedTaskLog(db.Model):
     __tablename__ = 'timed_task_log'
 
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
-    result = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False)
-    start_time = db.Column(db.DateTime, nullable=False)
-    end_time = db.Column(db.DateTime, nullable=False)
-    pid = db.Column(db.Integer, nullable=False)
+    task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, info='timed_task的记录id')
+    result = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='运行结果')
+    start_time = db.Column(db.DateTime, nullable=False, info='运行开始时间')
+    end_time = db.Column(db.DateTime, nullable=False, info='运行结束时间')
+    pid = db.Column(db.Integer, nullable=False, info='执行任务的process id')
 
 
 
@@ -414,10 +414,10 @@ class WindfarmConfiguration(db.Model):
     model_name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='windfarm_turbine_model键值')
     gearbox_ratio = db.Column(db.Float, nullable=False, info='齿轮箱速比')
     on_grid_date = db.Column(db.DateTime, info='并网日期')
-    ip_address = db.Column(db.String(39, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue())
-    ftp_port = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue())
-    ftp_username = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue())
-    ftp_password = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue())
+    ip_address = db.Column(db.String(39, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue(), info='plc地址')
+    ftp_port = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='plc的ftp服务端口')
+    ftp_username = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue(), info='plc的ftp服务用户名')
+    ftp_password = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue(), info='plc的ftp服务密码')
 
 
 
@@ -435,9 +435,9 @@ class WindfarmPowerCurve(db.Model):
     __tablename__ = 'windfarm_power_curve'
 
     id = db.Column(db.Integer, primary_key=True)
-    model_name = db.Column(db.ForeignKey('windfarm_turbine_model.model_name', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True)
-    mean_speed = db.Column(db.Float, nullable=False)
-    mean_power = db.Column(db.Float, nullable=False)
+    model_name = db.Column(db.ForeignKey('windfarm_turbine_model.model_name', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True, info='风机配置号')
+    mean_speed = db.Column(db.Float, nullable=False, info='平均风速')
+    mean_power = db.Column(db.Float, nullable=False, info='平均功率')
 
     windfarm_turbine_model = db.relationship('WindfarmTurbineModel', primaryjoin='WindfarmPowerCurve.model_name == WindfarmTurbineModel.model_name', backref='windfarm_power_curves')
 
