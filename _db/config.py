@@ -38,6 +38,26 @@ def get_rsdb_uri():
 
 RSDB_URI = get_rsdb_uri() 
 
+def get_postgres_uri():
+    '''
+    >>> _ = get_postgres_uri()
+    '''
+    fn = Fernet(_key)
+    sr = pd.read_sql(
+        '''
+        select host, port, user, password, `database` 
+        from app_server
+        where name='postgres' and remote=1
+        ''', 
+        create_engine(RSDB_URI)
+        ).squeeze()
+    password = fn.decrypt(bytes(sr['password'], encoding='utf'))
+    sr['password'] = quote_plus(str(password, encoding='utf'))
+    return f'postgresql://{sr["user"]}:{sr["password"]}@{sr["host"]}:{sr["port"]}/{sr["database"]}'
+
+POSTGRES_URI = get_postgres_uri()
+
+
 def get_td_local_connector():
     '''
     >>> get_td_local_connector().keys()

@@ -15,6 +15,7 @@ from typing import List, Optional, Union, Mapping, Any
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.common import (make_sure_list, make_sure_datetime)
 from wtbonline._db.rsdb import model
+from wtbonline._db.config import POSTGRES_URI
 
 #%% class
 class RSDBInterface():
@@ -399,4 +400,3 @@ class RSDBInterface():
             )
         return RSDB.query(tbname, columns=columns, eq_clause=eq_clause, 
                           in_clause=in_clause, limit=limit)  
-    
