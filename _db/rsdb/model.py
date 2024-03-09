@@ -12,6 +12,7 @@ class AppConfiguration(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(255, 'utf8mb4_general_ci'), info='键值')
     value = db.Column(db.String(255, 'utf8mb4_general_ci'), info='实际值')
+    comment = db.Column(db.String(255, 'utf8mb4_general_ci'), info='说明')
 
 
 
@@ -42,13 +43,13 @@ class ApschedulerJob(db.Model):
 class Model(db.Model):
     __tablename__ = 'model'
     __table_args__ = (
-        db.Index('compoud', 'set_id', 'turbine_id', 'name', 'create_time'),
+        db.Index('compoud', 'set_id', 'device_id', 'name', 'create_time'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
     farm_name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='风电场名')
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='与tdengine里的set_id对应')
-    turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, info='与tdengine里的sdevice对应')
+    device_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, info='与tdengine里的device对应')
     uuid = db.Column(db.String(50, 'utf8mb4_general_ci'), nullable=False, unique=True, info='模型唯一码')
     name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='模型类型')
     start_time = db.Column(db.DateTime, nullable=False, info='建模数据起始时间')
@@ -58,15 +59,15 @@ class Model(db.Model):
 
 
 
-class ModelAnormaly(db.Model):
-    __tablename__ = 'model_anormaly'
+class ModelAnomaly(db.Model):
+    __tablename__ = 'model_anomaly'
     __table_args__ = (
-        db.Index('set_id_2', 'set_id', 'turbine_id'),
+        db.Index('set_id_2', 'set_id', 'device_id'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
-    turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
+    device_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
     sample_id = db.Column(db.Integer, nullable=False, index=True, info='statistics_sample的记录ID')
     bin = db.Column(db.DateTime, nullable=False, info='样本开始时间')
     model_uuid = db.Column(db.String(100, 'utf8mb4_general_ci'), nullable=False)
@@ -77,13 +78,13 @@ class ModelAnormaly(db.Model):
 class ModelLabel(db.Model):
     __tablename__ = 'model_label'
     __table_args__ = (
-        db.Index('set_id_3', 'set_id', 'turbine_id'),
+        db.Index('set_id_3', 'set_id', 'device_id'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.ForeignKey('user.username', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True, info='用户名')
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
-    turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
+    device_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
     sample_id = db.Column(db.Integer, nullable=False, index=True, info='statistics_sample的id')
     is_anomaly = db.Column(db.Integer, nullable=False, info='是否异常值')
     create_time = db.Column(db.DateTime, nullable=False)
@@ -95,12 +96,12 @@ class ModelLabel(db.Model):
 class StatisticsDaily(db.Model):
     __tablename__ = 'statistics_daily'
     __table_args__ = (
-        db.Index('set_id', 'set_id', 'turbine_id', 'date'),
+        db.Index('set_id', 'set_id', 'device_id', 'date'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
-    turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
+    device_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
     date = db.Column(db.DateTime, nullable=False)
     count_sample = db.Column(db.Integer, nullable=False, info='当前日local tdengine记录数')
     energy_output = db.Column(db.Float, nullable=False, info='累积发电量')
@@ -112,12 +113,12 @@ class StatisticsDaily(db.Model):
 class StatisticsFault(db.Model):
     __tablename__ = 'statistics_fault'
     __table_args__ = (
-        db.Index('set_id', 'set_id', 'turbine_id', 'date'),
+        db.Index('set_id', 'set_id', 'device_id', 'date'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
-    turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
+    device_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
     date = db.Column(db.Date, nullable=False, info='故障日期')
     fault_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='故障类型')
     timestamp = db.Column(db.DateTime, nullable=False, info='当日首次故障时间')
@@ -128,12 +129,12 @@ class StatisticsFault(db.Model):
 class StatisticsSample(db.Model):
     __tablename__ = 'statistics_sample'
     __table_args__ = (
-        db.Index('a', 'set_id', 'turbine_id', 'bin', 'create_time'),
+        db.Index('a', 'set_id', 'device_id', 'bin', 'create_time'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
-    turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
+    device_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
     bin = db.Column(db.DateTime, nullable=False, index=True)
     var_101_mean = db.Column(db.Float)
     var_101_rms = db.Column(db.Float)
@@ -352,18 +353,12 @@ class TurbineModelPoint(db.Model):
     __tablename__ = 'turbine_model_points'
 
     id = db.Column(db.Integer, primary_key=True)
-    set_id = db.Column(db.ForeignKey('windfarm_infomation.set_id', ondelete='RESTRICT', onupdate='CASCADE'), index=True)
-    select = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='1=采集到本地tdengine')
     stat_operation = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='1=用于计算statistics_operation表的字段')
     stat_sample = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='1=用于计算statistics_sample表的字段')
     stat_accumulation = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='1=用于计算statistics_accumluation表的字段')
     point_name = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False)
     var_name = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False, info='本地tdengine，set_id=20835的var_name，不变量')
-    datatype = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False)
-    unit = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False)
     ref_name = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False, info='远程tdengine的变量名，按需修改')
-
-    set = db.relationship('WindfarmInfomation', primaryjoin='TurbineModelPoint.set_id == WindfarmInfomation.set_id', backref='turbine_model_points')
 
 
 
@@ -380,13 +375,11 @@ class TurbineVariableBound(db.Model):
     __tablename__ = 'turbine_variable_bound'
 
     id = db.Column(db.Integer, primary_key=True)
-    set_id = db.Column(db.ForeignKey('windfarm_infomation.set_id', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True, server_default=db.FetchedValue(), info='model_point对应字段')
+    set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, server_default=db.FetchedValue(), info='model_point对应字段')
     var_name = db.Column(db.String(50, 'utf8mb4_general_ci'), nullable=False, unique=True, info='model_point对应字段')
     name = db.Column(db.String(20, 'utf8mb4_general_ci'), info='需要显示的中文名称')
     lower_bound = db.Column(db.Float, nullable=False, server_default=db.FetchedValue(), info='报警下限，单位与model_point一致')
     upper_bound = db.Column(db.Float, nullable=False, server_default=db.FetchedValue(), info='报警上限，单位与model_point一致')
-
-    set = db.relationship('WindfarmInfomation', primaryjoin='TurbineVariableBound.set_id == WindfarmInfomation.set_id', backref='turbine_variable_bounds')
 
 
 
@@ -402,55 +395,7 @@ class User(UserMixin, db.Model):
 
 class WindfarmConfiguration(db.Model):
     __tablename__ = 'windfarm_configuration'
-    __table_args__ = (
-        db.Index('set_id_2', 'set_id', 'turbine_id'),
-        db.Index('windfarm_configuration_ibfk_1', 'set_id', 'model_name')
-    )
 
-    id = db.Column(db.Integer, primary_key=True, nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, info='与tdengine里的set_id对应')
-    turbine_id = db.Column(db.String(20, 'utf8mb4_general_ci'), primary_key=True, nullable=False, index=True, info='与tdengine里的device对应')
-    map_id = db.Column(db.String(20, 'utf8mb4_general_ci'), primary_key=True, nullable=False, info='现场使用的设备编号')
-    model_name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='windfarm_turbine_model键值')
     gearbox_ratio = db.Column(db.Float, nullable=False, info='齿轮箱速比')
-    on_grid_date = db.Column(db.DateTime, info='并网日期')
-    ip_address = db.Column(db.String(39, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue(), info='plc地址')
-    ftp_port = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='plc的ftp服务端口')
-    ftp_username = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue(), info='plc的ftp服务用户名')
-    ftp_password = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, server_default=db.FetchedValue(), info='plc的ftp服务密码')
-
-
-
-class WindfarmInfomation(db.Model):
-    __tablename__ = 'windfarm_infomation'
-
-    id = db.Column(db.Integer, primary_key=True)
-    farm_name = db.Column(db.String(20, 'utf8mb4_0900_ai_ci'), nullable=False, info='风场名')
-    set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, server_default=db.FetchedValue(), info='对应tdengine里的set_id')
-    rated_power = db.Column(db.Float, nullable=False, info='额定功率，单位kW')
-
-
-
-class WindfarmPowerCurve(db.Model):
-    __tablename__ = 'windfarm_power_curve'
-
-    id = db.Column(db.Integer, primary_key=True)
-    model_name = db.Column(db.ForeignKey('windfarm_turbine_model.model_name', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, index=True, info='风机配置号')
-    mean_speed = db.Column(db.Float, nullable=False, info='平均风速')
-    mean_power = db.Column(db.Float, nullable=False, info='平均功率')
-
-    windfarm_turbine_model = db.relationship('WindfarmTurbineModel', primaryjoin='WindfarmPowerCurve.model_name == WindfarmTurbineModel.model_name', backref='windfarm_power_curves')
-
-
-
-class WindfarmTurbineModel(db.Model):
-    __tablename__ = 'windfarm_turbine_model'
-    __table_args__ = (
-        db.Index('set_id', 'set_id', 'model_name'),
-    )
-
-    id = db.Column(db.Integer, primary_key=True)
-    set_id = db.Column(db.ForeignKey('windfarm_infomation.set_id', ondelete='RESTRICT', onupdate='CASCADE'), nullable=False, server_default=db.FetchedValue())
-    model_name = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False, index=True, info='配置名')
-
-    set = db.relationship('WindfarmInfomation', primaryjoin='WindfarmTurbineModel.set_id == WindfarmInfomation.set_id', backref='windfarm_turbine_models')

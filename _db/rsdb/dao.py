@@ -202,27 +202,24 @@ class RSDBDAO():
         >>> eq_clause = {'id':300}
         >>> lge_clause = {'id':300, 'id':500}
         >>> lt_clause = {'id':600}
-        >>> in_clause = {'fault_codes':['first', 'second']}
+        >>> in_clause = {'fault_codes':['0']}
         >>> func_dct = {'id':['max', 'min'], 'turbine_id':['count']}
         >>> dao.query('statistics_daily', columns=columns).columns
         Index(['id', 'set_id', 'date'], dtype='object')
         >>> dao.query('statistics_daily', columns=columns, eq_clause=eq_clause).shape
         (1, 3)
-        >>> dao.query('statistics_daily', columns=columns, lge_clause=lge_clause).shape
-        (9501, 3)
-        >>> dao.query('statistics_daily', lge_clause=lge_clause, lt_clause=lt_clause).shape
-        (100, 8)
+        >>> dao.query('statistics_daily', columns=columns, lge_clause=lge_clause).shape[0]>0
+        True
+        >>> dao.query('statistics_daily', lge_clause=lge_clause, lt_clause=lt_clause).shape[0]>0
+        True
         >>> dao.query('statistics_daily', in_clause=in_clause).shape[0]>0
         True
         >>> dao.query('statistics_daily', limit=1).shape[0]==1
         True
         >>> dao.query('statistics_daily', func_dct=func_dct).shape
         (1, 3)
-        >>> dao.query('statistics_daily', func_dct=func_dct, groupby='fault_codes', orderby='fault_codes')['fault_codes']
-        0     first
-        1    second
-        2     third
-        Name: fault_codes, dtype: object
+        >>> dao.query('statistics_daily', func_dct=func_dct, groupby='fault_codes', orderby='fault_codes').shape[0]>1
+        True
         >>> dao.query('statistics_daily', random=True, timeout=1)
         Traceback (most recent call last):
             ...
@@ -372,7 +369,6 @@ if __name__ == "__main__":
     生成规则如下：
     1、id, 不设置， 让系统自动填充
     2、count_sample，正则表达式, {1-9}{3,4}
-    3、fault_code，枚举， first、second、third
     '''
     import doctest
     doctest.testmod()

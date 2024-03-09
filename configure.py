@@ -116,3 +116,6 @@ ANOMALY_MATRIX_PLOT_COLOR = {
     '异常':'red',
     '离群，未标注':'blue',
     }
+
+_sess_lifttime = int(RSDBInterface.read_app_configuration(key_='session_lifetime')['value'].iloc[0])
+SESSION_LIFETIME = max(_sess_lifttime, 1)   #最少1天

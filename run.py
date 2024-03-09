@@ -10,6 +10,8 @@ from wtbonline.login_manager import login_manager
 import secrets
 from appshell import create_appshell
 
+from wtbonline.configure import SESSION_LIFETIME
+
 app = Dash(
     __name__,
     suppress_callback_exceptions=True, # 动态页面需要设为True，跳过component检查
@@ -22,7 +24,7 @@ app.layout = create_appshell(dash.page_registry.values())
 server = app.server
 
 server.secret_key = secrets.token_hex(16)
-server.permanent_session_lifetime = datetime.timedelta(seconds=10*60)
+server.permanent_session_lifetime = datetime.timedelta(days=SESSION_LIFETIME)
 login_manager.init_app(server)
 
 if __name__ == "__main__":
