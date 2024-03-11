@@ -23,6 +23,7 @@ from contextlib import contextmanager
 from wtbonline._db.config import RSDB_URI, SESSION_TIMEOUT
 from wtbonline._db.rsdb import model
 from wtbonline._db.common import (make_sure_list, make_sure_dict, make_sure_dataframe)
+from wtbonline._db.rsdb.factory import ORMFactory
 
 #%% function
 create_engine_ = partial(create_engine, url=RSDB_URI, pool_pre_ping=True, pool_timeout=1)
@@ -39,25 +40,6 @@ def query_timeout(session, timeout):
         session.commit()
         
 #%% class
-class ORMFactory:
-    def __init__(self):
-        self._tbl_mapping = self._get_table_mapping()
-
-    @property
-    def tbl_mapping(self):
-        return self._tbl_mapping
-
-    def _get_table_mapping(self):
-        rev = {}
-        for i,j in inspect.getmembers(model, inspect.isclass):
-            if str(j).find('rsdb')>-1:
-                rev.update({j.__tablename__:j})
-        return rev
-
-    def get(self, tbname):
-        ''' 通过数据表名获取orm对象 '''
-        return self._tbl_mapping.get(tbname)
-
 class RSDBDAO():
     def __init__(self, engine=None):
         self.factory = ORMFactory()

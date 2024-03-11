@@ -16,6 +16,7 @@ import uuid
 from pathlib import Path
 
 from wtbonline._db.rsdb_interface import RSDBInterface
+from wtbonline._db.postgres_interface import RSDBInterface
 from wtbonline._db.common import make_sure_list, make_sure_datetime
 from wtbonline._db.common import make_sure_dataframe, make_sure_dict
 from wtbonline._db.tsdb.tdengine import TDEngine_RestAPI, TDEngine_Connector
@@ -87,7 +88,9 @@ class TDEngine_FACADE():
         ''' 创建超级表语句 
         >>> TDFC._statement_creat_super_table('test', '10050')
         '''
-        point_df = RSDBInterface.read_turbine_model_point()
+        point_sel = RSDBInterface.read_turbine_model_point()
+        point_all = POSt
+        
         point_df['datatype'].replace({'F':'Float', 'I':'INT', 'B':'BOOL'}, inplace=True)
         columns = point_df['var_name']+' '+point_df['datatype']
 
