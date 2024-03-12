@@ -22,6 +22,7 @@ class AppServer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20, 'utf8mb4_general_ci'), info='服务器名')
     host = db.Column(db.String(20, 'utf8mb4_general_ci'), info='地址')
+    version = db.Column(db.String(20, 'utf8mb4_general_ci'), info='数据库引擎版本')
     remote = db.Column(db.Integer, info='是否远程服务器')
     type = db.Column(db.String(20, 'utf8mb4_general_ci'), info='用retapi还是cli接口')
     port = db.Column(db.Integer, info='端口')
@@ -397,5 +398,5 @@ class WindfarmConfiguration(db.Model):
     __tablename__ = 'windfarm_configuration'
 
     id = db.Column(db.Integer, primary_key=True)
-    set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, info='与tdengine里的set_id对应')
-    gearbox_ratio = db.Column(db.Float, nullable=False, info='齿轮箱速比')
+    set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
+    gearbox_ratio = db.Column(db.Float, nullable=False)

@@ -12,35 +12,35 @@ import pandas as pd
 from typing import List, Union
 from sqlalchemy import create_engine, text
 
-from wtbonline._db.common import make_sure_list
+from wtbonline._common.utils import make_sure_list
 from wtbonline._db.config import POSTGRES_URI
 
 #%% constant
 _ENGINE = create_engine(POSTGRES_URI)
 
 #%% class
-class PGInterface():
+class PGFacade():
     @classmethod  
-    def read_model_point(cls, set_id:str, var_names:List[str]=[], point_name:List[str]=[]):
+    def read_model_point(cls, set_id:str, var_name:List[str]=[], point_name:List[str]=[]):
         '''
-        >>> len(PGInterface.read_model_point(set_id='20835'))>0
+        >>> len(PGFacade.read_model_point(set_id='20835'))>0
         True
-        >>> len(PGInterface.read_model_point(set_id='20835', var_names='var_101'))==1
+        >>> len(PGFacade.read_model_point(set_id='20835', var_name='var_101'))==1
         True
-        >>> len(PGInterface.read_model_point(set_id='20835', var_names='var_101'))==1
+        >>> len(PGFacade.read_model_point(set_id='20835', var_name='var_101'))==1
         True
-        >>> len(PGInterface.read_model_point(set_id='20835', point_name='有功功率'))==1
+        >>> len(PGFacade.read_model_point(set_id='20835', point_name='有功功率'))==1
         True
         '''
-        var_names = make_sure_list(var_names)
+        var_name = make_sure_list(var_name)
         point_name = make_sure_list(point_name)
         cols = ['set_id', 'var_name', 'point_name', 'datatype', 'unit']
         sql = text(f"select {','.join(cols)} from model_points where set_id='{set_id}' and local_save=1")
         df = pd.read_sql(sql, con=_ENGINE)
         if 'unit' in df.columns:
             df['unit'] = df['unit'].fillna('unknown')
-        if len(var_names)>0:
-            df = df[df['var_name'].isin(var_names)]
+        if len(var_name)>0:
+            df = df[df['var_name'].isin(var_name)]
         if len(point_name)>0:
             df = df[df['point_name'].isin(point_name)]
         df['var_name'] = df['var_name'].str.lower()
@@ -50,7 +50,7 @@ class PGInterface():
     @classmethod  
     def read_access_servers(cls, id_:Union[int, List[int]]=None):
         '''
-        >>> len(PGInterface.read_access_servers())>0
+        >>> len(PGFacade.read_access_servers())>0
         True
         '''
         id_ = make_sure_list(id_)
@@ -64,7 +64,7 @@ class PGInterface():
     @classmethod  
     def read_model_device(cls, device_id:List[str]=None, device_name:List[str]=[], set_id:List[str]=None):
         '''
-        >>> len(PGInterface.read_model_device())>0
+        >>> len(PGFacade.read_model_device())>0
         True
         '''
         device_id = make_sure_list(device_id)
@@ -86,7 +86,7 @@ class PGInterface():
     @classmethod  
     def read_model_factory(cls):
         '''
-        >>> len(PGInterface.read_model_factory())>0
+        >>> len(PGFacade.read_model_factory())>0
         True
         '''
         cols = ['factory_name', 'capacity', 'longtitude', 'latitude']
@@ -97,9 +97,9 @@ class PGInterface():
     @classmethod  
     def read_model_code_descr(cls, set_id:str=None):
         '''
-        >>> len(PGInterface.read_model_code_descr(set_id='20835'))>0
+        >>> len(PGFacade.read_model_code_descr(set_id='20835'))>0
         True
-        >>> len(PGInterface.read_model_code_descr())>0
+        >>> len(PGFacade.read_model_code_descr())>0
         True
         '''
         cols = ['set_id', 'var_path', 'code', 'var_name']

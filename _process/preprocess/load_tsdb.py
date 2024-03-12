@@ -4,7 +4,7 @@ from typing import Union
 from datetime import date
 import time 
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.time import resample
 from wtbonline._logging import log_it

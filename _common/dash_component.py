@@ -5,7 +5,7 @@ from dash_iconify import DashIconify
 from dash import html
 
 import wtbonline.configure as cfg
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 
 def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, 
            description='', disabled=False, clearable=False, withAsterisk=False) :

@@ -16,7 +16,7 @@ from flask_login import current_user
 import requests
 import time
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 import wtbonline.configure as cfg
 from wtbonline._common import utils 
 from wtbonline._common import dash_component as dcmpt

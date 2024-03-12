@@ -17,7 +17,7 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 import wtbonline.configure as cfg
 from wtbonline._common import utils
 from wtbonline._common.dash_component import notification

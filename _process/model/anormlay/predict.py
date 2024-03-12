@@ -3,7 +3,7 @@
 #%% import 
 import pandas as pd
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.common import make_sure_list
 from wtbonline._logging import log_it
 from wtbonline._process.model.anormlay import get_trainers, _LOGGER, OUTPATH

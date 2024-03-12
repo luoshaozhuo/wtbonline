@@ -15,10 +15,9 @@ from typing import List, Optional, Union, Any, Mapping
 import uuid
 from pathlib import Path
 
-from wtbonline._db.rsdb_interface import RSDBInterface
-from wtbonline._db.postgres_interface import RSDBInterface
-from wtbonline._db.common import make_sure_list, make_sure_datetime
-from wtbonline._db.common import make_sure_dataframe, make_sure_dict
+from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._db.postgres_facade import PGFacade
+from wtbonline._common.utils import make_sure_list, make_sure_datetime, make_sure_dataframe, make_sure_dict
 from wtbonline._db.tsdb.tdengine import TDEngine_RestAPI, TDEngine_Connector
 from wtbonline._db.config import get_temp_dir
 from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
@@ -86,14 +85,13 @@ class TDEngine_FACADE():
 
     def _statement_creat_super_table(self, database:str, set_id:str):
         ''' 创建超级表语句 
-        >>> TDFC._statement_creat_super_table('test', '10050')
+        >>> _ = TDFC._statement_creat_super_table('test', '20835')
         '''
-        point_sel = RSDBInterface.read_turbine_model_point()
-        point_all = POSt
-        
-        point_df['datatype'].replace({'F':'Float', 'I':'INT', 'B':'BOOL'}, inplace=True)
+        point_sel = RSDBFacade.read_turbine_model_point()
+        point_all = PGFacade.read_model_point(set_id=set_id, var_name=point_sel['ref_name'])
+        point_df = pd.merge(point_sel, point_all[['var_name', 'datatype']], left_on='ref_name', right_on='var_name', how='inner', suffixes=['', '_y'])
+        point_df['datatype'] = point_df['datatype'].replace({'F':'Float', 'I':'INT', 'B':'BOOL'})
         columns = point_df['var_name']+' '+point_df['datatype']
-
         sql = f'''
                 CREATE STABLE IF NOT EXISTS {database}.s_{set_id}
                 (ts TIMESTAMP, {','.join(columns)})
@@ -101,165 +99,109 @@ class TDEngine_FACADE():
              '''
         return self._normalize(sql)
 
-    # def _statement_creat_sub_table(self, database, set_id):
-    #     ''' 创建子表语句 
-    #     >>> stm = TDFC._statement_creat_sub_table('test', '10050')
-    #     '''
-    #     turbine_ids = RSDBInterface.read_windfarm_configuration(set_id=set_id, columns='turbine_id')
-    #     sql_lst=[]
-    #     for tid in turbine_ids.squeeze():
-    #         temp = (f'''
-    #                 CREATE TABLE IF NOT EXISTS {database}.d_{tid}
-    #                 USING {database}.s_{set_id} TAGS ("{tid}");
-    #                 ''')
-    #         sql_lst.append(self._normalize(temp))
-    #     return sql_lst
+    def _statement_creat_sub_table(self, database, set_id):
+        ''' 创建子表语句 
+        >>> set_id = PGFacade.read_model_device()['set_id'].unique()[0]
+        >>> TDFC._statement_creat_sub_table('test', set_id)[0]
+        'CREATE TABLE IF NOT EXISTS test.d_s10001 USING test.s_20835 TAGS ("s10001");'
+        '''
+        device_ids = PGFacade.read_model_device(set_id=set_id)['device_id']
+        sql_lst=[]
+        for tid in device_ids.squeeze():
+            temp = (f'''
+                    CREATE TABLE IF NOT EXISTS {database}.d_{tid}
+                    USING {database}.s_{set_id} TAGS ("{tid}");
+                    ''')
+            sql_lst.append(self._normalize(temp))
+        return sql_lst
 
-    # def init_database(self, dbname:Optional[str]=None, set_id:Optional[str]=None):
-    #     ''' 创建数据库及超级表,默认情况下根据config文件配置库、超级表、子表
-    #     >>> set_id = RSDBInterface.read_windfarm_infomation()['set_id'].iloc[0]
-    #     >>> TDFC.init_database('test', set_id)
-    #     >>> dbs = TDFC.query('show databases').squeeze()
-    #     >>> (dbs=='test').any()
-    #     True
-    #     >>> _ = TDFC.query(sql='drop database test')
-    #     >>> dbs = TDFC.query('show databases').squeeze()
-    #     >>> (dbs=='test').any()
-    #     False
-    #     '''
-    #     kwargs = get_td_local_connector()
-    #     dbname = kwargs['database'] if dbname==None else dbname
-    #     kwargs['database'] = None
-    #     set_ids = (RSDBInterface.read_windfarm_configuration(columns='set_id').squeeze().unique()
-    #                if set_id ==None 
-    #                else make_sure_list(set_id)) 
+    def query(
+            self, 
+            sql, 
+            *, 
+            remote:bool=False, 
+            driver_kwargs:Mapping[str, Union[str,int]]=None
+            )->pd.DataFrame:
+        ''' 通用sql执行函数 '''
+        connector = TDEngine_RestAPI if remote==True else TDEngine_Connector
+        kwargs = driver_kwargs
+        if kwargs==None:
+            kwargs = get_td_remote_restapi() if remote==True else get_td_local_connector()
+        df = connector(**kwargs).query(sql)
+        if 'ts' in df.columns:
+            df['ts'] = pd.to_datetime(df['ts'])
+        return df
+
+    def init_database(self, dbname:Optional[str]=None, set_id:Optional[str]=None):
+        ''' 创建数据库及超级表,默认情况下根据config文件配置库、超级表、子表
+        >>> TDFC.init_database(dbname='test')        
+        >>> dbs = TDFC.query('show databases').squeeze()
+        >>> (dbs=='test').any()
+        True
+        >>> _ = TDFC.query(sql='drop database test')
+        >>> dbs = TDFC.query('show databases').squeeze()
+        >>> (dbs=='test').any()
+        False
+        '''
+        kwargs = get_td_local_connector()
+        dbname = kwargs['database'] if dbname==None else dbname
+        kwargs['database'] = None
+        set_ids = ( PGFacade.read_model_device()['set_id'].unique()
+                   if set_id ==None 
+                   else make_sure_list(set_id)) 
         
-    #     conn = TDEngine_Connector(**kwargs)
-    #     conn.query(self._statement_creat_database(dbname)) 
-    #     for i in set_ids:
-    #         conn.query(self._statement_creat_super_table(dbname, i))
-    #         for j in self._statement_creat_sub_table(dbname, i):
-    #             conn.query(j)
+        conn = TDEngine_Connector(**kwargs)
+        conn.query(self._statement_creat_database(dbname)) 
+        for i in set_ids:
+            conn.query(self._statement_creat_super_table(dbname, i))
+            for j in self._statement_creat_sub_table(dbname, i):
+                conn.query(j)
 
-    # def query(
-    #         self, 
-    #         sql, 
-    #         *, 
-    #         remote:bool=False, 
-    #         driver_kwargs:Mapping[str, Union[str,int]]=None
-    #         )->pd.DataFrame:
-    #     ''' 通用sql执行函数 '''
-    #     connector = TDEngine_RestAPI if remote==True else TDEngine_Connector
-    #     kwargs = driver_kwargs
-    #     if kwargs==None:
-    #         kwargs = get_td_remote_restapi() if remote==True else get_td_local_connector()
-    #     df = connector(**kwargs).query(sql)
-    #     if 'ts' in df.columns:
-    #         df['ts'] = pd.to_datetime(df['ts'])
-    #     return df
-
-    # def _select_variable(
-    #         self,
-    #         *,
-    #         set_id:str,
-    #         point_name:Optional[List[str]]=None,
-    #         var_name:Optional[List[str]]=None,
-    #         groupby:Optional[List[str]]=None,
-    #         func_dct:Optional[Mapping[str,List[str]]]=None,
-    #         remote:bool=False,
-    #         ):
-    #     # 不指定point_name或var_name或func_dct，返回全部字段，次数point_df与df可能不匹配
-    #     '''
-    #     >>> set_id = RSDBInterface.read_windfarm_infomation()['set_id'].iloc[0]
-    #     >>> var_name = ['var_355', 'var_101']
-    #     >>> point_name = ['机组总体故障状态', '远方就地控制开关']
-    #     >>> groupby = ['var_101']
-    #     >>> func_dct = {'var_28000':['max', 'min'], 'var_28001':['mean']}
-    #     >>> TDFC._select_variable(set_id=set_id, var_name=var_name, point_name=point_name)
-    #     Traceback (most recent call last):
-    #         ...
-    #     AssertionError: 不能同时给定var_name及point_name
-    #     >>> TDFC._select_variable(set_id=set_id, groupby=groupby)
-    #     Traceback (most recent call last):
-    #         ...
-    #     AssertionError: 给定groupby后，需要指定func_dct
-    #     >>> TDFC._select_variable(set_id=set_id, var_name=var_name, groupby=groupby)
-    #     Traceback (most recent call last):
-    #         ...
-    #     AssertionError: 不能同时指定groupby，及var_name或point_name
-    #     >>> TDFC._select_variable(set_id=set_id, var_name=var_name, func_dct=func_dct)
-    #     Traceback (most recent call last):
-    #         ...
-    #     AssertionError: 不能同时指定func_dct，及var_name或point_name
-    #     >>> cols, point_df = TDFC._select_variable(set_id=set_id, var_name=var_name)
-    #     >>> cols == ['var_355', 'var_101', 'ts', 'device']
-    #     True
-    #     >>> point_df['var_name'].to_list() == ['var_355', 'var_101']
-    #     True
-    #     >>> cols, point_df = TDFC._select_variable(set_id=set_id, func_dct=func_dct, remote=1)
-    #     >>> cols == ['max(var_28000) as var_28000_max','min(var_28000) as var_28000_min','mean(var_28001) as var_28001_mean']
-    #     True
-    #     >>> func_dct = {'var_355':['mean']}
-    #     >>> cols, point_df = TDFC._select_variable(set_id=set_id, func_dct=func_dct, groupby=groupby)
-    #     >>> cols==['mean(var_355) as var_355_mean', 'var_101', 'ts']
-    #     True
-    #     >>> point_df['var_name'].to_list() == ['var_355']
-    #     True
-    #     >>> cols, point_df = TDFC._select_variable(set_id=set_id, func_dct=func_dct)
-    #     >>> cols==['mean(var_355) as var_355_mean', 'ts']
-    #     True
-    #     '''
-    #     func_dct = make_sure_dict(func_dct) 
-    #     var_name = make_sure_list(var_name)
-    #     point_name = make_sure_list(point_name)
-    #     groupby = make_sure_list(groupby)
-    #     if (len(var_name)>0 or len(point_name)>0):
-    #         assert len(groupby)==0, '不能同时指定groupby，及var_name或point_name'
-    #         assert len(func_dct)==0, '不能同时指定func_dct，及var_name或point_name'
-    #     assert not (len(var_name)>0 and len(point_name)>0), '不能同时给定var_name及point_name'
-    #     assert len(func_dct)>0 if len(groupby)>0 else True, '给定groupby后，需要指定func_dct'
-    #     if len(func_dct)>0:
-    #         assert 'ts' not in groupby, '给定func_dct后，ts不能出现在groupby'
-
-    #     select = None if remote==True else 1
-    #     point_df = RSDBInterface.read_turbine_model_point(set_id=set_id, select=select)
-    #     point_df['var_name'] = point_df['var_name'].str.lower()
-    #     point_df['ref_name'] = point_df['ref_name'].str.lower()
-
-    #     var_name = [key_ for key_ in func_dct.keys()] if len(func_dct)>0 else var_name
-    #     unavailable_var = pd.Series(point_name)
-    #     unavailable_var = unavailable_var[~unavailable_var.isin(point_df['point_name'])]
-    #     assert len(unavailable_var)==0, f'远程数据库没有指定变量：{unavailable_var.tolist()}'
-    #     point_df = point_df.query('var_name in @var_name') if len(var_name)>0 else point_df
-    #     point_df = point_df.query('point_name in @point_name') if len(point_name)>0 else point_df
-
-    #     if len(func_dct)>0:
-    #         cols = []
-    #         for key_ in func_dct:
-    #             # 旧版本别名用双引号""，新版本用``
-    #             if remote==True:
-    #                 cols += [f'{f}({key_}) as "{key_}_{f}"' for f in func_dct[key_]]
-    #             else:
-    #                 cols += [f'{f}({key_}) as `{key_}_{f}`' for f in func_dct[key_]]
-    #         if len(cols)==1:
-    #             cols += ['ts']
-    #         # 2.x版本默认加入了group字段
-    #         if len(groupby)>0 and remote==False:
-    #             cols += groupby
-    #     elif len(var_name) or len(point_name)>0:
-    #         cols = point_df['var_name'].to_list()
-    #         cols += ['ts', 'device']
-    #     else:
-    #         cols = ['*']
-            
-    #     cols = pd.Series(cols).str.lower()
-    #     cols_org = cols.tolist()
-    #     cols_org += [] if len(groupby)==0 else groupby
-
-    #     if remote==True:
-    #         cols.replace({row['var_name']:row['ref_name'] for _,row in point_df.iterrows()}, inplace=True)
-    #     cols_org = pd.Series(cols_org).str.replace('(.*as |"|`)', '',  regex=True)
-    #     return cols.tolist(), cols_org.tolist(), point_df.drop_duplicates(subset='point_name')
+    def _select_variable(
+            self,
+            *,
+            columns:Union[str, List[str], Mapping[str,List[str]]]=None,
+            groupby:Optional[List[str]]=None,
+            remote:bool=False,
+            ):
+        # 不指定point_name或var_name或func_dct，返回全部字段，次数point_df与df可能不匹配
+        '''
+        >>> var_name = 'var_355'
+        >>> groupby = ['var_101']
+        >>> func_dct = {'var_28000':['max', 'min'], 'var_28001':['mean']}
+        >>> TDFC._select_variable(columns=var_name)
+        ['ts', 'device', 'var_355']
+        >>> TDFC._select_variable(columns=func_dct, groupby=groupby)
+        ['max(var_28000) as `var_28000_max`', 'min(var_28000) as `var_28000_min`', 'mean(var_28001) as `var_28001_mean`', 'var_101']
+        >>> TDFC._select_variable(columns=func_dct, groupby=groupby, remote=True)
+        ['max(var_28000) as "var_28000_max"', 'min(var_28000) as "var_28000_min"', 'mean(var_28001) as "var_28001_mean"']
+        '''
+        groupby = make_sure_list(groupby)
+        assert isinstance(columns, dict) if len(groupby)>0 else True, '给定groupby后，需要指定聚合函数'
+        version = int(RSDBFacade.read_app_server(name='tdengine', remote=remote)['version'].loc[0].split('.')[0])
+        if columns is None:
+            rev = ['*']
+        if isinstance(columns, (list, tuple, str, pd.Series, set)):
+            if isinstance(columns, str):
+                columns = [columns]
+            columns = list(columns)
+            rev = ['ts', 'device'] + list(set(columns) - set(['ts', 'device']))
+        elif isinstance(columns, dict):
+            for key_ in columns:
+                columns[key_] = make_sure_list(columns[key_])
+            rev = []
+            for key_ in columns:
+                # 旧版本别名用双引号""，新版本用``
+                if version<3:
+                    rev += [f'{f}({key_}) as "{key_}_{f}"' for f in columns[key_]]
+                else:
+                    rev += [f'{f}({key_}) as `{key_}_{f}`' for f in columns[key_]]
+            # 2.x版本默认加入了group字段
+            if len(groupby)>0 and remote==False:
+                rev += groupby
+        else:
+            raise ValueError(f'不支持的数据类型{type(columns)}')
+        return rev
 
     # def read(
     #         self,
@@ -282,7 +224,7 @@ class TDEngine_FACADE():
     #         sample:int=-1,
     #         ):
     #     ''' 从tsdb读取数据，同时返回相应的字段说明 
-    #     >>> set_id = RSDBInterface.read_windfarm_infomation()['set_id'].iloc[0]
+    #     >>> set_id = RSDBFacade.read_windfarm_infomation()['set_id'].iloc[0]
     #     >>> start_time='2023-01-01'
     #     >>> end_time='2023-08-01'
     #     >>> var_name = ['var_355', 'var_101']
@@ -393,8 +335,8 @@ class TDEngine_FACADE():
     #         ):
     #     ''' 将数据写入csv文件再导入数据库 
     #     >>> import os
-    #     >>> set_id = RSDBInterface.read_windfarm_infomation()['set_id'].iloc[0]
-    #     >>> var_name = RSDBInterface.read_turbine_model_point(set_id=set_id, select=1)['var_name']
+    #     >>> set_id = RSDBFacade.read_windfarm_infomation()['set_id'].iloc[0]
+    #     >>> var_name = RSDBFacade.read_turbine_model_point(set_id=set_id, select=1)['var_name']
     #     >>> var_name = var_name.str.lower()
     #     >>> dbname, turbine_id = 'test', 's10001'
     #     >>> TDFC.init_database(dbname, set_id)

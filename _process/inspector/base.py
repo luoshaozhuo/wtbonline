@@ -3,7 +3,7 @@ from itertools import product
 from typing import Union
 from datetime import date
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.common import concise
 

@@ -22,7 +22,7 @@ from apscheduler.events import (
 
 from wtbonline._db.rsdb.dao import create_engine_
 from wtbonline._logging import get_logger
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._common.code import MYSQL_QUERY_FAILED
 # 这里不导入，发布任务时会提示找不到相关函数
 from wtbonline._process.statistics.daily import udpate_statistic_daily

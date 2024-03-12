@@ -6,7 +6,7 @@ from ftplib import FTP
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 from wtbonline._common.utils import make_sure_list, make_sure_series
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._logging import get_logger, log_it
 from wtbonline._process.preprocess import _LOGGER

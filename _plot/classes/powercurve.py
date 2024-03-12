@@ -7,7 +7,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px 
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._plot.classes.base import BaseFigure
 
 

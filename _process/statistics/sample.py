@@ -14,7 +14,7 @@ import numpy as np
 # import inspect
 
 from wtbonline._db.common import make_sure_datetime, make_sure_dataframe
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._process.tools.time import bin

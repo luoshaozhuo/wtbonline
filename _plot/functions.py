@@ -8,7 +8,7 @@ from typing import List
 
 from wtbonline._common.utils import interchage_mapid_and_tid, make_sure_list, make_sure_dataframe, interchage_varName_and_pointName
 from wtbonline._common import utils
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 import wtbonline.configure as cfg
 
 # =============================================================================

@@ -18,7 +18,7 @@ from dash import Output, Input, html, dcc, State, callback, no_update
 import pandas as pd
 from functools import partial
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 import wtbonline.configure as cfg
 from wtbonline._common import utils 
 from wtbonline._plot.functions import simple_plot, get_simple_plot_parameters

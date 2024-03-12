@@ -1,6 +1,6 @@
 import pandas as pd
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.common import concise, get_dates_tsdb, get_all_table_tags
 

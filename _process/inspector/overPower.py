@@ -1,6 +1,6 @@
 
 from wtbonline._process.inspector.base import BaseInspector
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.common import concise
 

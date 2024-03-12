@@ -20,7 +20,7 @@ import traceback
 from flask_login import current_user
 import plotly.express as px
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 import wtbonline.configure as cfg
 from wtbonline._common import utils 
 from wtbonline._plot.functions import scatter_matrix_plot_anomaly

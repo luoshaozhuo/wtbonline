@@ -10,7 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from wtbonline._db.common import make_sure_list
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.common import concise, standard
 

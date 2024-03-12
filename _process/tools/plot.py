@@ -15,7 +15,7 @@ from sklearn.base import BaseEstimator
 from itertools import combinations_with_replacement, product
 import numpy as np
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.common import make_sure_list, make_sure_dataframe, make_sure_series
 
 # %% function

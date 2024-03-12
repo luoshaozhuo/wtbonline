@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
 from wtbonline._process.model.anormlay import OUTPATH
 

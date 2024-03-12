@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px 
 from plotly.subplots import make_subplots
 
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 from wtbonline._plot.classes.base import BaseFigure
 
 

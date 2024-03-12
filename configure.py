@@ -2,7 +2,7 @@ import pandas as pd
 import dash_mantine_components as dmc
 
 import wtbonline._plot as plt
-from wtbonline._db.rsdb_interface import RSDBInterface
+from _db.rsdb_facade import RSDBInterface
 
 THEME_PRIMARY_COLOR = 'indigo'
 THEME_PRIMARY_SHADE = {'light': 5, 'dark':7}
