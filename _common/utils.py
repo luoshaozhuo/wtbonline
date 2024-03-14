@@ -4,10 +4,14 @@ from typing import Union, Optional
 import numpy as np
 import datetime
 
+from pymysql import DatabaseError
+
 def make_sure_dict(x)->dict:
     '''
     >>> make_sure_dict(1)
-    {}
+    Traceback (most recent call last):
+    ...
+    ValueError: not support type <class 'int'>
     >>> make_sure_dict({'a':1})
     {'a': 1}
     >>> make_sure_dict(pd.Series([1,2]))
@@ -17,26 +21,27 @@ def make_sure_dict(x)->dict:
     >>> make_sure_dict(None)
     {}
     '''
-    if isinstance(x, dict):
-        return x
-    
-    if isinstance(x, pd.DataFrame):
+    if x is None:
+        rev = {} 
+    elif isinstance(x, dict):
+        rev = x
+    elif isinstance(x, pd.DataFrame):
         if x.shape[1]==1:
-            x = x.squeeze()
-        elif x.shape[1]==2:
-            x = {row[0]:row[1] for _,row in x.iterrows()}
-    if isinstance(x, pd.Series):
-        x = x.to_dict()
-    if not isinstance(x, dict):
-        x = {}
-    return x
+            rev = x.squeeze().to_dict()
+        if x.shape[1]==2:
+            rev = {row[0]:row[1] for _,row in x.iterrows()}
+    elif isinstance(x, pd.Series):
+        rev = x.to_dict()
+    else:
+        raise ValueError(f'not support type {type(x)}')   
+    return rev
 
 def make_sure_dataframe(x)->pd.DataFrame:
     '''
     >>> make_sure_dataframe(1)
-    Empty DataFrame
-    Columns: []
-    Index: []
+    Traceback (most recent call last):
+    ...
+    ValueError: not support type <class 'int'>
     >>> make_sure_dataframe({'a':1,'b':2})
        a  b
     1  1  2
@@ -53,21 +58,21 @@ def make_sure_dataframe(x)->pd.DataFrame:
     Columns: []
     Index: []
     '''
-    if isinstance(x, pd.DataFrame):
-        return x
-    
-    if isinstance(x, dict):
-        x = pd.DataFrame(x, index=[1])
+    if x is None:
+        rev = pd.DataFrame()
+    elif isinstance(x, pd.DataFrame):
+        rev = x
+    elif isinstance(x, dict):
+        rev = pd.DataFrame(x, index=[1])
     elif isinstance(x, (list, tuple)):
-        x = pd.DataFrame(x, index=np.arange(len(x)))
+        rev = pd.DataFrame(x, index=np.arange(len(x)))
     elif isinstance(x, pd.Series):
-        x = x.to_frame()
+        rev = x.to_frame()
     elif isinstance(x, np.ndarray):
-        x = pd.DataFrame(x)
-    
-    if not isinstance(x, pd.DataFrame):
-        x = pd.DataFrame()
-    return x
+        rev = pd.DataFrame(x)
+    else:
+        raise ValueError(f'not support type {type(x)}')  
+    return rev
 
 def make_sure_series(x)->pd.Series:
     '''
@@ -122,24 +127,24 @@ def make_sure_list(x)->list:
     >>> make_sure_list(pd.DataFrame([[1,2],[3,4]]))
     [[1, 3], [2, 4]]
     '''
-    if isinstance(x, list):
-        rev = x
+    if isinstance(x, (tuple, list, set)):
+        rev = list(x)
     elif x is None:
-        x = []
-    elif isinstance(x, (str, dict)):
-        x = [x]
+        rev = []
+    elif isinstance(x, (str, int, float, bool)):
+        rev = [x]
     elif hasattr(x, 'tolist'):
-        x = x.tolist()
+        rev = x.tolist()
     elif isinstance(x, pd.DataFrame):
         if x.shape[1]==1:
-            x = x.squeeze().tolist()
+            rev = x.squeeze().tolist()
         else:
-            x = [x[i].tolist() for i in x]        
+            rev = [x[i].tolist() for i in x]        
     elif isinstance(x, Iterable):
-        x = [i for i in x]
+        rev = [i for i in x]
     else:
-        x = [x]
-    return x
+        raise ValueError(f'not support type {type(x)}')
+    return rev
 
 def make_sure_datetime(
         x:Union[str, Iterable]
@@ -151,22 +156,14 @@ def make_sure_datetime(
     >>> type(a)
     <class 'pandas._libs.tslibs.timestamps.Timestamp'>
     '''
-    if isinstance(x, (pd.Timestamp, datetime.date)):
-        rev = x
+    if x is None:
+        rev = None
     elif isinstance(x, str):
         rev = pd.to_datetime(x)
-    elif isinstance(x, (list, tuple)):
-        rev = pd.to_datetime(x).tolist()
-    elif isinstance(x, pd.Series):
-        rev = pd.to_datetime(x)
-    elif isinstance(x, pd.DataFrame):
-        x = x.squeeze()
-        if isinstance(x, pd.Series):
-            rev = pd.to_datetime(x.squeeze())
-        else:
-            rev = None
+    elif isinstance(x, (list, tuple, set, pd.Series, dict)):
+        rev = pd.to_datetime(pd.Series(x)).tolist()
     else:
-        rev = None
+        raise ValueError(f'not support type {type(x)}')
     return rev
 
 if __name__ == "__main__":

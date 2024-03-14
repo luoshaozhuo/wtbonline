@@ -359,7 +359,6 @@ class TurbineModelPoint(db.Model):
     stat_accumulation = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='1=用于计算statistics_accumluation表的字段')
     point_name = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False)
     var_name = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False, info='本地tdengine，set_id=20835的var_name，不变量')
-    ref_name = db.Column(db.String(255, 'utf8mb4_general_ci'), nullable=False, info='远程tdengine的变量名，按需修改')
 
 
 

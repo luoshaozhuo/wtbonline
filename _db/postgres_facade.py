@@ -37,13 +37,13 @@ class PGFacade():
         cols = ['set_id', 'var_name', 'point_name', 'datatype', 'unit']
         sql = text(f"select {','.join(cols)} from model_points where set_id='{set_id}' and local_save=1")
         df = pd.read_sql(sql, con=_ENGINE)
+        df['var_name'] = df['var_name'].str.lower()
         if 'unit' in df.columns:
             df['unit'] = df['unit'].fillna('unknown')
         if len(var_name)>0:
             df = df[df['var_name'].isin(var_name)]
         if len(point_name)>0:
             df = df[df['point_name'].isin(point_name)]
-        df['var_name'] = df['var_name'].str.lower()
         df['name'] = df['point_name'] + '_' + df['unit'] 
         return df
 
