@@ -2,7 +2,8 @@ import pandas as pd
 import dash_mantine_components as dmc
 
 import wtbonline._plot as plt
-from _db.rsdb_facade import RSDBInterface
+from wtbonline._db.postgres_facade import PGFacade
+from wtbonline._db.rsdb_facade import RSDBFacade
 
 THEME_PRIMARY_COLOR = 'indigo'
 THEME_PRIMARY_SHADE = {'light': 5, 'dark':7}
@@ -19,7 +20,7 @@ HEADER_LABEL = '风电数据助理'
 HEADER_LABEL_ABBREATION =  'WDAS'
 HEADER_MENU_FONTSIZE = '10px'
 HEADER_MENU_ICON_WIDTH = 15
-WINDFARM_NAME = RSDBInterface.read_windfarm_infomation(limit=1).squeeze()['farm_name']
+WINDFARM_NAME = PGFacade.read_model_factory()['fatory_name'].iloc[0]
 
 TOOLBAR_SIZE = '205px'
 TOOLBAR_PADDING = '10px'
@@ -73,9 +74,9 @@ NOTIFICATION_TITLE_GRAPH_FAIL = '绘图失败'
 NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL = '后台操作失败'
 NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS = '后台操作成功'
 
-WINDFARM_CONFIGURATION =  RSDBInterface.read_windfarm_configuration()
-WINDFARM_INFORMATION =  RSDBInterface.read_windfarm_infomation()
-WINDFARM_FAULT_TYPE = RSDBInterface.read_turbine_fault_type()
+WINDFARM_CONFIGURATION =  RSDBFacade.read_windfarm_configuration()
+WINDFARM_INFORMATION =  PGFacade.read_model_factory()
+WINDFARM_FAULT_TYPE = RSDBFacade.read_turbine_fault_type()
 
 NOTIFICATION = {
     'error':{'color':'red', 'icon':'mdi:close-circle-outline'},
@@ -117,5 +118,5 @@ ANOMALY_MATRIX_PLOT_COLOR = {
     '离群，未标注':'blue',
     }
 
-_sess_lifttime = int(RSDBInterface.read_app_configuration(key_='session_lifetime')['value'].iloc[0])
+_sess_lifttime = int(RSDBFacade.read_app_configuration(key_='session_lifetime')['value'].iloc[0])
 SESSION_LIFETIME = max(_sess_lifttime, 1)   #最少1天
