@@ -9,7 +9,7 @@ from typing import List
 from wtbonline._common.utils import make_sure_list, make_sure_dataframe
 # from wtbonline._common import utils
 # from wtbonline._db.rsdb_facade import RSDBFacade
-# import wtbonline.configure as cfg
+import wtbonline.configure as cfg
 # from wtbonline._process.tools.frequency import power_spectrum, amplitude_spectrum
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.frequency import power_spectrum
@@ -78,134 +78,71 @@ def line_plot_stack(df, ycols, ytitles:List[str], *, xcol='ts', xtitle='时间',
     line_chart.update_yaxes(showspikes=True)
     return line_chart
 
-
-
-# def anormaly_plot(df, xcol, ycol, idcol='id'):
-#     fig = go.Figure()
-#     if df[[xcol, ycol]].shape[0]<1:
-#         return fig
+def scatter_matrix_plot_anomaly(df, columns:List[str], labels:List[str]=None, selectedpoints=[], title=''):
+    '''
+    >>> n=100
+    >>> columns=['a', 'b', 'c', 'd']
+    >>> df = pd.DataFrame(np.random.randn(n, 4), columns=columns)
+    >>> df['is_suspector'] = np.random.choice([1,-1], size=n)
+    >>> df['is_anomaly'] = np.random.choice([1,-1], size=n)
+    >>> graph = scatter_matrix_plot_anomaly(df, columns, title='abc')
+    >>> graph.show(renderer='svg')
+    '''
+    columns = make_sure_list(columns)
+    labels = columns if labels is None else make_sure_list(labels)
+    assert len(columns)==len(labels), 'columns与labels长度必须一致'
+    fig = go.Figure()
+    if df.shape[0]<1 or len(columns)<1:
+        return fig
     
-#     fig.add_trace(
-#         go.Histogram2dContour(
-#             x = df[xcol],
-#             y = df[ycol],
-#             colorscale = 'Blues',
-#             showscale=False,
-#             xaxis = 'x',
-#             yaxis = 'y',
-#             )
-#         )
-#     sub = df[(df[xcol]>10) & (df[ycol]<2000)]
-#     fig.add_trace(
-#         go.Scatter(
-#             x = sub[xcol],
-#             y = sub[ycol],
-#             mode = 'markers',
-#             marker = {'color':'red'},
-#             xaxis = 'x',
-#             yaxis = 'y',
-#             opacity = 0.5,
-#             customdata=df[idcol]
-#             )
-#         )    
-#     fig.add_trace(
-#         go.Scatter(
-#             x = df[xcol],
-#             y = df[ycol],
-#             mode = 'markers',
-#             marker = {'color':'black'},
-#             xaxis = 'x',
-#             yaxis = 'y',
-#             opacity = 0.2,
-#             customdata=df[idcol]
-#             )
-#         )
-#     fig.update_layout(xaxis_title=xcol, yaxis_title=ycol)
-#     fig.update_layout(margin=dict(l=20, r=20, t=20, b=20))
-#     fig.update_layout(clickmode='event+select')
-#     fig.update_layout(showlegend=False)
-#     return fig
-
-# def spectrum_plot(df, ycol, unit, charateristic_freq=[], sample_spacing=1):
-#     '''
-#     sample_spacing: float
-#         采样周期，单位秒
-#     '''
-#     fig = go.Figure()
-#     if df[ycol].shape[0]<1:
-#         return fig
+    idx_not_susptor= df[df['is_suspector']==-1].index
+    idx_suspetor_without_label = df[(df['is_anomaly']==0) & (df['is_suspector']==1)].index
+    idx_anormaly = df[df['is_anomaly']==1].index
+    idx_not_anormaly = df[df['is_anomaly']==-1].index
+    df.loc[idx_not_susptor, 'textd'] = '非离群'
+    df.loc[idx_suspetor_without_label, 'textd'] ='离群，未标注'
+    df.loc[idx_anormaly, 'textd'] = '异常'
+    df.loc[idx_not_anormaly, 'textd'] = '正常'
+    df.loc[idx_not_susptor, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['非离群']
+    df.loc[idx_suspetor_without_label, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['离群，未标注']
+    df.loc[idx_anormaly, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['异常']
+    df.loc[idx_not_anormaly, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['正常']
+    df.loc[idx_not_susptor, 'opacity'] = 0.2
+    df.loc[idx_suspetor_without_label, 'opacity'] = 1
+    df.loc[idx_anormaly, 'opacity'] = 1
+    df.loc[idx_not_anormaly, 'opacity'] = 1 
+    customdata = df['id'].to_list() if 'id' in df.columns else None
     
-#     y_t = df[ycol] - df[ycol].mean()
-#     x_fft, y_fft = _power_spectrum(y_t, sample_spacing=1)
+    dimensions = []
+    for col, label in zip(columns, labels):
+        dimensions.append(dict(label=label, values=df[col]))
+    fig.add_trace(
+        go.Splom(
+            dimensions=dimensions,
+            marker=dict(color=df['color'],
+                        size=3,
+                        line=dict(width=0),
+                        opacity=df['opacity'],
+                        ),
+            text=df['textd'],
+            showupperhalf=False,
+            customdata=customdata,
+            selected={'marker':{'color':'cyan', 'opacity':1, 'size':6}},
+            diagonal=dict(visible=False),
+            selectedpoints=selectedpoints,
+            )
+        )
+    fig.update_layout(
+        **{f'xaxis{(i+1)}':{'title':{'font':{'size':12}}} for i in range(len(labels))},
+        **{f'yaxis{(i+1)}':{'title':{'font':{'size':12}}} for i in range(len(labels))},
+        title=dict(text=title, font=dict(size=15), xanchor='center', yanchor='top', x=0.5),
+        clickmode='event+select',
+        height=800,
+        hovermode='closest',
+        margin=dict(l=20, r=20, t=20 if title in ('', None) else 50, b=20),
+        )
     
-#     xcol = 'frequency(Hz)'
-#     df = pd.DataFrame({xcol:x_fft, ycol:y_fft})
-#     df = df[df[xcol]>=0]    
-    
-#     fig = fig.add_trace(_line_trace(df, ycol, xcol))
-#     fig.update_layout(xaxis_title=xcol, yaxis_title=unit)
-#     fig.update_layout(margin=dict(l=20, r=20, t=20, b=20))
-#     for i in range(len(charateristic_freq)):
-#         fig.add_vline(x=charateristic_freq[i], annotation_text=f"特征频率{i}",
-#                       annotation_font_size=10, line_width=1, line_dash="dash", line_color="green")
-#     return fig
-
-# def scatter_matrix_plot_anomaly(df=None, columns=None, set_id=None, selectedpoints=[]):
-#     columns = make_sure_list(columns)
-#     fig = go.Figure()
-#     if df is not None and set_id is not None and len(columns)>0:
-#         idx_not_susptor= df[df['is_suspector']==-1].index
-#         idx_suspetor_without_label = df[(df['is_anomaly']==0) & (df['is_suspector']==1)].index
-#         idx_anormaly = df[df['is_anomaly']==1].index
-#         idx_not_anormaly = df[df['is_anomaly']==-1].index
-#         df.loc[idx_not_susptor, 'textd'] = '非离群'
-#         df.loc[idx_suspetor_without_label, 'textd'] ='离群，未标注'
-#         df.loc[idx_anormaly, 'textd'] = '异常'
-#         df.loc[idx_not_anormaly, 'textd'] = '正常'
-#         df.loc[idx_not_susptor, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['非离群']
-#         df.loc[idx_suspetor_without_label, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['离群，未标注']
-#         df.loc[idx_anormaly, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['异常']
-#         df.loc[idx_not_anormaly, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['正常']
-#         df.loc[idx_not_susptor, 'opacity'] = 0.2
-#         df.loc[idx_suspetor_without_label, 'opacity'] = 1
-#         df.loc[idx_anormaly, 'opacity'] = 1
-#         df.loc[idx_not_anormaly, 'opacity'] = 1 
-#         customdata = df['id'].to_list() if 'id' in df.columns else None
-        
-#         dimensions = []
-#         labels = interchage_varName_and_pointName(
-#             set_id=set_id,
-#             var_name=tuple(pd.Series(columns).str.replace('_mean', '')),
-#             append_unit=True
-#             )
-#         for col, label in zip(columns, labels):
-#             dimensions.append(dict(label=label, values=df[col]))
-#         fig.add_trace(
-#             go.Splom(
-#                 dimensions=dimensions,
-#                 marker=dict(color=df['color'],
-#                             size=3,
-#                             line=dict(width=0),
-#                             opacity=df['opacity'],
-#                             ),
-#                 text=df['textd'],
-#                 showupperhalf=False,
-#                 customdata=customdata,
-#                 selected={'marker':{'color':'cyan', 'opacity':1, 'size':6}},
-#                 diagonal=dict(visible=False),
-#                 selectedpoints=selectedpoints,
-#                 )
-#             )
-#     fig.update_layout(
-#         **{f'xaxis{(i+1)}':{'title':{'font':{'size':12}}} for i in range(len(labels))},
-#         **{f'yaxis{(i+1)}':{'title':{'font':{'size':12}}} for i in range(len(labels))},
-#         clickmode='event+select',
-#         height=800,
-#         hovermode='closest',
-#         margin=dict(l=20, r=20, t=20, b=20),
-#         )
-    
-#     return fig
+    return fig
 
 def ts_plot_multiple_y(df, ycols:List[str], ytitles:List[str]=None,  xcol='ts', xtitle='时间', height=350, title=''):
     ''' 双y坐标
@@ -314,7 +251,6 @@ def spc_plot_multiple_y(df, ycols:List[str], ytitles:List[str]=None, ref_freqs=[
 #         raise ValueError(f'不支持此种图形类别：{plot_type}')
     
 #     return xcol, xtitle, ycol, ytitle, y2col, y2title, mode
-
 
 # def get_simple_plot_selections(set_id, plot_type):
 #     model_point_df = RSDBInterface.read_turbine_model_point(
