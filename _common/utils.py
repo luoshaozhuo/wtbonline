@@ -163,7 +163,10 @@ def make_sure_datetime(
     elif isinstance(x, (list, tuple, set, pd.Series, dict)):
         rev = pd.to_datetime(pd.Series(x)).tolist()
     else:
-        raise ValueError(f'not support type {type(x)}')
+        try:
+            rev = pd.to_datetime(x)
+        except:
+            raise ValueError(f'not support type {type(x)}')
     return rev
 
 if __name__ == "__main__":

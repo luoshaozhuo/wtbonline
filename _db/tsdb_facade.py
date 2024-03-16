@@ -15,6 +15,7 @@ import pandas as pd
 from typing import List, Optional, Union, Any, Mapping
 import uuid
 from pathlib import Path
+import numpy as np
 
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.postgres_facade import PGFacade
@@ -39,9 +40,10 @@ class TDEngine_FACADE():
         0      var_101  var_101  20835   1#叶片实际角度        F    °  1#叶片实际角度_°
         1  var_101_max  var_101  20835   1#叶片实际角度        F    °  1#叶片实际角度_°
         '''
-        point_df = PGFacade.read_model_point(set_id=set_id, var_name=columns)
+        columns = make_sure_list(columns)
         col_df = pd.DataFrame(columns, columns=['column'])
         col_df['var_name'] = pd.Series(['_'.join(i[:2]) for i in pd.Series(columns).str.split('_')])
+        point_df = PGFacade.read_model_point(set_id=set_id, var_name=col_df['var_name'])
         rev = pd.merge(col_df, point_df, on='var_name', how='inner')
         return rev
     
@@ -182,7 +184,9 @@ class TDEngine_FACADE():
         >>> groupby = ['var_101']
         >>> func_dct = {'var_28000':['max', 'min'], 'var_28001':['mean']}
         >>> TDFC._variable(columns=var_name)
-        ['ts', 'device', 'var_355']
+        ['ts', 'var_355']
+        >>> TDFC._variable(columns=var_name, interval='2s', remote=True)
+        ['var_355']
         >>> TDFC._variable(columns=func_dct, groupby=groupby)
         ['max(var_28000) as `var_28000_max`', 'min(var_28000) as `var_28000_min`', 'mean(var_28001) as `var_28001_mean`', 'var_101']
         >>> TDFC._variable(columns=func_dct, groupby=groupby, remote=True)
@@ -197,9 +201,9 @@ class TDEngine_FACADE():
             if isinstance(columns, str):
                 columns = [columns]
             columns = list(columns)
-            rev = ['device'] + list(set(columns) - set(['ts', 'device']))
+            rev = list(set(columns) - set(['ts', 'device']))
             if version<3:
-                rev = ['ts'] + rev
+                rev = ['ts'] + rev if sample is None else rev
             else:
                 rev = ['ts']+rev if sample<1 else [f'sample(ts, {sample}) as ts']+rev
         elif isinstance(columns, dict):
@@ -219,7 +223,7 @@ class TDEngine_FACADE():
             raise ValueError(f'不支持的数据类型{type(columns)}')
         return rev
 
-    def read(
+    def get_statement(
             self,
             *,
             set_id:str,
@@ -235,29 +239,6 @@ class TDEngine_FACADE():
             remote:bool=False,
             sample:int=-1,
             ):
-        ''' 从tsdb读取数据，同时返回相应的字段说明 
-        >>> device_df = PGFacade.read_model_device()
-        >>> set_id = device_df['set_id'].iloc[0]
-        >>> device_id = 's10003'
-        >>> start_time='2023-01-01'
-        >>> end_time='2023-01-02'
-        >>> var_name = ['totalfaultbool', 'var_101']
-        >>> groupby = ['device']
-        >>> func_dct = {'var_355':['max', 'min'], 'var_101':['max']}
-        >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=var_name)
-        >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=var_name, remote=True)
-        >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=func_dct)
-        >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=var_name, interval='10m', sample=10)
-        >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=func_dct, interval='10m', limit=10, remote=True)
-        '''
-        start_time = pd.to_datetime('2020-01-01 00:00:00') if start_time is None else start_time
-        end_time = pd.Timestamp.now() if end_time is None else end_time
-        start_time, end_time = make_sure_datetime([start_time, end_time])
-        # 不可用组合
-        orderby = make_sure_list(orderby)
-        groupby = make_sure_list(groupby)
-        assert len(groupby)==0  if interval is not None else True, '不能同时指定interval及groupby'
-        assert interval is None if len(groupby)>0 else True, '不能同时指定interval及groupby'
         # 选定查询变量
         variables = self._variable(columns=columns, groupby=groupby, sample=sample, remote=remote)
         # 查询
@@ -270,8 +251,8 @@ class TDEngine_FACADE():
         sql = f'''
             select {', '.join(variables)} from {dbname}.{tbname}
             where
-            ts>="{start_time}" and
-            ts<"{end_time}"
+            ts>"{start_time}" and
+            ts<="{end_time}"
             '''
         sql = (sql+' group by '+','.join(groupby)) if len(groupby)>0 else sql
         sql = (sql+f' INTERVAL({interval})') if interval is not None else sql
@@ -279,7 +260,118 @@ class TDEngine_FACADE():
         sql = (sql+f' order by {orderby}') if len(orderby)>0 else sql
         sql = (sql+f' limit {limit}') if limit is not None else sql 
         sql = pd.Series(sql).str.replace('\n *', ' ', regex=True).squeeze().strip()
-        df = self.query(sql, remote=remote)
+        return sql
+
+    def get_interval(self, start_time, end_time, sample, samplling_rate=1):
+        '''
+        >>> TDFC.get_interval('2023-05-01', '2023-05-01 03:00:00', 100)
+        '108s'
+        '''
+        start_time = make_sure_datetime(start_time)
+        end_time = make_sure_datetime(end_time)
+        k = 1.0*(end_time - start_time).total_seconds()*samplling_rate/sample
+        interval = None if k<1.5 else f'{int(np.ceil(k))}s'
+        return interval
+
+    def read(
+            self,
+            *,
+            set_id:str,
+            device_id:str, 
+            start_time:Union[str, pd.Timestamp]=None, 
+            end_time:Union[str, pd.Timestamp]=None, 
+            columns:Optional[Union[List[str], Mapping[str, List[str]]]]=None,
+            limit:Optional[int]=None,
+            groupby:Optional[List[str]]=None,
+            orderby:Optional[List[str]]=None,
+            interval:Optional[str]=None,
+            sliding:Optional[str]=None,
+            remote:bool=False,
+            sample:int=-1,
+            samplling_rate=1,
+            ):
+        ''' 从tsdb读取数据，同时返回相应的字段说明 
+        >>> device_df = PGFacade.read_model_device()
+        >>> set_id = device_df['set_id'].iloc[0]
+        >>> device_id = 's10003'
+        >>> start_time='2023-01-01'
+        >>> end_time='2023-01-02'
+        >>> var_name = ['totalfaultbool', 'var_101']
+        >>> groupby = ['device']
+        >>> func_dct = {'var_355':['max', 'min'], 'var_101':['max']}
+        >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=var_name)
+        >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=var_name, remote=True)
+        >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=func_dct)
+        >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=var_name, interval='10s', sample=10)
+        >>> TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time, columns=func_dct, sample=100, remote=True)
+                                   ts  var_355_max  var_355_min  var_101_max
+        0   2022-12-31 23:50:24+08:00      4.36121      2.36095     0.000000
+        1   2023-01-01 00:04:48+08:00      5.36256      3.02394     0.010000
+        2   2023-01-01 00:19:12+08:00      4.79507      3.21097     0.010000
+        3   2023-01-01 00:33:36+08:00      4.66829      2.88396     0.010000
+        4   2023-01-01 00:48:00+08:00      4.66829      2.95148     0.010000
+        ..                        ...          ...          ...          ...
+        96  2023-01-01 22:52:48+08:00      2.08171      0.80911    90.019997
+        97  2023-01-01 23:07:12+08:00      1.56558      0.80911    90.019997
+        98  2023-01-01 23:21:36+08:00      1.86198      0.66148    90.019997
+        99  2023-01-01 23:36:00+08:00      1.86198      0.80911    90.019997
+        100 2023-01-01 23:50:24+08:00      1.71893      0.96475    90.019997
+        <BLANKLINE>
+        [101 rows x 4 columns]
+        '''
+        start_time = pd.to_datetime('2020-01-01 00:00:00') if start_time is None else start_time
+        end_time = pd.Timestamp.now() if end_time is None else end_time
+        start_time, end_time = make_sure_datetime([start_time, end_time])
+        # 不可用组合
+        orderby = make_sure_list(orderby)
+        groupby = make_sure_list(groupby)
+        assert len(groupby)==0  if interval is not None else True, '不能同时指定interval及groupby'
+        assert interval is None if len(groupby)>0 else True, '不能同时指定interval及groupby'
+        
+        if remote==False:
+            sql = self.get_statement(
+                set_id=set_id,
+                device_id=device_id, 
+                start_time=start_time, 
+                end_time=end_time, 
+                columns=columns,
+                limit=limit,
+                groupby=groupby,
+                orderby=orderby,
+                interval=interval,
+                sliding=sliding,
+                remote=remote,
+                sample=sample
+                )
+            df = self.query(sql, remote=remote)
+        else:
+            df = []
+            if sample is not None and sample>0:
+                interval = self.get_interval(start_time, end_time, sample, samplling_rate=samplling_rate)
+            while True:
+                sql = self.get_statement(
+                    set_id=set_id,
+                    device_id=device_id, 
+                    start_time=start_time, 
+                    end_time=end_time, 
+                    columns=columns,
+                    limit=limit,
+                    groupby=groupby,
+                    orderby=orderby,
+                    interval=interval,
+                    sliding=sliding,
+                    remote=remote,
+                    )
+                temp = self.query(sql, remote=remote)
+                # version2的restapi 限制每次获取记录10240条
+                if len(temp)<10240:
+                    break
+                df.append(temp)
+                start_time = temp['ts'].max()
+            df = pd.concat(df, ignore_index=True) if len(df)>0 else temp
+        if 'ts' in df.columns:
+            df = df.drop_duplicates('ts').sort_values('ts')
+        df.rename(columns={'device':'device_id'}, inplace=True)
         df = self._conver_dtype(set_id=set_id, df=df)
         return df
     

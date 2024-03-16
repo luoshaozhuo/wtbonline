@@ -44,7 +44,7 @@ class PGFacade():
             df = df[df['var_name'].isin(var_name)]
         if len(point_name)>0:
             df = df[df['point_name'].isin(point_name)]
-        df['name'] = df['point_name'] + '_' + df['unit'] 
+        df['name'] = df['point_name'] + '_' + df['unit']
         return df
 
     @classmethod  

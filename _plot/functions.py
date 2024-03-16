@@ -17,13 +17,13 @@ from wtbonline._process.tools.frequency import power_spectrum
 # =============================================================================
 # function
 # =============================================================================
-def line_plot_stack(df, ycols, ytitles:List[str], *, xcol='ts', xtitle='时间', title='时序图', 
+def ts_plot_stack(df, ycols, ytitles:List[str], *, xcol='ts', xtitle='时间', title='时序图', 
               refx=None, refy=None, row_height:int=200, showlegend=False):  
     ''' 并列单系列折线图 
     row_height : 单个子图的高度
     >>> cols = ['totalfaultbool', 'var_101', 'var_355']
     >>> df = TDFC.read(set_id='20835', device_id='s10003', start_time='2023-05-01 00:00:00', end_time='2023-05-01 00:30:00', columns=cols)
-    >>> graph = line_plot_stack(df, cols, cols)
+    >>> graph = ts_plot_stack(df, cols, cols)
     >>> graph.show(renderer='svg')
     '''
     ytitles = make_sure_list(ycols)
