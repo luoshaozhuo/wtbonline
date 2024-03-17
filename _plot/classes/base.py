@@ -2,30 +2,25 @@
 # created on 10.23.2023
 
 #%% import
-from typing import Union, List
+from typing import List
 import pandas as pd
-import numpy as np
-
 from plotly.subplots import make_subplots
-import plotly.express as px 
 import plotly.graph_objects as go
+import plotly.express as px
 
-from wtbonline._common.utils import make_sure_list, make_sure_dataframe, make_sure_datetime
-# from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._common.utils import make_sure_list
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._db.postgres_facade import PGFacade
-# from wtbonline._process.tools.common import concise, standard
 from wtbonline._plot.functions import ts_plot_stack
+from zmq import device
 
 #%% class
 class Base():
     '''
-    >>> df = {'set_id':'20835', 'device_id':'s10003', 'start_time':'2023-05-01', 'end_time':'2023-06-01'}
-    >>> base = Base(target_df=df, var_names=['var_101', 'var_103'])
-    >>> fig = base.plot()[0]
+    >>> base = Base()
+    >>> fig = base.plot(set_id='20835', device_ids=['s10003', 's10004'], start_time='2023-05-01 00:00:00', end_time='2023-05-01 02:00:00')
     >>> fig.show(renderer='png')
     '''
-    def __init__(self, target_df:Union[pd.DataFrame, dict], var_names:List[str], nsamples:int=3600, samplling_rate:int=1, height=600, title=''):
+    def __init__(self, nsamples:int=3600, samplling_rate:int=1, row_height=200, showlegend=True):
         '''
         target_df -- 目标数据集
             必须包含set_id,device_id,start_time,end_time'，
@@ -33,75 +28,95 @@ class Base():
         '''
         self.nsamples = nsamples
         self.samplling_rate = samplling_rate
-        self.height = height
-        self.target_df = self._check_target(target_df)
-        self.var_names = make_sure_list(var_names)
-        self.title = title
+        self.row_height = row_height
+        self.showlegend=showlegend
         self.init()
         
     def init(self):
         ''' 定制的初始化过程 '''
-        pass
+        self.var_names = ['var_101', 'var_102']
+        self.height = self.row_height*len(self.var_names)
     
-    def plot(self):
-        rev = []
-        for _,row in self.target_df.iterrows():
-            df = self.read_data(row=row)
-            ytitles = self.get_ytitles(row['set_id'], set(df.columns)-set(['ts', 'device']))
-            fig = self.build(df, ytitles)
-            self.tight_layout(fig)
-            rev.append(fig)
-        return rev
-
-    def _check_target(self, target_df):
-        ''' 检查字段，转换数据类型 '''
-        ret = target_df.copy()
-        ret = make_sure_dataframe(target_df)
-        cols = pd.Series(['set_id', 'device_id', 'start_time', 'end_time'])
-        if not cols.isin(target_df).all():
-            raise ValueError(f'target_df必须包含如下字段：{cols}')
-        ret['start_time'] = pd.to_datetime(ret['start_time'])
-        ret['end_time'] = pd.to_datetime(ret['end_time'])
-        return ret
+    def plot(self, set_id:str, device_ids:str, start_time:str, end_time:str):
+        df = self.read_data(set_id=set_id, device_ids=device_ids, start_time=start_time, end_time=end_time)
+        ytitles = self.get_ytitles(set_id=set_id)
+        title = self.get_title(set_id=set_id, device_ids=device_ids)
+        fig = self.build(df=df, ytitles=ytitles)
+        self.tight_layout(fig, title)
+        return fig
     
-    def read_data(self, row:dict):
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str):
         ''' 读取数据，默认从远程tsdb读取
         row : set_id, device_id, start_time, end_time
         '''
+        device_ids = make_sure_list(device_ids)
         columns = [f'max({i}) as {i}' for i in self.var_names]
-        df = TDFC.read(
-            set_id=row['set_id'],
-            device_id=row['device_id'],
-            start_time=row['start_time'],
-            end_time=row['end_time'],
-            columns=columns,
-            sample=self.nsamples,
-            remote=True,
-            )
+        df = []
+        for device_id in device_ids:
+            temp = TDFC.read(
+                set_id=set_id,
+                device_id=device_id,
+                start_time=start_time,
+                end_time=end_time,
+                columns=columns,
+                sample=self.nsamples,
+                remote=True,
+                )
+            temp['device_id'] = device_id
+            df.append(temp)
+        df = pd.concat(df, ignore_index=True)
+        df = df.sort_values('ts')
+        df = df[['ts', 'device_id']+self.var_names]
         return df
     
-    def get_ytitles(self, set_id, columns):
-        return TDFC._get_variable_info(set_id, columns)['name'].tolist()
+    def get_ytitles(self, set_id):
+        return TDFC._get_variable_info(set_id, self.var_names)['name'].tolist()
+    
+    def get_title(self, set_id, device_ids):
+        return f'时序图'
 
     def build(self, df, ytitles):
-        return ts_plot_stack(df, ycols=self.var_names, ytitles=ytitles, title=self.title)
-        
-    def tight_layout(self, fig):
+        nrow = len(ytitles)
+        fig = make_subplots(rows=nrow, cols=1, shared_xaxes=True, vertical_spacing=0.01)
+        assert df.shape[0]>1, '没有绘图数据'
+        colors = px.colors.qualitative.Dark2
+        for i in range(len(self.var_names)):
+            j=0
+            for device_id, plot_df in df.groupby('device_id'):
+                fig.add_trace(
+                    go.Scatter(
+                        x=plot_df['ts'], 
+                        y=plot_df[self.var_names[i]],
+                        mode='lines+markers',           
+                        marker={'opacity':0.5, 'size':4, 'color':colors[j%len(colors)]},
+                        name=device_id,
+                        showlegend=i==0
+                        ),
+                    row=i+1, 
+                    col=1)
+                j=j+1
+            fig.update_yaxes(title_text=ytitles[i], row=i+1, col=1)
+        fig.update_xaxes(title_text='时间', row=nrow, col=1)
+        return fig
+
+    def tight_layout(self, fig, title):
         fig.update_layout(
-            title=dict(text=self.title, font=dict(size=20), y=0.98, yref='container'),
+            title=dict(text=title, font=dict(size=15), xanchor='center', yanchor='top', x=0.5, y=0.98),
             height=self.height,
             legend=dict(
                 orientation="h",
                 font=dict(
-                        size=12,
+                        size=10,
                         color="black"
                     ),
                 yanchor="bottom",
                 y=1.02,
                 xanchor="right",
                 x=1),
-            margin=dict(l=50, r=50, t=70, b=50),
-            )
+            showlegend=self.showlegend,
+            margin=dict(l=20, r=20, t=20 if title in ('', None) else 70, b=20),
+            hovermode="x unified"
+            )  
 
 if __name__ == '__main__':
     import doctest

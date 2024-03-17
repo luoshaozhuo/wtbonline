@@ -346,7 +346,7 @@ class TDEngine_FACADE():
             df = self.query(sql, remote=remote)
         else:
             df = []
-            if sample is not None and sample>0:
+            if sample is not None and sample>0 and interval is None:
                 interval = self.get_interval(start_time, end_time, sample, samplling_rate=samplling_rate)
             while True:
                 sql = self.get_statement(
