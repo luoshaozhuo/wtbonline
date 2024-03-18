@@ -203,9 +203,13 @@ class TDEngine_FACADE():
             columns = list(columns)
             rev = list(set(columns) - set(['ts', 'device']))
             if version<3:
-                rev = ['ts'] + rev if sample is None else rev
+                if interval is not None:
+                    rev = [f'first({i}) as {i}' for i in rev]
+                else:
+                    rev = ['ts'] + rev
             else:
                 rev = ['ts']+rev if sample<1 else [f'sample(ts, {sample}) as ts']+rev
+            
         elif isinstance(columns, dict):
             for key_ in columns:
                 columns[key_] = make_sure_list(columns[key_])
@@ -240,7 +244,7 @@ class TDEngine_FACADE():
             sample:int=-1,
             ):
         # 选定查询变量
-        variables = self._variable(columns=columns, groupby=groupby, sample=sample, remote=remote)
+        variables = self._variable(columns=columns, groupby=groupby, interval=interval, sample=sample, remote=remote)
         # 查询
         ## 防止查询列过多
         limit = 10 if len(variables)>100 and limit==None else limit

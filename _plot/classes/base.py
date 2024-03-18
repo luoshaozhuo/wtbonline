@@ -2,7 +2,7 @@
 # created on 10.23.2023
 
 #%% import
-from typing import List
+from typing import List, Union
 import pandas as pd
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
@@ -36,9 +36,12 @@ class Base():
         ''' 定制的初始化过程 '''
         self.var_names = ['var_101', 'var_102']
         self.height = self.row_height*len(self.var_names)
+        self.width = 900  
     
-    def plot(self, set_id:str, device_ids:str, start_time:str, end_time:str):
+    def plot(self, set_id:str, device_ids:Union[str, List[str]], start_time:str, end_time:str):
+        device_ids = make_sure_list(device_ids)
         df = self.read_data(set_id=set_id, device_ids=device_ids, start_time=start_time, end_time=end_time)
+        assert df.shape[0]>0, f'查无数据{self.columns}'
         ytitles = self.get_ytitles(set_id=set_id)
         title = self.get_title(set_id=set_id, device_ids=device_ids)
         fig = self.build(df=df, ytitles=ytitles)
@@ -50,7 +53,6 @@ class Base():
         row : set_id, device_id, start_time, end_time
         '''
         device_ids = make_sure_list(device_ids)
-        columns = [f'max({i}) as {i}' for i in self.var_names]
         df = []
         for device_id in device_ids:
             temp = TDFC.read(
@@ -58,7 +60,7 @@ class Base():
                 device_id=device_id,
                 start_time=start_time,
                 end_time=end_time,
-                columns=columns,
+                columns=self.var_names,
                 sample=self.nsamples,
                 remote=True,
                 )
@@ -70,10 +72,11 @@ class Base():
         return df
     
     def get_ytitles(self, set_id):
-        return TDFC._get_variable_info(set_id, self.var_names)['name'].tolist()
+        df = TDFC._get_variable_info(set_id, self.var_names)
+        return df.set_index('var_name')['name']
     
     def get_title(self, set_id, device_ids):
-        return f'时序图'
+        return device_ids[0] if len(device_ids)==1 else set_id
 
     def build(self, df, ytitles):
         nrow = len(ytitles)
@@ -81,12 +84,13 @@ class Base():
         assert df.shape[0]>1, '没有绘图数据'
         colors = px.colors.qualitative.Dark2
         for i in range(len(self.var_names)):
+            var_name = self.var_names[i]
             j=0
             for device_id, plot_df in df.groupby('device_id'):
                 fig.add_trace(
                     go.Scatter(
                         x=plot_df['ts'], 
-                        y=plot_df[self.var_names[i]],
+                        y=plot_df[var_name],
                         mode='lines+markers',           
                         marker={'opacity':0.5, 'size':4, 'color':colors[j%len(colors)]},
                         name=device_id,
@@ -95,14 +99,15 @@ class Base():
                     row=i+1, 
                     col=1)
                 j=j+1
-            fig.update_yaxes(title_text=ytitles[i], row=i+1, col=1)
+            fig.update_yaxes(title_text=ytitles[var_name], row=i+1, col=1)
         fig.update_xaxes(title_text='时间', row=nrow, col=1)
         return fig
 
     def tight_layout(self, fig, title):
         fig.update_layout(
-            title=dict(text=title, font=dict(size=15), xanchor='center', yanchor='top', x=0.5, y=0.98),
+            title=dict(text=title, font=dict(size=15), xanchor='center', yanchor='top', x=0.5, y=0.99),
             height=self.height,
+            width=self.width,
             legend=dict(
                 orientation="h",
                 font=dict(
