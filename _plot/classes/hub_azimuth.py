@@ -3,36 +3,40 @@
 
 
 import plotly.graph_objects as go
-from wtbonline._plot.classes.base import BaseFigure
+import plotly.express as px 
+from wtbonline._plot.classes.base import Base
 
 
-class HubAzimuth(BaseFigure):
-    def _initialize(self):
-        '''
-        >>> ha = HubAzimuth({'set_id':'20835', 'map_id':'A02', 'start_time':'2023-05-01', 'end_time':'2023-05-02'})
-        >>> ha.plot()
-        '''
-        for _,entity in  self.target_df.iterrows():
-            df = self._read_data(
-                turbine_id=entity['turbine_id'],
-                start_time=entity['start_time'],
-                end_time=entity['end_time'],
-                var_names=['var_18000', 'var_18006']
-                )
-            fig = go.Figure()
+class HubAzimuth(Base):
+    '''
+    >>> ha = HubAzimuth()
+    >>> fig = ha.plot(set_id='20835', device_ids='s10003', start_time='2023-05-01 00:00:00', end_time='2023-05-01 00:30:00')
+    >>> fig.show(renderer='png')
+    '''    
+    def init(self):
+        self.var_names=['var_18000', 'var_18006']
+        self.height = 400
+        self.width = 900
+        self.mode = 'markers'
+    
+    def build(self, df, ytitles):
+        fig = go.Figure()
+        colors = px.colors.qualitative.Dark2
+        i=0
+        for device_id, plot_df in df.groupby('device_id'):
             fig.add_trace(
                 go.Scatter(
-                    x=df['var_18006'], 
-                    y=df['var_18000'], 
+                    x=plot_df['var_18006'], 
+                    y=plot_df['var_18000'], 
                     mode='markers',
-                    marker=dict(size=3,opacity=0.5), 
+                    name=device_id,
+                    marker=dict(size=3,opacity=0.5,color=colors[i]), 
                     )
                 )
-            fig.layout.xaxis.update({'title': '风轮方位角 °'})
-            fig.layout.yaxis.update({'title': '叶片1摆振弯矩 Nm'})
-            self._tight_layout(fig)
-            self.figs.append(fig)
-
+            i=i+1
+        fig.layout.xaxis.update({'title': ytitles['var_18006']})
+        fig.layout.yaxis.update({'title': ytitles['var_18000']})
+        return fig
         
 if __name__ == "__main__":
     import doctest

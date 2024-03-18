@@ -30,13 +30,13 @@ class Base():
         self.samplling_rate = samplling_rate
         self.row_height = row_height
         self.showlegend=showlegend
+        self.width = 900  
         self.init()
         
     def init(self):
         ''' 定制的初始化过程 '''
         self.var_names = ['var_101', 'var_102']
         self.height = self.row_height*len(self.var_names)
-        self.width = 900  
     
     def plot(self, set_id:str, device_ids:Union[str, List[str]], start_time:str, end_time:str):
         device_ids = make_sure_list(device_ids)

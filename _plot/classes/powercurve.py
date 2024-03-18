@@ -1,25 +1,33 @@
 # author luosz
 # created on 10.23.2023
 
+from typing import List
 import pandas as pd
-import numpy as np
-
 import plotly.graph_objects as go
 import plotly.express as px 
+from plotly.subplots import make_subplots
 
-from _db.rsdb_facade import RSDBInterface
-from wtbonline._plot.classes.base import BaseFigure
+from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._plot.classes.base import Base
 
 
-class PowerCurve(BaseFigure):
-    def _init(self):
+class PowerCurve(Base):
+    '''
+    >>> pc = PowerCurve()
+    >>> fig = pc.plot(set_id='20835', device_ids='s10003', start_time='2023-05-01 00:00:00', end_time='2023-10-01 00:00:00')
+    >>> fig.show(renderer='png')
+    '''  
+    def init(self):
         ''' 定制的初始化过程 '''
         self.height = 600
     
-    def _read_data(self, set_id, turbine_id, start_time, end_time):
-        df = RSDBInterface.read_statistics_sample(
+    def get_ytitles(self, set_id):
+        return []
+    
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str):
+        df = RSDBFacade.read_statistics_sample(
             set_id=set_id,
-            turbine_id=turbine_id,
+            device_id=device_ids,
             start_time=start_time,
             end_time=end_time,
             columns = ['turbine_id', 'var_355_mean', 'var_246_mean', 'totalfaultbool_mode',
@@ -47,22 +55,18 @@ class PowerCurve(BaseFigure):
         df = df.sample(self.samples) if df.shape[0]>self.samples else df
         return df, mean_df
     
-    def _initialize(self):
-        '''
-        >>> fig = PowerCurve({'set_id':'20835', 'map_id':'A03', 'start_time':'2023-05-01', 'end_time':'2023-06-01'})
-        >>> fig.plot()
-        '''
+    def build(self, df, ytitles):
         fig = go.Figure()
-        for i,row in  self.target_df.iterrows():
-            color = px.colors.qualitative.Plotly[i]
-            df, mean_df = self._read_data(row['set_id'], row['turbine_id'], row['start_time'], row['end_time'])
+        colors = px.colors.qualitative.Dark2
+        i=0
+        for device_id, plot_df in df.groupby('device_id'):
             fig.add_trace(
                 go.Scatter(
-                    x=mean_df['wspd'],
-                    y=mean_df['mean_power'],
-                    line=dict(color=color),
+                    x=plot_df['wspd'],
+                    y=plot_df['mean_power'],
+                    line=dict(color=colors[i]),
                     mode='lines',
-                    name=row['name'],
+                    name=device_id,
                     )
                 )
             fig.add_trace(
@@ -70,8 +74,8 @@ class PowerCurve(BaseFigure):
                     x=df['mean_wind_speed'],
                     y=df['mean_power'],
                     mode='markers',
-                    name=row['name'],
-                    marker=dict(opacity=0.5, color=color),
+                    showlegend=False,
+                    marker=dict(opacity=0.5, color=colors[i]),
                     hovertemplate =
                     '<i>mean_power</i>: %{y:.2f}'+
                     '<br><i>mean_wind_speed</i>: %{x:.2f}<br>'+
@@ -81,10 +85,7 @@ class PowerCurve(BaseFigure):
                 )
         fig.layout.xaxis.update({'title': '10分钟平均风速 m/s'})
         fig.layout.yaxis.update({'title': '10分钟平均电网有功功率 kW'})
-        self._tight_layout(fig)
-        
-        self.figs.append(fig)
-        
+        return fig
         
 if __name__ == "__main__":
     import doctest
