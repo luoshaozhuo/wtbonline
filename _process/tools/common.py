@@ -1,26 +1,14 @@
 import pandas as pd
 import numpy as np
+from typing import List, Union
 
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
 from wtbonline._process.model.anormlay import OUTPATH
+from wtbonline._common.utils import make_sure_list, make_sure_dataframe
 
 EPS = np.finfo(np.float32).eps
-
-def make_sure_series(x):
-    return pd.Series(x)
-
-def make_sure_list(x):
-    if isinstance(x, list):
-        rev = x
-    elif isinstance(x, str):
-        rev = [x]
-    elif x is None:
-        rev = []
-    else:
-        rev = list(x)
-    return  rev
 
 def concise(sql):
     ''' 去除多余的换行、空格字符 '''
@@ -66,3 +54,32 @@ def get_dates_tsdb(turbine_id, remote=True):
     sr = pd.to_datetime(sr).dt.date
     sr = sr.drop_duplicates().sort_values()
     return sr
+
+def get_min_date_tsdb(set_id, device_id:Union[str, List[str]]=None, remote=True):
+    '''
+    >>> get_min_date_tsdb(set_id='20835', remote=True)
+             date device_id
+    0  2022-12-18    s10003
+    1  2022-12-26    s10004
+    >>> get_min_date_tsdb(set_id='20835', remote=False)
+             date device_id
+    0  2022-12-18    s10003
+    1  2022-12-26    s10004
+    '''
+    device_id = make_sure_dataframe(device_id)
+    db = get_td_remote_restapi()['database'] if remote==True else get_td_local_connector()['database']
+    columns = ['first(ts) as date'] if remote==True else ['first(ts) as date', 'device'] 
+    sql = f'''select {','.join(columns)} from {db}.s_{set_id} group by device'''  
+    rev = TDFC.query(sql=sql, remote=remote)
+    rev['date'] = pd.to_datetime(rev['date']).dt.date
+    if len(device_id)>0:
+        rev = pd.merge(device_id, rev, how='left')
+    rev = rev.sort_values('device').reset_index(drop=True)
+    rev.rename(columns={'device':'device_id'}, inplace=True)
+    return rev
+
+
+#%% test
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

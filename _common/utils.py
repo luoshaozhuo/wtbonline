@@ -170,6 +170,12 @@ def make_sure_datetime(
             raise ValueError(f'not support type {type(x)}')
     return rev
 
+def dash_get_component_id(suffix, prefix=''):
+    '''
+    用于dash pages，将prefix及suffix拼接成控件ID
+    '''
+    return prefix + '_' + suffix
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
