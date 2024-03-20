@@ -13,17 +13,17 @@ import time
 import numpy as np
 # import inspect
 
-from wtbonline._db.common import make_sure_datetime, make_sure_dataframe
-from _db.rsdb_facade import RSDBInterface
+from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe
+from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._process.tools.time import bin
 from wtbonline._process.tools.statistics import (
     numeric_statistics, category_statistics, stationarity, agg)
 from wtbonline._process.tools.common import get_dates_tsdb
-
 from wtbonline._logging import log_it
 from wtbonline._process.statistics import _LOGGER
+from wtbonline._db.postgres_facade import PGFacade
 
 
 #%% fucntion
@@ -78,35 +78,32 @@ def validate_measurement(df, gearbox_ratio) -> int:
     rev += _validate(df, 'var_2731', 'rptspd', None, 0.05)*100000
     return rev
 
-def statistic_sample(df, set_id:str, turbine_id:str, bin_length:str='10min')->pd.DataFrame:
+def statistic_sample(df, set_id, device_id, bin_length:str='10min')->pd.DataFrame:
     ''' 计算统计量 
     >>> set_id='20835'
-    >>> turbine_id='s10001'
+    >>> device_id='s10003'
     >>> start_time=make_sure_datetime('2023-07-01')
-    >>> df, _ = TDFC.read(
+    >>> df = TDFC.read(
     ...     set_id=set_id,
-    ...     turbine_id=turbine_id, 
+    ...     device_id=device_id, 
     ...     start_time=start_time,
     ...     end_time=start_time+pd.Timedelta('1d'),
     ...     remote=False
     ...     )
-    >>> stat_df = statistic_sample(df, set_id, turbine_id)
+    >>> stat_df = statistic_sample(df, set_id, device_id)
     >>> stat_df.shape
     (144, 160)
-    >>> stat_df['create_time'] = pd.Timestamp.now()
-    >>> RSDBInterface.insert(stat_df, 'statistics_sample')
     '''
     df = make_sure_dataframe(df)
     if len(df)<10:
         return pd.DataFrame()
-    df['bin'] = bin(df['ts'])
+    df['bin'] = bin(df['ts'], length=bin_length)
 
-    point_df = RSDBInterface.read_turbine_model_point(set_id=set_id, stat_sample=1)
-    cols = point_df['var_name'].str.lower().tolist() 
-    cols += ['ts', 'bin']
+    point_df = RSDBFacade.read_turbine_model_point(stat_sample=1)
+    cols = ['ts', 'bin'] + point_df['var_name'].tolist()
 
-    conf_df = RSDBInterface.read_windfarm_configuration(set_id=set_id, turbine_id=turbine_id)
-    gearbox_ratio = conf_df['gearbox_ratio'].squeeze()
+    conf_df = RSDBFacade.read_windfarm_configuration()
+    gearbox_ratio = conf_df['gearbox_ratio'].iloc[0]
 
     sub_df = df[cols]
     f_col = sub_df.select_dtypes(float).columns
@@ -129,62 +126,61 @@ def statistic_sample(df, set_id:str, turbine_id:str, bin_length:str='10min')->pd
     rev = pd.DataFrame(rev)
     rev['validation'] = validation
     rev['set_id'] = set_id
-    rev['turbine_id'] = turbine_id
+    rev['device_id'] = device_id
     rev.replace({np.nan:None}, inplace=True)
     rev.replace({np.inf:None}, inplace=True)
     rev.replace({-1*np.inf:None}, inplace=True)
     return rev
 
-def dates_in_statistic_sample(set_id, turbine_id):
+def dates_in_statistic_sample(set_id, device_id):
     '''
-    >>> set_id, turbine_id = '20835', 's10001'
-    >>> _ = dates_in_statistic_sample(set_id, turbine_id)
+    >>> set_id, device_id = '20835', 's10003'
+    >>> _ = dates_in_statistic_sample(set_id, device_id)
     '''
     sql = f'''
         select DISTINCT date(bin) as dt from statistics_sample 
         where
-        set_id='{set_id}' and turbine_id='{turbine_id}'
+        set_id='{set_id}' and device_id='{device_id}'
         '''
     return RSDB.read_sql(sql)['dt'] 
 
 @log_it(_LOGGER, True)
 def update_statistic_sample(*args, **kwargs):
-    ''' 本地sample查缺 
-    # >>> update_statistic_sample()
-    '''
+    ''' 本地sample查缺  '''
     task_id = kwargs.get('task_id', 'NA')
     for i in range(10):
-        df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
+        df = PGFacade.read_model_device()[['set_id', 'device_id']]
         if len(df)>0:
             break
         _LOGGER.warning('update_statistic_sample: windfarm_configuration 查询失败，2秒后重试')
         time.sleep(2)
     if len(df)==0:
         raise ValueError('update_statistic_sample: windfarm_configuration 查询失败')
-    for _, (set_id, turbine_id) in df.iterrows():
-        _LOGGER.info(f'task_id={task_id} update_statistic_sample: {set_id}, {turbine_id}')
+    for _, (set_id, device_id) in df.iterrows():
+        _LOGGER.info(f'task_id={task_id} update_statistic_sample: {set_id}, {device_id}')
         # 本地tsdb已存在的数据日期
-        tsdb_dates = get_dates_tsdb(turbine_id, remote=False)
-        statistics_dates = dates_in_statistic_sample(set_id, turbine_id)
+        tsdb_dates = get_dates_tsdb(device_id, remote=False)
+        statistics_dates = dates_in_statistic_sample(set_id, device_id)
         # statistics_sample表
         candidates = tsdb_dates[~tsdb_dates.isin(statistics_dates)]
         for dt in candidates:
-            _LOGGER.info(f'task_id={task_id} update_statistic_sample: {set_id}, {turbine_id}, {dt}')
+            _LOGGER.info(f'task_id={task_id} update_statistic_sample: {set_id}, {device_id}, {dt}')
             dt = make_sure_datetime(dt)
-            df, _ = TDFC.read(
+            df = TDFC.read(
                 set_id=set_id,
-                turbine_id=turbine_id, 
+                device_id=device_id, 
                 start_time=dt,
                 end_time=dt+pd.Timedelta('1d'),
                 remote=False,
-                remove_tz=True,
                 )
-            stat_df = statistic_sample(df, set_id, turbine_id)
+            stat_df = statistic_sample(df, set_id, device_id)
             if len(stat_df)<1:
                 return
             stat_df['create_time'] = pd.Timestamp.now()
-            RSDBInterface.insert(stat_df, 'statistics_sample')
-            del df, stat_df, _
+            RSDBFacade.insert(stat_df, 'statistics_sample')
+            del df, stat_df
 
 if __name__ == '__main__':
+    # import doctest
+    # doctest.testmod()
     update_statistic_sample()

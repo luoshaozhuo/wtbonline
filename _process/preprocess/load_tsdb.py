@@ -4,7 +4,8 @@ from typing import Union
 from datetime import date
 import time 
 
-from _db.rsdb_facade import RSDBInterface
+from wtbonline._db.postgres_facade import PGFacade
+from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.time import resample
 from wtbonline._logging import log_it
@@ -12,7 +13,7 @@ from wtbonline._process.preprocess import _LOGGER
 from wtbonline._process.tools.common import get_dates_tsdb
 
 #%% function
-def extract(set_id:str, turbine_id:str, dt:Union[str, pd.Timestamp, date], 
+def extract(set_id:str, device_id:str, dt:Union[str, pd.Timestamp, date], 
             offset:str='1min', rule:str='1s', limit:int=2)->pd.DataFrame:
     ''' 按天从源数据库读入数据，重采样
     dt : str | date
@@ -29,30 +30,27 @@ def extract(set_id:str, turbine_id:str, dt:Union[str, pd.Timestamp, date],
     >>> set_id = '20835'
     >>> turbine_id = 's10001'
     >>> dt = '2023-05-04'
-    >>> extract('20835', 's10001', '2023-05-01').shape
-    (86372, 80)
+    >>> extract('20835', 's10003', '2023-06-01').shape
+    (86394, 79)
     '''
     dt = pd.Timestamp(dt)
     start_time = dt - pd.Timedelta(offset)
     end_time = dt + pd.Timedelta('1d') + pd.Timedelta(offset)
-    # tdengine 2.2.2.0 对restapi查询数据有限制，默认每次10240条
     df = []
-    var_name = RSDBInterface.read_turbine_model_point(set_id=set_id, select=1)['var_name']
-    var_name = var_name.str.lower()
-    for i in range(10):
-        temp, _ = TDFC.read(set_id=set_id, turbine_id=turbine_id, 
-                        start_time=start_time, end_time=end_time,
-                        var_name=var_name, orderby='ts', remote=True)
-        start_time = str(temp['ts'].max().tz_localize(None))
-        df.append(temp)
-        if temp.shape[0]<10200:
-            break
-    df = pd.concat(df, ignore_index=True).drop_duplicates('ts').sort_values('ts')
-    df.drop_duplicates('ts', inplace=True)
-
+    var_name = RSDBFacade.read_turbine_model_point()['var_name']
+    df = TDFC.read(
+        set_id=set_id, 
+        device_id=device_id, 
+        start_time=start_time, 
+        end_time=end_time,
+        columns=var_name, 
+        orderby='ts',
+        remote=True
+        )
+    
     rev = pd.DataFrame()
     if df.shape[0]<10:
-        print(f'not enough entries: {turbine_id}, {dt}')
+        print(f'not enough entries: {device_id}, {dt}')
         return rev
     rev = resample(df, rule=rule, limit=limit)
 
@@ -67,20 +65,20 @@ def extract(set_id:str, turbine_id:str, dt:Union[str, pd.Timestamp, date],
    
     return rev
 
-def load_tsdb(set_id, turbine_id, date):
+def load_tsdb(set_id:str, device_id:str, dt:Union[str, date]):
     ''' 抽取数据到本地TSDB
     >>> set_id='20835'
-    >>> turbine_id='s10001'
-    >>> start_time = pd.to_datetime('2023-07-01 00:00:00')
+    >>> device_id='s10003'
+    >>> start_time = pd.to_datetime('2023-06-01 00:00:00')
     >>> end_time = start_time + pd.Timedelta('1d')
-    >>> n = extract(set_id, turbine_id, start_time).shape[0]
-    >>> load_tsdb(set_id, turbine_id, start_time)
-    >>> df,_ = TDFC.read(set_id=set_id, turbine_id=turbine_id, start_time=start_time, end_time=end_time)
+    >>> n = extract(set_id, device_id, start_time).shape[0]
+    >>> load_tsdb(set_id, device_id, start_time)
+    >>> df = TDFC.read(set_id=set_id, device_id=device_id, start_time=start_time, end_time=end_time)
     >>> n == df.shape[0]
     True
     '''
-    df = extract(set_id, turbine_id, date)
-    TDFC.write(df, set_id=set_id, turbine_id=turbine_id)
+    df = extract(set_id=set_id, device_id=device_id, dt=dt)
+    TDFC.write(df, set_id=set_id, device_id=device_id)
 
 @log_it(_LOGGER, True)
 def update_tsdb(*args, **kwargs):
@@ -88,35 +86,37 @@ def update_tsdb(*args, **kwargs):
     task_id = kwargs.get('task_id', 'NA')
     for i in range(10):
         try:
-            df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
+            df = PGFacade.read_model_device()[['set_id', 'device_id']]
             if len(df)>0:
                 break
         except Exception as e:
             _LOGGER.warning(f'update_tsdb: windfarm_configuration 查询失败，稍后重试，错误信息：{str(e)}')
-        time.sleep(2)
+        time.sleep(1)
     if len(df)==0:
         raise ValueError('update_tsdb: windfarm_configuration 查询失败')
-    for _, (set_id, turbine_id) in df.iterrows():
-        _LOGGER.info(f'update_tsdb: {set_id}, {turbine_id}')
+    for _, (set_id, device_id) in df.iterrows():
+        _LOGGER.info(f'update_tsdb: {set_id}, {device_id}')
         try:
-            dtrm = get_dates_tsdb(turbine_id, remote=True) 
-            dtlc = get_dates_tsdb(turbine_id, remote=False)
+            dtrm = get_dates_tsdb(device_id, remote=True) 
+            dtlc = get_dates_tsdb(device_id, remote=False)
         except  Exception as e:
-            _LOGGER.error(f'failed to update_tsdb: {set_id}, {turbine_id}. \n Error msg: {e}')
+            _LOGGER.error(f'failed to update_tsdb: {set_id}, {device_id}. \n Error msg: {e}')
             continue
         dts = dtrm[~dtrm.isin(dtlc)]
         for date in dts:
             # 不更新当天数据
             if date==pd.Timestamp.now().date():
                 continue
-            print(set_id, turbine_id, date)
+            print(set_id, device_id, date)
             try:
-                _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {turbine_id}, {date}')
-                load_tsdb(set_id, turbine_id, date)
+                _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {device_id}, {date}')
+                load_tsdb(set_id, device_id, date)
             except:
-                _LOGGER.error(f'failed to update_tsdb: {set_id}, {turbine_id}, {date}')
+                _LOGGER.error(f'failed to update_tsdb: {set_id}, {device_id}, {date}')
                 raise 
             
 #%%
 if __name__ == "__main__":
-    update_tsdb()
+    import doctest
+    doctest.testmod()
+    # update_tsdb()

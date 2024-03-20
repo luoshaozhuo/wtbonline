@@ -6,6 +6,7 @@ import datetime
 
 from pymysql import DatabaseError
 
+
 def make_sure_dict(x)->dict:
     '''
     >>> make_sure_dict(1)

@@ -18,6 +18,7 @@ class Base():
     '''
     >>> base = Base()
     >>> fig = base.plot(set_id='20835', device_ids=['s10003', 's10004'], start_time='2023-05-01 00:00:00', end_time='2023-05-01 02:00:00')
+    >>> fig.init(var_names=['var_101', 'var_102'])
     >>> fig.show(renderer='png')
     '''
     def __init__(self, nsamples:int=3600, samplling_rate:int=1, row_height=200, showlegend=True):
@@ -33,10 +34,10 @@ class Base():
         self.width = 900  
         self.init()
         
-    def init(self):
+    def init(self, var_names=[]):
         ''' 定制的初始化过程 '''
-        self.var_names = ['var_101', 'var_102']
-        self.height = self.row_height*len(self.var_names)
+        self.var_names = var_names
+        self.height = self.row_height*len(var_names)
     
     def plot(self, set_id:str, device_ids:Union[str, List[str]], start_time:str, end_time:str):
         device_ids = make_sure_list(device_ids)
@@ -52,6 +53,7 @@ class Base():
         ''' 读取数据，默认从远程tsdb读取
         row : set_id, device_id, start_time, end_time
         '''
+        assert len(self.var_names), '没指定需要读取的变量名'
         device_ids = make_sure_list(device_ids)
         df = []
         for device_id in device_ids:

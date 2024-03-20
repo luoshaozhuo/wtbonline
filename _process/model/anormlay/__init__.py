@@ -9,15 +9,15 @@ from functools import partial
 
 from wtbonline._process.model.trainer import SimpleTrainer
 from wtbonline._db.rsdb.dao import RSDB
-from _db.rsdb_facade import RSDBInterface
-from wtbonline._db.common import make_sure_list
+from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._common.utils import make_sure_list
 from wtbonline._process.tools.filter import filter_for_modeling
 from wtbonline._logging import get_logger
 
 #%% constant
 _LOGGER = get_logger('modelling')
 
-OUTPATH = RSDBInterface.read_app_configuration(key_='model_path')['value'].squeeze()
+OUTPATH = RSDBFacade.read_app_configuration(key_='model_path')['value'].squeeze()
 OUTPATH = Path(OUTPATH)
 OUTPATH.mkdir(exist_ok=True)
 

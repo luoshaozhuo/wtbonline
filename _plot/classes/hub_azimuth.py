@@ -13,7 +13,7 @@ class HubAzimuth(Base):
     >>> fig = ha.plot(set_id='20835', device_ids='s10003', start_time='2023-05-01 00:00:00', end_time='2023-05-01 00:30:00')
     >>> fig.show(renderer='png')
     '''    
-    def init(self):
+    def init(self, var_names=[]):
         self.var_names=['var_18000', 'var_18006']
         self.height = 400
         self.width = 900

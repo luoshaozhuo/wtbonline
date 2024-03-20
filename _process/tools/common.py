@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from wtbonline._db.tsdb_facade import TDFC
-# from _db.rsdb_facade import RSDBInterface
+from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
 from wtbonline._process.model.anormlay import OUTPATH
 
@@ -30,7 +30,7 @@ def concise(sql):
 
 def get_all_table_tags(set_id=None, remote=False):
     if set_id is None:
-        set_ids = RSDBInterface.read_windfarm_configuration()['set_id'].unique()
+        set_ids = RSDBFacade.read_windfarm_configuration()['set_id'].unique()
     else:
         set_ids = make_sure_list(set_id)
     rev = []
@@ -45,9 +45,9 @@ def get_all_table_tags(set_id=None, remote=False):
 def standard(set_id, df):
     ''' 按需增加turbine_id、测点名称、设备编号 '''
     df = df.copy()
-    conf_df = RSDBInterface.read_windfarm_configuration(set_id=set_id)
+    conf_df = RSDBFacade.read_windfarm_configuration(set_id=set_id)
     if 'var_name' in df.columns and ('测点名称' not in df.columns) :
-        point_df = RSDBInterface.read_turbine_model_point(set_id=set_id)
+        point_df = RSDBFacade.read_turbine_model_point(set_id=set_id)
         dct = {row['var_name']:row['point_name'] for _,row in point_df.iterrows()}
         df.insert(0, 'point_name', df['var_name'].replace(dct))
     df = pd.merge(df, conf_df[['set_id', 'turbine_id', 'map_id']], how='inner')

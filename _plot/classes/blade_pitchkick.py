@@ -14,7 +14,7 @@ class BladePitchkick(Base):
     >>> fig = bp.plot(set_id='20835', device_ids='s10003', start_time='2023-10-01 00:00:00', end_time='2023-10-01 02:00:00')
     >>> fig.show(renderer='png')
     '''
-    def init(self):
+    def init(self, var_names=[]):
         self.var_names=['var_101', 'var_102', 'var_103', 'var_246', 'var_94', 'var_23569']
         self.height = 900
         self.width = 900   

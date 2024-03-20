@@ -1,10 +1,12 @@
 import logging
 import logging.handlers
 from pathlib import Path
+import os
+import pandas as pd
+    
+from wtbonline._db.rsdb_facade import RSDBFacade
 
-from _db.rsdb_facade import RSDBInterface
-
-_parent = RSDBInterface.read_app_configuration(key_='log_path').loc[0, 'value']
+_parent = RSDBFacade.read_app_configuration(key_='log_path').loc[0, 'value']
 _parent = Path(_parent)
 
 def get_stream_handler():
@@ -68,9 +70,6 @@ def log_it(logger, is_timed_task=False):
     ...     pass
     >>> test()
     '''
-    import os
-    import pandas as pd
-    from _db.rsdb_facade import RSDBInterface
     def inner(func):
         def wrapper(*args, **kwargs):
             p_args = ', '.join([str(i) for i in args])
@@ -93,7 +92,7 @@ def log_it(logger, is_timed_task=False):
                 if is_timed_task==True:
                     pid = os.getppid()
                     end_time = pd.Timestamp.now()
-                    RSDBInterface.insert(
+                    RSDBFacade.insert(
                         dict(
                             task_id=kwargs.get('task_id', 'test'),
                             pid=pid,

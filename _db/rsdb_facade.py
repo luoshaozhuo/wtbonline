@@ -76,6 +76,8 @@ class RSDBFacade():
             cls, 
             *, 
             columns:Optional[Union[List[str], str]]=None,
+            cause:Optional[str]=None,
+            name:Optional[str]=None,
             limit=None,
             )->pd.DataFrame:
         '''
@@ -83,7 +85,8 @@ class RSDBFacade():
         ['id', 'name']
         '''
         tbname = model.TurbineFaultType.__tablename__
-        return RSDB.query(tbname, limit=limit, columns=columns) 
+        eq_clause, in_clause = cls.get_in_or_eq_clause(cause=cause, name=name)
+        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, columns=columns) 
 
     @classmethod
     def read_statistics_fault(

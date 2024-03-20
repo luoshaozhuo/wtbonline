@@ -1,7 +1,6 @@
-import pandas as pd
+#%% import
 
-from wtbonline._db.common import make_sure_list
-
+#%% function
 def stationary(df):
     condtion = df['pv_c']<0.001
     idxes = df[condtion].index

@@ -17,7 +17,7 @@ class PowerCurve(Base):
     >>> fig = pc.plot(set_id='20835', device_ids='s10003', start_time='2023-05-01 00:00:00', end_time='2023-10-01 00:00:00')
     >>> fig.show(renderer='png')
     '''  
-    def init(self):
+    def init(self, var_names=[]):
         ''' 定制的初始化过程 '''
         self.height = 600
     

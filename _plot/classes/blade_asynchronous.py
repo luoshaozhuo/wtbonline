@@ -13,7 +13,7 @@ class BladeAsynchronous(Base):
     >>> fig = ba.plot(set_id='20835', device_ids='s10003', start_time='2023-05-01 00:00:00', end_time='2023-05-01 02:00:00')
     >>> fig.show(renderer='png')
     '''
-    def init(self):
+    def init(self, var_names=[]):
         self.var_names=['var_101', 'var_102', 'var_103', 'var_18028', 'var_18029', 'var_18030']
         self.height = self.row_height*2
         self.width = 900

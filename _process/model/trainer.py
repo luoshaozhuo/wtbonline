@@ -18,7 +18,7 @@ import uuid
 import os
 from pathlib import Path
 
-from wtbonline._db.common import make_sure_dataframe, make_sure_dict
+from wtbonline._common.utils import make_sure_dataframe, make_sure_dict
 
 class BaseTrainer():
     def __init__(

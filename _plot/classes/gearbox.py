@@ -11,7 +11,7 @@ class Gearbox(Base):
     >>> fig.show(renderer='png')
     '''
     
-    def init(self):
+    def init(self, var_names=[]):
         self.var_names = ['var_175', 'var_182', 'var_2713', 'var_2714', 'var_2715']
         self.height = 900
         self.width = 900

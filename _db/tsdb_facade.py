@@ -197,7 +197,7 @@ class TDEngine_FACADE():
         version = int(RSDBFacade.read_app_server(name='tdengine', remote=remote)['version'].loc[0].split('.')[0])
         if columns is None:
             rev = ['*']
-        if isinstance(columns, (list, tuple, str, pd.Series, set)):
+        elif isinstance(columns, (list, tuple, str, pd.Series, set)):
             if isinstance(columns, str):
                 columns = [columns]
             columns = list(columns)
@@ -255,13 +255,13 @@ class TDEngine_FACADE():
         sql = f'''
             select {', '.join(variables)} from {dbname}.{tbname}
             where
-            ts>"{start_time}" and
-            ts<="{end_time}"
+            ts>="{start_time}" and
+            ts<"{end_time}"
             '''
         sql = (sql+' group by '+','.join(groupby)) if len(groupby)>0 else sql
         sql = (sql+f' INTERVAL({interval})') if interval is not None else sql
         sql = (sql+f' SLIDING({sliding})') if sliding is not None and interval is not None else sql 
-        sql = (sql+f' order by {orderby}') if len(orderby)>0 else sql
+        sql = (sql+f' order by '+','.join(orderby)) if len(orderby)>0 else sql
         sql = (sql+f' limit {limit}') if limit is not None else sql 
         sql = pd.Series(sql).str.replace('\n *', ' ', regex=True).squeeze().strip()
         return sql
@@ -353,6 +353,7 @@ class TDEngine_FACADE():
             if sample is not None and sample>0 and interval is None:
                 interval = self.get_interval(start_time, end_time, sample, samplling_rate=samplling_rate)
             while True:
+                # version2的restapi 限制每次获取记录10240条
                 sql = self.get_statement(
                     set_id=set_id,
                     device_id=device_id, 
@@ -367,10 +368,10 @@ class TDEngine_FACADE():
                     remote=remote,
                     )
                 temp = self.query(sql, remote=remote)
-                # version2的restapi 限制每次获取记录10240条
+                if len(temp)>0:
+                    df.append(temp)
                 if len(temp)<10240:
                     break
-                df.append(temp)
                 start_time = temp['ts'].max()
             df = pd.concat(df, ignore_index=True) if len(df)>0 else temp
         if 'ts' in df.columns:

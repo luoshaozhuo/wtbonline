@@ -108,6 +108,24 @@ class PGFacade():
             sql += f" where set_id='{set_id}'"
         df = pd.read_sql(text(sql), con=_ENGINE)
         return df
+    
+    @classmethod  
+    def read_data_fault(cls, device_id:Union[List[str], str]=None):
+        '''
+        >>> len(PGFacade.read_data_fault(device_id=['s10001','s10002']))>0
+        True
+        >>> len(PGFacade.read_data_fault(device_id='s10001'))>0
+        True
+        ''' 
+        device_id = make_sure_list(device_id)
+        cols = ['device_id', 'val', 'begin_tm', 'end_tm']
+        sql = f"select {','.join(cols)} from data_fault"
+        if len(device_id)==1:
+            sql += f" where device_id='{device_id[0]}'"
+        elif len(device_id)>1:
+            sql += f''' where device_id in ('{"','".join(device_id)}')'''
+        df = pd.read_sql(text(sql), con=_ENGINE)
+        return df
         
 if __name__ == "__main__":
     import doctest
