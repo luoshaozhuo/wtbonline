@@ -1,6 +1,6 @@
 # coding: utf-8
 from flask_sqlalchemy import SQLAlchemy
-
+from flask_login import UserMixin
 
 db = SQLAlchemy()
 
@@ -91,23 +91,6 @@ class ModelLabel(db.Model):
     create_time = db.Column(db.DateTime, nullable=False)
 
     user = db.relationship('User', primaryjoin='ModelLabel.username == User.username', backref='model_labels')
-
-
-
-class StatisticsDaily(db.Model):
-    __tablename__ = 'statistics_daily'
-    __table_args__ = (
-        db.Index('set_id', 'set_id', 'device_id', 'date'),
-    )
-
-    id = db.Column(db.Integer, primary_key=True)
-    set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
-    device_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
-    date = db.Column(db.DateTime, nullable=False)
-    count_sample = db.Column(db.Integer, nullable=False)
-    energy_output = db.Column(db.Float, nullable=False)
-    fault_codes = db.Column(db.Text(collation='utf8mb4_general_ci'), nullable=False)
-    create_time = db.Column(db.DateTime, nullable=False)
 
 
 
@@ -352,7 +335,8 @@ class TurbineFaultType(db.Model):
     flag = db.Column(db.String(255, 'utf8mb4_general_ci'), info='故障标志位(变量名）')
     fault_codes = db.Column(db.String(255, 'utf8mb4_general_ci'), info='归因故障代码列表')
     alarm_codes = db.Column(db.String(255, 'utf8mb4_general_ci'), info='归因警告代码列表')
-    var_names = db.Column(db.String(255, 'utf8mb4_general_ci'), info='相关变量名')
+    msg_codes = db.Column(db.String(255, 'utf8mb4_general_ci'), info='归因消息代码列表')
+    var_names = db.Column(db.String(collation='utf8mb4_general_ci'), info='相关变量名')
     time_span = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='绘图时故障开始时间前后时长，单位分钟')
     graph = db.Column(db.String(255, 'utf8mb4_0900_ai_ci'), nullable=False, server_default=db.FetchedValue(), info='绘图类')
 
@@ -391,7 +375,7 @@ class TurbineVariableBound(db.Model):
 
 
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = 'user'
 
     id = db.Column(db.Integer, primary_key=True)

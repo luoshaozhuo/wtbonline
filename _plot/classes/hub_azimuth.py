@@ -19,7 +19,8 @@ class HubAzimuth(Base):
         self.width = 900
         self.mode = 'markers'
     
-    def build(self, df, ytitles):
+    def build(self, data, ytitles):
+        df = data
         fig = go.Figure()
         colors = px.colors.qualitative.Dark2
         i=0

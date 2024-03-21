@@ -19,7 +19,8 @@ class BladePitchkick(Base):
         self.height = 900
         self.width = 900   
     
-    def build(self, df, ytitles):
+    def build(self, data, ytitles):
+        df = data
         for device_id, plot_df in df.groupby('device_id'):
             fig = make_subplots(4, 1, shared_xaxes=True, vertical_spacing=0.05)
             # 桨距角

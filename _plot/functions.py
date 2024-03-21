@@ -1,22 +1,26 @@
-import pstats
+#%% import
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import numpy as np
 import pandas as pd
-from collections.abc import Iterable
 from typing import List
 
 from wtbonline._common.utils import make_sure_list, make_sure_dataframe
 # from wtbonline._common import utils
 # from wtbonline._db.rsdb_facade import RSDBFacade
-import wtbonline.configure as cfg
+# import wtbonline.configure as cfg
 # from wtbonline._process.tools.frequency import power_spectrum, amplitude_spectrum
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.frequency import power_spectrum
 
-# =============================================================================
-# function
-# =============================================================================
+#%% constant
+ANOMALY_MATRIX_PLOT_COLOR = {
+    '非离群':'gray',
+    '正常':'#2ca02c',
+    '异常':'red',
+    '离群，未标注':'blue',
+    }
+
+#%% function
 def ts_plot_stack(df, ycols, ytitles:List[str], *, xcol='ts', xtitle='时间', title='时序图', 
               refx=None, refy=None, row_height:int=200, showlegend=False):  
     ''' 并列单系列折线图 
@@ -103,10 +107,10 @@ def scatter_matrix_plot_anomaly(df, columns:List[str], labels:List[str]=None, se
     df.loc[idx_suspetor_without_label, 'textd'] ='离群，未标注'
     df.loc[idx_anormaly, 'textd'] = '异常'
     df.loc[idx_not_anormaly, 'textd'] = '正常'
-    df.loc[idx_not_susptor, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['非离群']
-    df.loc[idx_suspetor_without_label, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['离群，未标注']
-    df.loc[idx_anormaly, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['异常']
-    df.loc[idx_not_anormaly, 'color'] = cfg.ANOMALY_MATRIX_PLOT_COLOR['正常']
+    df.loc[idx_not_susptor, 'color'] = ANOMALY_MATRIX_PLOT_COLOR['非离群']
+    df.loc[idx_suspetor_without_label, 'color'] = ANOMALY_MATRIX_PLOT_COLOR['离群，未标注']
+    df.loc[idx_anormaly, 'color'] = ANOMALY_MATRIX_PLOT_COLOR['异常']
+    df.loc[idx_not_anormaly, 'color'] = ANOMALY_MATRIX_PLOT_COLOR['正常']
     df.loc[idx_not_susptor, 'opacity'] = 0.2
     df.loc[idx_suspetor_without_label, 'opacity'] = 1
     df.loc[idx_anormaly, 'opacity'] = 1

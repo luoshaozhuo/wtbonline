@@ -18,10 +18,10 @@ class BladeAsynchronous(Base):
         self.height = self.row_height*2
         self.width = 900
         
-    def build(self, df, ytitles):
+    def build(self, data, ytitles):
+        df = data
         nrow = len(ytitles)
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.01)
-        assert df.shape[0]>1, '没有绘图数据'
         colors = px.colors.qualitative.Dark2
         var_names = ['var_101', 'var_102', 'var_103', 'var_18028', 'var_18029', 'var_18030']
         for device_id, plot_df in df.groupby('device_id'):  

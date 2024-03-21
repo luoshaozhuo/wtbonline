@@ -9,15 +9,13 @@
 #%% import
 import dash
 import dash_mantine_components as dmc
-from dash import dcc, html, dash_table
+from dash import dcc, html
 from dash_iconify import DashIconify
 from dash import Output, Input, html, dcc, State, callback, no_update
 import pandas as pd
 from functools import partial
 
-from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
-from wtbonline._common import utils 
 from wtbonline._common import dash_component as dcmpt
 
 #%% constant
@@ -34,7 +32,7 @@ TABLE_FONT_SIZE = cfg.TOOLBAR_TABLE_FONT_SIZE
 TABLE_HEIGHT = cfg.TOOLBAR_TABLE_HEIGHT
 
 #%% function
-get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
+get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 #%% component
 def create_toolbar_content():
@@ -121,82 +119,55 @@ def callback_update_multiselect_device_name_performance(set_id):
 
 @callback(
     Output(get_component_id('datepicker_end'), 'minDate'),
+    Output(get_component_id('datepicker_end'), 'maxDate'),
+    Output(get_component_id('datepicker_end'), 'value'),
     Input(get_component_id('multiselect_device_name'), 'value'),
-    State(get_component_id('select_setid'), 'value'),
     prevent_initial_call=True
     )
-def callback_update_datepicker_start_performance(date_start, maxDate_start, minDate_start, disabledDates_start, date_end, tm):
-    
-    minDate = date_start if date_start is not None else minDate_start
-    maxDate = maxDate_start
-    disabledDates = disabledDates_start
-    if (date_end is not None) and (date_start is not None) and (date_start<=date_end):
-        value = no_update
-    else:
-        value = None
-    return disabledDates, minDate, maxDate, value
+def callback_update_datepicker_start_performance(device_names):
+    if device_names is None or len(device_names)<1:
+        return None, None, None
+    df = cfg.WINDFARM_DATE_RANGE_RSDB[cfg.WINDFARM_DATE_RANGE_RSDB['device_name'].isin(device_names)]
+    minDate = df['start_date'].max() if len(df)>0 else None
+    maxDate = df['end_date'].min() if len(df)>0 else None
+    return minDate, maxDate, maxDate
 
-# @callback(
-#     Output(get_component_id('select_setid'), 'error'),
-#     Output(get_component_id('multiselect_device_name'), 'error'),
-#     Output(get_component_id('datepicker_start'), 'error'),
-#     Output(get_component_id('datepicker_end'), 'error'),
-#     Output(get_component_id('time_end'), 'error'),
-#     Output(get_component_id('table'), 'data'),  
-#     Input(get_component_id('icon_add'), 'n_clicks'),
-#     State(get_component_id('select_setid'), 'value'),
-#     State(get_component_id('multiselect_device_name'), 'value'),
-#     State(get_component_id('datepicker_start'), 'value'),
-#     State(get_component_id('datepicker_end'), 'value'),
-#     State(get_component_id('time_start'), 'value'),
-#     State(get_component_id('time_end'), 'value'),
-#     State(get_component_id('table'), 'data'),
-#     prevent_initial_call=True    
-#     )
-# def callback_on_icon_add_performance(n, set_id, map_id, date_start, date_end, time_start, time_end, tbl_lst):
-#     tbl_df = pd.DataFrame(tbl_lst, columns=TABLE_COLUMNS)
-#     errs = ['变量不能为空' if i is None else '' for i in [set_id, map_id, date_start, date_end, time_end]]
-#     data = no_update
-#     if time_start.split('T')[1] >= time_end.split('T')[1]:
-#         errs[-1] = '需要修改结束时间或开始时间'
-#     if (pd.Series(errs)=='').all():
-#         start_time=utils.dash_make_datetime(date_start, time_start)
-#         end_time=utils.dash_make_datetime(date_end, time_end)
-#         temp = pd.DataFrame([['new', map_id, start_time, end_time, set_id]], columns=TABLE_COLUMNS)
-#         data = pd.concat([tbl_df, temp], ignore_index=True).drop_duplicates(subset=['map_id', 'start_time', 'end_time'])
-#         data[TABLE_COLUMNS[0]] = [f'E{i}' for i in range(len(data))]
-#         data = data.to_dict('records')
-#     return *errs, data
 
-# @callback(
-#     Output(get_component_id('btn_refresh'), 'disabled'), 
-#     Input(get_component_id('table'), 'data'),  
-#     prevent_initial_call=True 
-# )
-# def callback_update_btn_resresh_performance(tbl_lst):
-#     return True if tbl_lst is None or len(tbl_lst)==0 else False
+@callback(
+    Output(get_component_id('btn_refresh'), 'disabled'),
+    Input(get_component_id('select_setid'), 'value'),
+    Input(get_component_id('multiselect_device_name'), 'value'),
+    Input(get_component_id('datepicker_end'), 'value'),
+    prevent_initial_call=True
+    )
+def callback_disable_btn_refresh_performance(set_id, device_names, end_date):
+    if None in (set_id, device_names, end_date) or  len(device_names)<1:
+        return True
+    return False
 
-# @callback(
-#     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-#     Output(get_component_id('graph'), 'figure'),
-#     Input(get_component_id('btn_refresh'), 'n_clicks'),
-#     State(get_component_id('table'), 'data'),
-#     State(get_component_id('select_type'), 'value'),
-#     prevent_initial_call=True
-#     )
-# def callback_on_btn_refresh_performance(n, tbl_lst, _type):
-#     target_df = pd.DataFrame(tbl_lst)
-#     graph = None
-#     note = None
-#     if len(target_df)>0:
-#         graph, note = utils.dash_try(
-#             note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,   
-#             func=GRAPH_CONF.loc[_type]['class'], 
-#             target_df = target_df,
-#             title = _type
-#             )
-#     figure = no_update if graph is None else graph.figs[0]
-#     return note, figure
+@callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
+    Output(get_component_id('graph'), 'figure'),
+    Input(get_component_id('btn_refresh'), 'n_clicks'),
+    State(get_component_id('select_type'), 'value'),
+    State(get_component_id('select_setid'), 'value'),
+    State(get_component_id('multiselect_device_name'), 'value'),
+    State(get_component_id('datepicker_end'), 'value'),
+    State(get_component_id('input_span'), 'value'),
+    prevent_initial_call=True
+    )
+def callback_on_btn_refresh_performance(n, type_, set_id, device_names, end_date, span):
+    end_time = pd.to_datetime(end_date)   
+    start_time =  pd.to_datetime(end_date) - pd.Timedelta(f'{span}d')
+    figure, note = dcmpt.dash_try(
+        note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,   
+        func=GRAPH_CONF.loc[type_]['class']().plot, 
+        set_id=set_id,
+        device_ids=cfg.WINDFARM_MODEL_DEVICE[cfg.WINDFARM_MODEL_DEVICE['device_name'].isin(device_names)]['device_id'],
+        start_time=start_time,
+        end_time=end_time
+        )
+    return note, figure
 
 
 #%% main

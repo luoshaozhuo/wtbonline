@@ -4,6 +4,7 @@ import dash_mantine_components as dmc
 import wtbonline._plot as plt
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._process.tools.common import get_date_rage_tsdb, get_date_rage_rsdb
 
 THEME_PRIMARY_COLOR = 'indigo'
 THEME_PRIMARY_SHADE = {'light': 5, 'dark':7}
@@ -76,7 +77,9 @@ NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS = '后台操作成功'
 
 WINDFARM_INFORMATION =  PGFacade.read_model_factory()
 WINDFARM_FAULT_TYPE = RSDBFacade.read_turbine_fault_type()
-WINDFARM_MODEL_DEVICE = PGFacade.read_model_device()
+WINDFARM_MODEL_DEVICE = PGFacade.read_model_device().set_index('device_name', drop=False)
+WINDFARM_DATE_RANGE = get_date_rage_tsdb().set_index('device_name', drop=False)
+WINDFARM_DATE_RANGE_RSDB = get_date_rage_rsdb().set_index('device_name', drop=False)
 
 NOTIFICATION = {
     'error':{'color':'red', 'icon':'mdi:close-circle-outline'},
@@ -110,13 +113,6 @@ SCHEDULER_TIMEOUT = 10
 
 SIMPLE_PLOT_TYPE = ['时序图', '散点图', '极坐标图', '频谱图']
 SIMPLE_PLOT_SAMPLE_NUM = 5000
-
-ANOMALY_MATRIX_PLOT_COLOR = {
-    '非离群':'gray',
-    '正常':'#2ca02c',
-    '异常':'red',
-    '离群，未标注':'blue',
-    }
 
 _sess_lifttime = int(RSDBFacade.read_app_configuration(key_='session_lifetime')['value'].iloc[0])
 SESSION_LIFETIME = max(_sess_lifttime, 1)   #最少1天

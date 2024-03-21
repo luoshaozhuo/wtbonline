@@ -2,10 +2,6 @@ import pandas as pd
 from collections.abc import Iterable
 from typing import Union, Optional
 import numpy as np
-import datetime
-
-from pymysql import DatabaseError
-
 
 def make_sure_dict(x)->dict:
     '''
@@ -169,12 +165,6 @@ def make_sure_datetime(
         except:
             raise ValueError(f'not support type {type(x)}')
     return rev
-
-def dash_get_component_id(suffix, prefix=''):
-    '''
-    用于dash pages，将prefix及suffix拼接成控件ID
-    '''
-    return prefix + '_' + suffix
 
 if __name__ == "__main__":
     import doctest

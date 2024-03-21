@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from dash_iconify import DashIconify
 from dash import html
+import traceback
 
 import wtbonline.configure as cfg
 from wtbonline._db.rsdb_facade import RSDBFacade
@@ -58,16 +59,13 @@ def select_job_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPO
     return select(id, label="任务类型", data=type_, value=type_[-1], size=size, width=width, withAsterisk=withAsterisk)
 
 def date_picker(id, label, description, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
-    maxDate = cfg.DATE
     disabledDates = [cfg.DATE] 
     return dmc.DatePicker(
         id=id,
-        value=maxDate,
         size=size,
         label=label,
         dropdownType='modal',
         description=description,
-        maxDate = maxDate,
         disabledDates = disabledDates,
         amountOfMonths=1,
         style={"width": width},
@@ -114,3 +112,25 @@ def notification(title, msg='', _type='info', autoClose=False):
         color=cfg.NOTIFICATION[_type]['color'],
         icon=DashIconify(icon=cfg.NOTIFICATION[_type]['icon'], width=20),
         )
+    
+def dash_get_component_id(suffix, prefix=''):
+    '''
+    用于dash pages，将prefix及suffix拼接成控件ID
+    '''
+    return prefix + '_' + suffix
+
+def dash_try(note_title, func, *args, **kwargs):
+    '''
+    用于dash pages，返回func的运行结果及dash-mantine-component的notification控件
+    '''
+    try:
+        rs = func(*args, **kwargs)
+        note = None
+    except Exception as e:
+        rs = None
+        note = notification(
+            title=note_title,
+            msg=f'func={func.__name__}\nargs={args}\nkwargs={kwargs}\n======\n{traceback.format_exc()}',
+            _type='error'
+            )     
+    return rs, note 

@@ -24,7 +24,8 @@ class BladeUnblacedLoad(Base):
         self.height = 900
         self.width = 900
     
-    def build(self, df, ytitles):
+    def build(self, data, ytitles):
+        df = data
         comb = [
             ('摆振', ['var_18000', 'var_18001', 'var_18002']), 
             ('挥舞', ['var_18003', 'var_18004', 'var_18005'])

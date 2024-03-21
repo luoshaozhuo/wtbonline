@@ -9,6 +9,7 @@ from plotly.subplots import make_subplots
 
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._plot.classes.base import Base
+from wtbonline._common.utils import make_sure_list
 
 
 class PowerCompare(Base):
@@ -31,6 +32,7 @@ class PowerCompare(Base):
                        'totalfaultbool_mode','totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
                         'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique'],
             )
+        assert len(device_ids)==len(df['device_id'].unique()), f'部分机组查无数据，实际：{df["device_id"].unique().tolist()}，需求：{device_ids}'
         # 正常发电数据
         df = df[
             (df['totalfaultbool_mode']=='False') &
@@ -51,7 +53,8 @@ class PowerCompare(Base):
     def get_ytitles(self, set_id):
         return []
 
-    def build(self, df, ytitles):
+    def build(self, data, ytitles):
+        df = data
         fig = make_subplots(2, 1, shared_xaxes=True, vertical_spacing=0.05)
         colors = px.colors.qualitative.Dark2
         i=0

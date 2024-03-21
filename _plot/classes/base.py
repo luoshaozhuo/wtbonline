@@ -10,8 +10,6 @@ import plotly.express as px
 
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._plot.functions import ts_plot_stack
-from zmq import device
 
 #%% class
 class Base():
@@ -41,11 +39,10 @@ class Base():
     
     def plot(self, set_id:str, device_ids:Union[str, List[str]], start_time:str, end_time:str):
         device_ids = make_sure_list(device_ids)
-        df = self.read_data(set_id=set_id, device_ids=device_ids, start_time=start_time, end_time=end_time)
-        assert df.shape[0]>0, f'查无数据{self.columns}'
+        data = self.read_data(set_id=set_id, device_ids=device_ids, start_time=start_time, end_time=end_time)
         ytitles = self.get_ytitles(set_id=set_id)
         title = self.get_title(set_id=set_id, device_ids=device_ids)
-        fig = self.build(df=df, ytitles=ytitles)
+        fig = self.build(data=data, ytitles=ytitles)
         self.tight_layout(fig, title)
         return fig
     
@@ -71,6 +68,7 @@ class Base():
         df = pd.concat(df, ignore_index=True)
         df = df.sort_values('ts')
         df = df[['ts', 'device_id']+self.var_names]
+        assert df.shape[0]>1, '没有绘图数据'
         return df
     
     def get_ytitles(self, set_id):
@@ -80,10 +78,10 @@ class Base():
     def get_title(self, set_id, device_ids):
         return device_ids[0] if len(device_ids)==1 else set_id
 
-    def build(self, df, ytitles):
+    def build(self, data, ytitles):
+        df = data
         nrow = len(ytitles)
         fig = make_subplots(rows=nrow, cols=1, shared_xaxes=True, vertical_spacing=0.01)
-        assert df.shape[0]>1, '没有绘图数据'
         colors = px.colors.qualitative.Dark2
         for i in range(len(self.var_names)):
             var_name = self.var_names[i]
