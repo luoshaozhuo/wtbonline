@@ -28,7 +28,7 @@ class PowerCompare(Base):
             device_id=device_ids,
             start_time=start_time,
             end_time=end_time,
-            columns = ['turbine_id', 'var_101_mean', 'var_102_mean', 'var_103_mean', 'var_246_mean', 'var_94_mean',
+            columns = ['device_id', 'var_101_mean', 'var_102_mean', 'var_103_mean', 'var_246_mean', 'var_94_mean',
                        'totalfaultbool_mode','totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
                         'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique'],
             )
@@ -48,10 +48,13 @@ class PowerCompare(Base):
         df['mean_pitch_angle'] = df[['var_101_mean', 'var_102_mean', 'var_103_mean']].mean(axis=1)
         gearbox_ratio = RSDBFacade.read_windfarm_configuration(set_id=set_id)['gearbox_ratio'].iloc[0]
         df['rotor_speed'] =  df['var_94_mean']*gearbox_ratio
-        return df[['mean_pitch_angle', 'mean_power', 'var_94_mean']]
+        return df[['mean_pitch_angle', 'mean_power', 'rotor_speed', 'device_id']]
     
     def get_ytitles(self, set_id):
         return []
+
+    def get_title(self, set_id, device_ids):
+        return '功率差异'
 
     def build(self, data, ytitles):
         df = data
@@ -65,7 +68,7 @@ class PowerCompare(Base):
                     y=plot_df['mean_pitch_angle'],
                     mode='markers',
                     name=device_id,
-                    marker=dict(opacity=0.1, color=colors[i]),
+                    marker=dict(opacity=0.5, color=colors[i], size=3),
                     showlegend=True,
                     ),
                 row=1,
@@ -76,7 +79,7 @@ class PowerCompare(Base):
                     x=plot_df['mean_power'],
                     y=plot_df['rotor_speed'],
                     mode='markers',
-                    marker=dict(opacity=0.1, color=colors[i]),
+                    marker=dict(opacity=0.5, color=colors[i], size=3),
                     showlegend=False,
                     ),
                 row=2,
