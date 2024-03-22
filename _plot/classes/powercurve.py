@@ -10,14 +10,14 @@ from plotly.subplots import make_subplots
 
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._plot.classes.base import Base
-
 from wtbonline._common.utils import make_sure_list
+from wtbonline._db.postgres_facade import PGFacade
 
 
 class PowerCurve(Base):
     '''
     >>> pc = PowerCurve()
-    >>> fig = pc.plot(set_id='20835', device_ids=['s10003', 's10004'], start_time='2023-05-01 00:00:00', end_time='2023-10-01 00:00:00')
+    >>> fig = pc.plot(set_id='20835', device_ids=['s10003'], start_time='2023-05-01 00:00:00', end_time='2023-10-01 00:00:00')
     >>> fig.show(renderer='png')
     '''  
     def init(self, var_names=[]):
@@ -30,7 +30,7 @@ class PowerCurve(Base):
     def get_title(self, set_id, device_ids):
         return '功率曲线'
     
-    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str):
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, **kwargs):
         device_ids = make_sure_list(device_ids)
         df = RSDBFacade.read_statistics_sample(
             set_id=set_id,
@@ -46,12 +46,12 @@ class PowerCurve(Base):
         df = df[
             (df['totalfaultbool_mode']=='False') &
             (df['totalfaultbool_nunique']==1) &
-            (df['ongrid_mode']=='True') & 
-            (df['ongrid_nunique']==1) & 
+            (df['ongrid_mode']=='True') &
+            (df['ongrid_nunique']==1) &
             (df['limitpowbool_mode']=='False') &
             (df['limitpowbool_nunique']==1) &
             (df['workmode_mode']=='32') &
-            (df['workmode_nunique']==1) 
+            (df['workmode_nunique']==1)
             ]
         df = df.rename(columns={'var_355_mean':'mean_wind_speed', 'var_246_mean':'mean_power'})
         # 15°空气密度
@@ -61,10 +61,12 @@ class PowerCurve(Base):
         power_curve = df.groupby(['wspd', 'device_id'])['mean_power'].median().reset_index()
         df = df.groupby('device_id').apply(lambda x:x.sample(self.nsamples) if x.shape[0]>self.nsamples else x)
         df = df.reset_index(drop=True)
-        return df, power_curve
+        # 读取保证功率曲线
+        power_curve_ref = PGFacade.read_model_powercurve_current(set_id=set_id)
+        return df, power_curve, power_curve_ref
     
     def build(self, data, ytitles):
-        df, power_curve = data
+        df, power_curve, power_curve_ref = data
         fig = go.Figure()
         colors = px.colors.qualitative.Dark2
         i=0
@@ -95,6 +97,16 @@ class PowerCurve(Base):
                     )
                 )
             i=i+1
+        if len(power_curve_ref)>0:
+            fig.add_trace(
+                go.Scatter(
+                    x=power_curve_ref['mean_wind_speed'],
+                    y=power_curve_ref['mean_power'],
+                    line=dict(color=colors[-1]),
+                    mode='lines',
+                    name='参考功率曲线',
+                    )
+                )            
         fig.layout.xaxis.update({'title': '10分钟平均风速 m/s'})
         fig.layout.yaxis.update({'title': '10分钟平均电网有功功率 kW'})
         return fig

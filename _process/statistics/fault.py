@@ -17,6 +17,9 @@ from wtbonline._process.statistics import _LOGGER
 
 _type = Union[str, datetime.date, pd.Timestamp]
 
+
+
+
 @log_it(_LOGGER, True)
 def udpate_statistic_fault(*args, **kwargs):
     '''

@@ -70,7 +70,7 @@ class PGFacade():
         device_id = make_sure_list(device_id)
         device_name = make_sure_list(device_name)
         set_id = make_sure_list(set_id)
-        cols = ['point_set_id as set_id', 'device_id', 'device_name', 'id']
+        cols = ['point_set_id as set_id', 'device_id', 'device_type_id','device_name', 'id']
         sql = text(f"select {','.join(cols)} from model_device")
         df = pd.read_sql(sql, con=_ENGINE)
         if len(device_id)>0:
@@ -124,6 +124,21 @@ class PGFacade():
             sql += f" where device_id='{device_id[0]}'"
         elif len(device_id)>1:
             sql += f''' where device_id in ('{"','".join(device_id)}')'''
+        df = pd.read_sql(text(sql), con=_ENGINE)
+        return df
+    
+    @classmethod  
+    def read_model_powercurve_current(cls, set_id):
+        '''
+        >>> len(PGFacade.read_model_powercurve_current(set_id='20835'))>0
+        True
+        '''
+        device_type_id = cls.read_model_device(set_id=set_id)['device_type_id'].iloc[0]
+        sql = f'''
+            select wind_spd as mean_wind_speed, power as mean_power 
+            from model_powcurve_current 
+            where device_type_id='{device_type_id}'
+            '''
         df = pd.read_sql(text(sql), con=_ENGINE)
         return df
         

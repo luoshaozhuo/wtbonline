@@ -22,7 +22,7 @@ class PowerCompare(Base):
         ''' 定制的初始化过程 '''
         self.height = 600
     
-    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str):
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, **kwargs):
         df = RSDBFacade.read_statistics_sample(
             set_id=set_id,
             device_id=device_ids,
@@ -37,13 +37,13 @@ class PowerCompare(Base):
         df = df[
             (df['totalfaultbool_mode']=='False') &
             (df['totalfaultbool_nunique']==1) &
-            (df['ongrid_mode']=='True') & 
-            (df['ongrid_nunique']==1) & 
+            (df['ongrid_mode']=='True') &
+            (df['ongrid_nunique']==1) &
             (df['limitpowbool_mode']=='False') &
             (df['limitpowbool_nunique']==1) &
             (df['workmode_mode']=='32') &
-            (df['workmode_nunique']==1) 
-            ]        
+            (df['workmode_nunique']==1)
+            ]
         df.rename(columns={'var_246_mean':'mean_power'}, inplace=True)
         df['mean_pitch_angle'] = df[['var_101_mean', 'var_102_mean', 'var_103_mean']].mean(axis=1)
         gearbox_ratio = RSDBFacade.read_windfarm_configuration(set_id=set_id)['gearbox_ratio'].iloc[0]

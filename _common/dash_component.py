@@ -50,6 +50,22 @@ def multiselect_device_name(id):
         style={"width": cfg.TOOLBAR_COMPONENT_WIDTH, "marginBottom": 10},
         )
 
+def multiselect_powercurve_filter(id):
+    data = {
+        '就地限功率运行状态':'var_1001',
+        
+    }
+    return dmc.MultiSelect(
+        label="数据筛选条件",
+        placeholder="最多选择5台设备",
+        maxSelectedValues=5,
+        size=cfg.TOOLBAR_COMPONENT_SIZE,
+        id=id,
+        clearable=True,
+        searchable=True,
+        style={"width": cfg.TOOLBAR_COMPONENT_WIDTH, "marginBottom": 10},
+        )
+
 def select_fault_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
     data = cfg.WINDFARM_FAULT_TYPE['name'].unique()
     return select(id=id, data=data, value=data[0], label='故障类型', size=size, width=width, withAsterisk=withAsterisk)
