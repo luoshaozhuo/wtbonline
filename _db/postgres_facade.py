@@ -12,7 +12,7 @@ import pandas as pd
 from typing import List, Union
 from sqlalchemy import create_engine, text
 
-from wtbonline._common.utils import make_sure_list
+from wtbonline._common.utils import make_sure_datetime, make_sure_list
 from wtbonline._db.config import POSTGRES_URI
 
 #%% constant
@@ -141,6 +141,52 @@ class PGFacade():
             '''
         df = pd.read_sql(text(sql), con=_ENGINE)
         return df
+    
+    @classmethod 
+    def _read_anomaly_log(cls, tbname:str, device_id:str, val:list[str]=[], start_time=None, end_time=None):
+        val = make_sure_list(val)
+        sql = f'''
+            select device_id, val, begin_tm, end_tm
+            from {tbname}
+            where device_id='{device_id}'
+            '''
+        if len(val)>0:
+            val = [str(i) for i in val]
+            sql += f''' and val in ('{"','".join(val)}')'''
+        if start_time is not None:
+            sql += f" and begin_tm>='{make_sure_datetime(start_time)}'"
+        if end_time is not None:
+            sql += f" and begin_tm<'{make_sure_datetime(end_time)}'"
+        return pd.read_sql(text(sql), con=_ENGINE)        
+    
+     
+    @classmethod  
+    def read_data_alarm(cls, device_id:str, val:list[str]=[], start_time=None, end_time=None):
+        '''
+        >>> df = PGFacade.read_data_alarm('s10003', val=[28012, 20051], start_time='2022-12-12', end_time='2023-12-12')
+        >>> df.shape[0]>0
+        True
+        '''
+        return cls._read_anomaly_log(tbname='data_alarm', device_id=device_id, val=val, start_time=start_time, end_time=end_time)      
+ 
+ 
+    @classmethod  
+    def read_data_fault(cls, device_id:str, val:list[str]=[], start_time=None, end_time=None):
+        '''
+        >>> df = PGFacade.read_data_fault('s10003', val=[13010, 11017], start_time='2022-12-12', end_time='2023-12-12')
+        >>> df.shape[0]>0
+        True
+        '''
+        return cls._read_anomaly_log(tbname='data_fault', device_id=device_id, val=val, start_time=start_time, end_time=end_time)      
+
+    @classmethod  
+    def read_data_msg(cls, device_id:str, val:list[str]=[], start_time=None, end_time=None):
+        '''
+        >>> df = PGFacade.read_data_msg('s10003', val=[17037, 11114], start_time='2022-12-12', end_time='2023-12-12')
+        >>> df.shape[0]>0
+        True
+        '''
+        return cls._read_anomaly_log(tbname='data_msg', device_id=device_id, val=val, start_time=start_time, end_time=end_time)     
         
 if __name__ == "__main__":
     import doctest

@@ -54,24 +54,6 @@ class RSDBFacade():
         return RSDB.query(tbname) 
 
     @classmethod
-    def read_statistics_daily(
-            cls, 
-            *, 
-            set_id:Optional[Union[str, List[str]]]=None,
-            device_id:Optional[Union[str, List[str]]]=None,
-            columns:Optional[Union[List[str], str]]=None,
-            limit=None,
-            )->pd.DataFrame:
-        '''
-        >>> columns=[{'count_sample':'sum'},{'energy_output':['sum', 'max']}]
-        >>> RSDBFacade.read_statistics_daily(set_id='20835', device_id='s10003', columns=columns).columns.tolist()
-        ['count_sample_sum', 'energy_output_sum', 'energy_output_max']
-        '''
-        tbname = model.StatisticsDaily.__tablename__
-        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, device_id=device_id)
-        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, columns=columns) 
-
-    @classmethod
     def read_turbine_fault_type(
             cls, 
             *, 
@@ -82,11 +64,14 @@ class RSDBFacade():
             )->pd.DataFrame:
         '''
         >>> RSDBFacade.read_turbine_fault_type().columns.tolist()
-        ['id', 'name']
+        ['id', 'set_id', 'name', 'cause', 'type', 'index', 'value', 'var_names', 'time_span', 'graph']
         '''
         tbname = model.TurbineFaultType.__tablename__
         eq_clause, in_clause = cls.get_in_or_eq_clause(cause=cause, name=name)
-        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, columns=columns) 
+        df = RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, columns=columns) 
+        df['index'] = df['index'].str.lower()
+        df['var_names'] = df['var_names'].str.lower()
+        return df
 
     @classmethod
     def read_statistics_fault(
@@ -95,8 +80,9 @@ class RSDBFacade():
             set_id:Optional[Union[str, List[str]]]=None,
             device_id:Optional[Union[str, List[str]]]=None,
             fault_id:Optional[Union[int, List[int]]]=None,
+            value:Optional[Union[int, List[int]]]=None,
+            fault_type:Optional[Union[int, List[int]]]=None,
             columns:Optional[Union[List[str], str]]=None,
-            date:datetime.date=None,
             start_time:Union[str, pd.Timestamp, datetime.date] = None,
             end_time:Union[str, pd.Timestamp, datetime.date] = None,
             limit=None,
@@ -106,20 +92,19 @@ class RSDBFacade():
         ... set_id='20835',
         ... device_id='s10003',
         ... fault_id='a12',
-        ... date='2023-01-01',
         ... start_time='2023-01-01',
         ... end_time='2023-01-02').columns.tolist()
-        ['id', 'set_id', 'device_id', 'date', 'fault_id', 'timestamp', 'create_time']
+        ['id', 'set_id', 'device_id', 'fault_id', 'value', 'fault_type', 'start_time', 'end_time', 'create_time']
         '''
         tbname = model.StatisticsFault.__tablename__
         
         start_time = make_sure_datetime(start_time)
-        lge_clause = {} if start_time is None else {'timestamp':start_time}
+        lge_clause = {} if start_time is None else {'start_time':start_time}
         end_time = make_sure_datetime(end_time)  
-        lt_clause = {} if end_time is None else {'timestamp':end_time}
-        date = make_sure_datetime(date)
+        lt_clause = {} if end_time is None else {'start_time':end_time}
         
-        eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id, device_id=device_id, fault_id=fault_id, date=date)
+        eq_clause, in_clause = cls.get_in_or_eq_clause(
+            set_id=set_id, device_id=device_id, fault_id=fault_id, value=value, fault_type=fault_type)
         return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, 
                           lge_clause=lge_clause, lt_clause=lt_clause ,columns=columns) 
 
@@ -193,7 +178,7 @@ class RSDBFacade():
         ... name='tdengine',
         ... remote=1,
         ... type='restapi').columns.tolist()
-        ['id', 'name', 'host', 'remote', 'type', 'port', 'user', 'password', 'database']
+        ['id', 'name', 'host', 'version', 'remote', 'type', 'port', 'user', 'password', 'database']
         '''
         tbname = model.AppServer.__tablename__
         eq_clause, in_clause = cls.get_in_or_eq_clause(name=name, remote=remote, type=type)
@@ -282,7 +267,7 @@ class RSDBFacade():
         ... point_name='abc',
         ... var_name='abc',
         ... ).columns.tolist()
-        ['id', 'stat_operation', 'stat_sample', 'stat_accumulation', 'point_name', 'var_name', 'ref_name']
+        ['id', 'stat_operation', 'stat_sample', 'stat_accumulation', 'point_name', 'var_name']
         '''
         tbname = model.TurbineModelPoint.__tablename__
         eq_clause, in_clause = cls.get_in_or_eq_clause(
@@ -317,10 +302,10 @@ class RSDBFacade():
         ... device_id='abc',
         ... start_time='2023-02-01',
         ... end_time='2023-02-02',
-        ... columns={'var_101_mean':['AVG', 'sum']},
+        ... columns={'var_101_mean':['max', 'sum']},
         ... groupby='set_id',
         ... ).columns.tolist()
-        ['var_101_mean_AVG', 'var_101_mean_sum']
+        ['var_101_mean_max', 'var_101_mean_sum']
         '''
         tbname = model.StatisticsSample.__tablename__
         eq_clause, in_clause = cls.get_in_or_eq_clause(id=id_, set_id=set_id, device_id=device_id)

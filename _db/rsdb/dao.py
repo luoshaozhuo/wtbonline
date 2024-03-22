@@ -73,11 +73,11 @@ class RSDBDAO():
         ''' 通用sql查询，需要注意注入攻击
         >>> dao = RSDBDAO()
         >>> try:
-        ...     dao.read_sql('select * from statistics_daily', timeout=1)
+        ...     dao.read_sql('select * from statistics_sample', timeout=1)
         ... except Exception as e:
         ...     print(e)
         (pymysql.err.OperationalError) (3024, 'Query execution was interrupted, maximum statement execution time exceeded')
-        [SQL: select * from statistics_daily]
+        [SQL: select * from statistics_sample]
         (Background on this error at: https://sqlalche.me/e/20/e3q8)
         >>> stmt = Select()(model.User)
         >>> len(dao.read_sql(stmt)) > 0
@@ -116,8 +116,8 @@ class RSDBDAO():
               )->pd.DataFrame:
         '''
         >>> dao = RSDBDAO()
-        >>> tbname='statistics_daily'
-        >>> columns = ['id','set_id','date']
+        >>> tbname='statistics_sample'
+        >>> columns = ['id','set_id','device_id']
         >>> eq_clause = {'id':300}
         >>> lge_clause = {'id':300, 'id':500}
         >>> lt_clause = {'id':600}
@@ -135,10 +135,10 @@ class RSDBDAO():
         True
         >>> dao.query(tbname, limit=1).shape[0]==1
         True
-        >>> dao.query(tbname, columns=func_dct).shape
-        (1, 3)
-        >>> dao.query(tbname, columns=[func_dct, 'date'], groupby='date', orderby='date').shape[0]>1
-        True
+        >>> dao.query(tbname, columns=func_dct).columns.tolist()
+        ['id_max', 'id_min', 'device_id_count']
+        >>> dao.query(tbname, columns=[func_dct, 'set_id'], groupby='set_id', orderby='set_id').columns.tolist()
+        ['id_max', 'id_min', 'device_id_count', 'set_id']
         >>> dao.query(tbname, random=True, limit=100)['id'].max()>100
         True
         '''
@@ -175,11 +175,14 @@ class RSDBDAO():
         >>> dao.truncate('statistics_fault')
         >>> set_id = ['20835']*10
         >>> device_id = ['s10001']*10
-        >>> date = ['2023-01-01']*10
+        >>> start_time = ['2023-01-01']*10
+        >>> end_time = start_time
+        >>> val=['111']*10
         >>> fault_id = ['a12']*10
+        >>> fault_type = ['a12']*10
         >>> timestamp = ['2023-02-02 11:11:11']*10
         >>> create_time = timestamp
-        >>> dct = dict(set_id=set_id, device_id=device_id, date=date, fault_id=fault_id, timestamp=timestamp, create_time=create_time)
+        >>> dct = dict(set_id=set_id, device_id=device_id, fault_id=fault_id, val=val, fault_type=fault_type, start_time=start_time, end_time=end_time, create_time=create_time)
         >>> df = pd.DataFrame(dct)
         >>> dao.insert(df, 'statistics_fault')
         >>> dao.query('statistics_fault', columns={'id':'count'})['id_count'].squeeze()>=2
@@ -188,7 +191,6 @@ class RSDBDAO():
         >>> dao.insert(df, 'statistics_fault')
         >>> dao.query('statistics_fault', lt_clause={'id':11}, columns={'id':'count'})['id_count'].squeeze()==10
         True
-        >>> dao.truncate('statistics_fault')
         '''
         df = make_sure_dataframe(df)
         if len(df)<1:
@@ -215,8 +217,8 @@ class RSDBDAO():
         ''' 
         >>> dao = RSDBDAO()
         >>> value = f'a{random.randint(10000)}'
-        >>> dao.update('statistics_daily', lt_clause={'id':11}, new_values={'device_id':value})
-        >>> dao.query('statistics_daily', eq_clause={'device_id':value}, lt_clause={'id':11}).shape[0]==10
+        >>> dao.update('statistics_fault', lt_clause={'id':11}, new_values={'device_id':value})
+        >>> dao.query('statistics_fault', eq_clause={'device_id':value}, lt_clause={'id':11}).shape[0]==10
         True
         '''
         new_values = make_sure_dict(new_values)
@@ -242,13 +244,14 @@ class RSDBDAO():
                ):
         ''' 删除数据
         >>> dao = RSDBDAO()
-        >>> tbname =  'statistics_daily'
-        >>> id_ = 101
+        >>> tbname =  'statistics_fault'
+        >>> id_ = 5
         >>> len(dao.query(tbname, eq_clause={'id':id_}))==1
         True
         >>> dao.delete(tbname, eq_clause={'id':id_})
         >>> len(dao.query(tbname, eq_clause={'id':id_}))==0
         True
+        >>> dao.truncate(tbname)
         '''
         model_ = self.factory.get(tbname)
         stmt = delete(model_)

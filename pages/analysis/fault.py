@@ -16,6 +16,7 @@ from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
 from wtbonline._common import utils 
 from wtbonline._common import dash_component as dcmpt
+from wtbonline._db.rsdb.dao import RSDB
 
 #%% constant
 SECTION = '分析'
@@ -31,7 +32,7 @@ TABLE_FONT_SIZE = '2px'
 TABLE_HEIGHT = '200PX'
 
 #%% function
-get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
+get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 #%% component
 def create_toolbar_content():
@@ -39,9 +40,9 @@ def create_toolbar_content():
         spacing=0, 
         px=cfg.TOOLBAR_PADDING, 
         children=[
-            dcmpt.select_fault_type(id=get_component_id('select_type')),
             dcmpt.select_setid(id=get_component_id('select_setid')),
             dcmpt.select_device_name(id=get_component_id('select_device_name')),
+            dcmpt.select(id=get_component_id('select_fault_name'), data=[], value=None, label='故障类型'),
             dcmpt.select(id=get_component_id('select_item'), data=[], value=None, label='故障发生时间'),
             dmc.Space(h='20px'),
             dmc.Button(
@@ -51,6 +52,16 @@ def create_toolbar_content():
                 leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
                 size=cfg.TOOLBAR_COMPONENT_SIZE,
                 children="刷新图像",
+                ),
+            dmc.Space(h='20px'),
+            dmc.Button(
+                fullWidth=True,
+                disabled=True,
+                id=get_component_id('btn_download'),
+                leftIcon=DashIconify(icon="mdi:arrow-collapse-down", width=cfg.TOOLBAR_ICON_WIDTH),
+                size=cfg.TOOLBAR_COMPONENT_SIZE,
+                children="下载数据",
+                color='green'
                 ),
             dmc.Space(h='200px'), 
             ]
@@ -111,9 +122,50 @@ layout = [
     prevent_initial_call=True
     )
 def callback_update_select_device_name_fault(set_id):
-    df = cfg.WINDFARM_MODEL_DEVICE[cfg.WINDFARM_MODEL_DEVICE['set_id']==set_id]
-    data = [] if df is None else [{'value':i, 'label':i} for i in df['device_name']]
-    return data, None
+    if set_id in (None, ''):
+        return [], None
+    sr = RSDBFacade.read_statistics_fault(set_id=set_id)['device_id'].unique()
+    device_names = cfg.WINDFARM_MODEL_DEVICE[cfg.WINDFARM_MODEL_DEVICE['device_id'].isin(sr)]['device_name']
+    return [{'label':i, 'value':i} for i in device_names], None
+
+@callback(
+    Output(get_component_id('select_fault_name'), 'data'),
+    Output(get_component_id('select_fault_name'), 'value'),
+    Input(get_component_id('select_device_name'), 'value'),
+    prevent_initial_call=True
+    )
+def callback_update_select_fault_name_fault(device_name):
+    if device_name in (None, ''):
+        return [], None
+    device_id = cfg.WINDFARM_MODEL_DEVICE['device_id'][device_name]
+    sr = RSDBFacade.read_statistics_fault(device_id=device_id)['fault_id'].unique()
+    fault_types = cfg.WINDFARM_FAULT_TYPE['name'].loc[sr].unique()
+    return [{'label':i, 'value':i} for i in fault_types], None
+
+@callback(
+    Output(get_component_id('select_item'), 'data'),
+    Output(get_component_id('select_item'), 'value'),
+    Input(get_component_id('select_fault_name'), 'value'),
+    State(get_component_id('select_device_name'), 'value'),
+    prevent_initial_call=True
+    )
+def callback_update_select_item_fault(fault_name, device_name):
+    if fault_name in (None, ''):
+        return [], None
+    device_id = cfg.WINDFARM_MODEL_DEVICE['device_id'][device_name]
+    fault_ids = cfg.WINDFARM_FAULT_TYPE[cfg.WINDFARM_FAULT_TYPE['name']==fault_name]['id'].astype(str)
+    sql = (
+        f'select id, start_time from statistics_fault '
+        f'where device_id="{device_id}" and fault_id in ({",".join(fault_ids)}) ' 
+        f'ORDER BY start_time desc '
+        f'limit 15'
+        )
+    df = RSDB.read_sql(sql, 10)
+    df['start_time'] = df['start_time'].astype(str)
+    return [{'label':row['start_time'], 'value':row['id']} for _,row in df.iterrows()], None
+
+
+
 
 # @callback(
 #     Output(get_component_id('notification'), 'children', allow_duplicate=True),

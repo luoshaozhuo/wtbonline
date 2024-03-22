@@ -23,7 +23,8 @@ HEADER_MENU_FONTSIZE = '10px'
 HEADER_MENU_ICON_WIDTH = 15
 WINDFARM_NAME = PGFacade.read_model_factory()['factory_name'].iloc[0]
 
-TOOLBAR_SIZE = '205px'
+_tool_bar_size = 205
+TOOLBAR_SIZE = f'{_tool_bar_size}px'
 TOOLBAR_PADDING = '10px'
 TOOLBAR_TOGGLE_SIZE = 'sm'
 TOOLBAR_TOGGLE_ICON_WIDTH = 20
@@ -31,7 +32,7 @@ TOOLBAR_TOGGLE_POS_TOP = 70
 TOOLBAR_TOGGLE_POS_RIGHT = 20
 TOOLBAR_COMPONENT_SIZE = 'xs'
 TOOLBAR_ICON_WIDTH = 20
-TOOLBAR_COMPONENT_WIDTH = '170px'
+TOOLBAR_COMPONENT_WIDTH = f'{_tool_bar_size-20}px'
 TOOLBAR_FONT_SIZE = 'sm'
 TOOLBAR_HIDE_SMALLER_THAN =  'lg'
 TOOLBAR_TABLE_COLUMNS = ['图例号', 'map_id', 'start_time', 'end_time', 'set_id']
@@ -76,7 +77,7 @@ NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL = '后台操作失败'
 NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS = '后台操作成功'
 
 WINDFARM_INFORMATION =  PGFacade.read_model_factory()
-WINDFARM_FAULT_TYPE = RSDBFacade.read_turbine_fault_type()
+WINDFARM_FAULT_TYPE = RSDBFacade.read_turbine_fault_type().set_index('id', drop=False)
 WINDFARM_MODEL_DEVICE = PGFacade.read_model_device().set_index('device_name', drop=False)
 WINDFARM_DATE_RANGE = get_date_rage_tsdb().set_index('device_name', drop=False)
 WINDFARM_DATE_RANGE_RSDB = get_date_rage_rsdb().set_index('device_name', drop=False)
