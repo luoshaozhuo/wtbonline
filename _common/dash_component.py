@@ -32,23 +32,30 @@ def select_analysis_type(id, data:list, label:str, size=cfg.TOOLBAR_COMPONENT_SI
     return select(id=id, data=data, value=data[0], label=label, size=size, width=width, withAsterisk=withAsterisk)
 
 def select_setid(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False): 
-    data = cfg.WINDFARM_MODEL_DEVICE['set_id'].unique()
-    return select(id=id, data=data, value=None, label='机型编号', size=size, width=width, withAsterisk=withAsterisk)
+    data = cfg.WINDFARM_MODEL_DEVICE['set_id'].unique().tolist()
+    return select(id=id, data=data, value=data[0], label='机型编号', size=size, width=width, withAsterisk=withAsterisk)
 
-def select_device_name(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
-    return select(id, label="风机编号", data=[], value=None, size=size, width=width, withAsterisk=withAsterisk)
+def select_device_name(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False, description=''):
+    return select(id, label="风机编号", data=[], value=None, size=size, width=width, withAsterisk=withAsterisk, description=description)
 
-def multiselect_device_name(id):
+def multiselect(id, label, description, maxSelectedValues, disabled):
     return dmc.MultiSelect(
-        label="风机编号",
-        placeholder="最多选择5台设备",
-        maxSelectedValues=5,
+        label=label,
+        description=description,
+        maxSelectedValues=maxSelectedValues,
         size=cfg.TOOLBAR_COMPONENT_SIZE,
         id=id,
         clearable=True,
         searchable=True,
+        disabled=disabled,
         style={"width": cfg.TOOLBAR_COMPONENT_WIDTH, "marginBottom": 10},
         )
+
+def multiselect_device_name(id):
+    multiselect(id=id, label='风机编号', description='最多选择5台设备', maxSelectedValues=5)
+
+def multiselecdt_var_name(id, disabled=False):
+    return multiselect(id=id, label='选择变量名', description='最多选择10个变量', maxSelectedValues=10, disabled=disabled)
 
 # def select_fault_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
 #     data = cfg.WINDFARM_FAULT_TYPE['name'].unique()
@@ -134,3 +141,13 @@ def dash_try(note_title, func, *args, **kwargs):
             _type='error'
             )     
     return rs, note 
+
+def dash_dbquery(func,  not_empty=True,  *args, **kwargs):
+    df, note = dash_try(note_title=cfg.NOTIFICATION_TITLE_DBQUERY_FAIL, func=func, *args, **kwargs)
+    if not_empty and df is not None and len(df)==0:
+        note = notification(
+            title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,
+            msg=f'func={func.__name__},args={args},{kwargs}',
+            _type='warning'
+            )
+    return df, note

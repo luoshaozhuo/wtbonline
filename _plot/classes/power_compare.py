@@ -22,7 +22,7 @@ class PowerCompare(Base):
         ''' 定制的初始化过程 '''
         self.height = 600
     
-    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, **kwargs):
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str):
         df = RSDBFacade.read_statistics_sample(
             set_id=set_id,
             device_id=device_ids,

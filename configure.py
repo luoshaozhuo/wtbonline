@@ -79,6 +79,7 @@ NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS = '后台操作成功'
 WINDFARM_INFORMATION =  PGFacade.read_model_factory()
 WINDFARM_FAULT_TYPE = RSDBFacade.read_turbine_fault_type().set_index('id', drop=False)
 WINDFARM_MODEL_DEVICE = PGFacade.read_model_device().set_index('device_name', drop=False)
+WINDFARM_VAR_NAME = PGFacade.read_model_point()
 WINDFARM_DATE_RANGE = get_date_rage_tsdb().set_index('device_name', drop=False)
 WINDFARM_DATE_RANGE_RSDB = get_date_rage_rsdb().set_index('device_name', drop=False)
 

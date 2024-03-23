@@ -77,6 +77,7 @@ class RSDBFacade():
     def read_statistics_fault(
             cls, 
             *, 
+            id_:Optional[Union[list, int, str]]=None,
             set_id:Optional[Union[str, List[str]]]=None,
             device_id:Optional[Union[str, List[str]]]=None,
             fault_id:Optional[Union[int, List[int]]]=None,
@@ -104,7 +105,7 @@ class RSDBFacade():
         lt_clause = {} if end_time is None else {'start_time':end_time}
         
         eq_clause, in_clause = cls.get_in_or_eq_clause(
-            set_id=set_id, device_id=device_id, fault_id=fault_id, value=value, fault_type=fault_type)
+            id=id_, set_id=set_id, device_id=device_id, fault_id=fault_id, value=value, fault_type=fault_type)
         return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, 
                           lge_clause=lge_clause, lt_clause=lt_clause ,columns=columns) 
 

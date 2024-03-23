@@ -30,7 +30,7 @@ class PowerCurve(Base):
     def get_title(self, set_id, device_ids):
         return '功率曲线'
     
-    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, **kwargs):
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str):
         device_ids = make_sure_list(device_ids)
         df = RSDBFacade.read_statistics_sample(
             set_id=set_id,

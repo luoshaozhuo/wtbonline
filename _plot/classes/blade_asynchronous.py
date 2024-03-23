@@ -31,12 +31,13 @@ class BladeAsynchronous(Base):
                         x=plot_df['ts'], 
                         y=plot_df[var_name],
                         mode='lines+markers',           
-                        marker={'opacity':0.5, 'size':4, 'color':colors[i]},
-                        name=ytitles[var_name],
+                        marker={'opacity':0.5, 'size':4, 'color':colors[i%3]},
+                        name=f'叶片 {i+1}',
+                        showlegend=i<3
                         ),
                     row=1 if i<3 else 2, 
                     col=1)
-                fig.update_yaxes(title_text='实际角度 °' if i<3 else '参考角度 °', row=i+1, col=1)
+                fig.update_yaxes(title_text='实际角度 °' if i<3 else '参考角度 °', row=i//3+1, col=1)
             fig.update_xaxes(title_text='时间', row=nrow, col=1)
             break
         return fig

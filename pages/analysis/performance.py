@@ -110,7 +110,6 @@ layout = [
     Output(get_component_id('multiselect_device_name'), 'data'),
     Output(get_component_id('multiselect_device_name'), 'value'),
     Input(get_component_id('select_setid'), 'value'),
-    prevent_initial_call=True
     )
 def callback_update_multiselect_device_name_performance(set_id):
     df = cfg.WINDFARM_MODEL_DEVICE[cfg.WINDFARM_MODEL_DEVICE['set_id']==set_id]

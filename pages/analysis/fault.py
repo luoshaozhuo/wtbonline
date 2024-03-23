@@ -9,6 +9,7 @@ import dash_mantine_components as dmc
 from dash import dcc, html
 from dash_iconify import DashIconify
 from dash import Output, Input, html, dcc, State, callback, no_update
+from matplotlib.style import available
 import pandas as pd
 from functools import partial
 
@@ -17,6 +18,10 @@ import wtbonline.configure as cfg
 from wtbonline._common import utils 
 from wtbonline._common import dash_component as dcmpt
 from wtbonline._db.rsdb.dao import RSDB
+from wtbonline._plot import graph_factory
+from wtbonline._db.tsdb_facade import TDFC
+
+import time
 
 #%% constant
 SECTION = '分析'
@@ -41,28 +46,35 @@ def create_toolbar_content():
         px=cfg.TOOLBAR_PADDING, 
         children=[
             dcmpt.select_setid(id=get_component_id('select_setid')),
-            dcmpt.select_device_name(id=get_component_id('select_device_name')),
-            dcmpt.select(id=get_component_id('select_fault_name'), data=[], value=None, label='故障类型'),
-            dcmpt.select(id=get_component_id('select_item'), data=[], value=None, label='故障发生时间'),
+            dcmpt.select(id=get_component_id('select_device_id'), data=[], value=None, label='风机编号', description='只显示有故障记录的机组'),
+            dcmpt.select(id=get_component_id('select_fault_name'), data=[], value=None, label='故障类型', description='只显示存在故障记录的类型'),
+            dcmpt.select(id=get_component_id('select_item'), data=[], value=None, label='故障发生时间', description='只显示最新15个'),
+            dcmpt.multiselecdt_var_name(id=get_component_id('select_var_name')),
             dmc.Space(h='20px'),
-            dmc.Button(
-                fullWidth=True,
-                disabled=True,
-                id=get_component_id('btn_refresh'),
-                leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
-                size=cfg.TOOLBAR_COMPONENT_SIZE,
-                children="刷新图像",
-                ),
-            dmc.Space(h='20px'),
-            dmc.Button(
-                fullWidth=True,
-                disabled=True,
-                id=get_component_id('btn_download'),
-                leftIcon=DashIconify(icon="mdi:arrow-collapse-down", width=cfg.TOOLBAR_ICON_WIDTH),
-                size=cfg.TOOLBAR_COMPONENT_SIZE,
-                children="下载数据",
-                color='green'
-                ),
+            dmc.LoadingOverlay(
+                loaderProps={"size": "sm"},
+                children=[
+                    dmc.Button(
+                        fullWidth=True,
+                        disabled=True,
+                        id=get_component_id('btn_refresh'),
+                        leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
+                        size=cfg.TOOLBAR_COMPONENT_SIZE,
+                        children="刷新图像",
+                        ),
+                    dmc.Space(h='20px'),
+                    dcc.Download(id=get_component_id('download_dataframe')),
+                    dmc.Button(
+                        fullWidth=True,
+                        disabled=True,
+                        id=get_component_id('btn_download'),
+                        leftIcon=DashIconify(icon="mdi:arrow-collapse-down", width=cfg.TOOLBAR_ICON_WIDTH),
+                        size=cfg.TOOLBAR_COMPONENT_SIZE,
+                        children="下载数据",
+                        color='green'
+                        ),
+                    ]  
+            ),
             dmc.Space(h='200px'), 
             ]
         )
@@ -84,11 +96,11 @@ def creat_toolbar():
 
 def creat_content():
     return  dmc.LoadingOverlay(       
-            dcc.Graph(
-                id=get_component_id('graph'),
-                config={'displaylogo':False},
-                )
+        dcc.Graph(
+            id=get_component_id('graph'),
+            config={'displaylogo':False},
             )
+        )
 
 #%% layout
 if __name__ == '__main__':     
@@ -116,43 +128,59 @@ layout = [
 
 #%% callback
 @callback(
-    Output(get_component_id('select_device_name'), 'data'),
-    Output(get_component_id('select_device_name'), 'value'),
+    Output(get_component_id('notification'), 'children'),
+    Output(get_component_id('select_device_id'), 'data'),
+    Output(get_component_id('select_device_id'), 'value'),
     Input(get_component_id('select_setid'), 'value'),
-    prevent_initial_call=True
     )
 def callback_update_select_device_name_fault(set_id):
     if set_id in (None, ''):
-        return [], None
-    sr = RSDBFacade.read_statistics_fault(set_id=set_id)['device_id'].unique()
-    device_names = cfg.WINDFARM_MODEL_DEVICE[cfg.WINDFARM_MODEL_DEVICE['device_id'].isin(sr)]['device_name']
-    return [{'label':i, 'value':i} for i in device_names], None
+        return no_update, [], None
+    df, note = dcmpt.dash_dbquery(
+        func=RSDBFacade.read_statistics_fault,
+        set_id=set_id,
+        )
+    if note is None:
+        sr = df['device_id'].unique()
+        df = cfg.WINDFARM_MODEL_DEVICE[cfg.WINDFARM_MODEL_DEVICE['device_id'].isin(sr)]
+        data = [{'label':row['device_name'], 'value':row['device_id']} for _,row in df.iterrows()]
+    else:
+        data = []
+    return note, data, None
 
 @callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('select_fault_name'), 'data'),
     Output(get_component_id('select_fault_name'), 'value'),
-    Input(get_component_id('select_device_name'), 'value'),
+    Input(get_component_id('select_device_id'), 'value'),
     prevent_initial_call=True
     )
-def callback_update_select_fault_name_fault(device_name):
-    if device_name in (None, ''):
-        return [], None
-    device_id = cfg.WINDFARM_MODEL_DEVICE['device_id'][device_name]
-    sr = RSDBFacade.read_statistics_fault(device_id=device_id)['fault_id'].unique()
-    fault_types = cfg.WINDFARM_FAULT_TYPE['name'].loc[sr].unique()
-    return [{'label':i, 'value':i} for i in fault_types], None
+def callback_update_select_fault_name_fault(device_id):
+    if device_id in (None, ''):
+        return no_update, [], None
+    df, note = dcmpt.dash_dbquery(
+        func=RSDBFacade.read_statistics_fault,
+        device_id=device_id,
+        )
+    if note is None:
+        sr = df['fault_id'].unique()
+        fault_types = cfg.WINDFARM_FAULT_TYPE['name'].loc[sr].unique()
+        data = [{'label':i, 'value':i} for i in fault_types]
+    else:
+        data = []
+    return note, data, None
 
 @callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('select_item'), 'data'),
     Output(get_component_id('select_item'), 'value'),
     Input(get_component_id('select_fault_name'), 'value'),
-    State(get_component_id('select_device_name'), 'value'),
+    State(get_component_id('select_device_id'), 'value'),
     prevent_initial_call=True
     )
-def callback_update_select_item_fault(fault_name, device_name):
+def callback_update_select_item_fault(fault_name, device_id):
     if fault_name in (None, ''):
-        return [], None
-    device_id = cfg.WINDFARM_MODEL_DEVICE['device_id'][device_name]
+        return no_update, [], None
     fault_ids = cfg.WINDFARM_FAULT_TYPE[cfg.WINDFARM_FAULT_TYPE['name']==fault_name]['id'].astype(str)
     sql = (
         f'select id, start_time from statistics_fault '
@@ -160,90 +188,147 @@ def callback_update_select_item_fault(fault_name, device_name):
         f'ORDER BY start_time desc '
         f'limit 15'
         )
-    df = RSDB.read_sql(sql, 10)
-    df['start_time'] = df['start_time'].astype(str)
-    return [{'label':row['start_time'], 'value':row['id']} for _,row in df.iterrows()], None
+    df, note = dcmpt.dash_dbquery(
+        func=RSDB.read_sql,
+        stmt=sql,
+        )
+    if note is None:
+        df['start_time'] = df['start_time'].astype(str)
+        data = [{'label':row['start_time'], 'value':row['id']} for _,row in df.iterrows()]
+    else:
+        data = []
+    return note, data, None
 
+@callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
+    Output(get_component_id('select_var_name'), 'disabled'),
+    Output(get_component_id('select_var_name'), 'data'),
+    Output(get_component_id('select_var_name'), 'value'),
+    Input(get_component_id('select_item'), 'value'),
+    State(get_component_id('select_setid'), 'value'),
+    prevent_initial_call=True
+    )
+def callback_update_select_var_name_fault(id_, set_id):
+    note = no_update
+    disabled = True
+    data = []
+    value = None
+    if id_ in (None, ''):
+        return no_update, disabled, data, value
+    df, note = dcmpt.dash_dbquery(
+        func=RSDBFacade.read_statistics_fault,
+        id_=id_
+        )
+    if note is None:
+        sr = df.squeeze()
+        type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sr['fault_id'], :]
+        if type_sr['graph']=='ordinary':
+            df = cfg.WINDFARM_VAR_NAME[cfg.WINDFARM_VAR_NAME['set_id']==set_id]
+            data = [{'label':row['point_name'], 'value':row['var_name']} for _,row in df.iterrows()]
+            value = pd.Series(type_sr['var_names'].split(','))
+            value = value[value.isin(df['var_name'])].tolist()
+            disabled = False
+        else:
+            data = []
+            value = None
+            disabled = True
+    return note, disabled, data, value
 
+@callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
+    Output(get_component_id('btn_refresh'), 'disabled'),
+    Output(get_component_id('btn_download'), 'disabled'),
+    Input(get_component_id('select_item'), 'value'), 
+    Input(get_component_id('select_var_name'), 'value'), 
+    prevent_initial_call=True
+    )
+def callback_disable_btns_fault(id_, var_names):
+    note = no_update
+    btn_refresh = True
+    btn_download = True
+    if id_ in (None, ''):
+        return note, btn_refresh, btn_download
+    df, note = dcmpt.dash_dbquery(
+        func=RSDBFacade.read_statistics_fault,
+        id_=id_
+        )
+    if note is None:
+        btn_download = False
+        btn_refresh = False
+        sr = df.squeeze()
+        type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sr['fault_id'], :]
+        if type_sr['graph']=='ordinary' and (var_names in (None, '') or len(var_names)<1):
+            btn_refresh = True
+    return note, btn_refresh, btn_download
 
+@callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
+    Output(get_component_id('graph'), 'figure'),
+    Input(get_component_id('btn_refresh'), 'n_clicks'),
+    State(get_component_id('select_setid'), 'value'),
+    State(get_component_id('select_device_id'), 'value'),
+    State(get_component_id('select_item'), 'value'),
+    State(get_component_id('select_var_name'), 'value'),
+    prevent_initial_call=True
+    )
+def callback_on_btn_refresh_fault(n, set_id, device_id, sample_id, var_names):
+    df, note = dcmpt.dash_dbquery(
+        func=RSDBFacade.read_statistics_fault,
+        id_=sample_id
+        )
+    if note is not None:
+        return note, {}
+    sample_sr = df.iloc[0]
+    fault_type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sample_sr['fault_id']]
+    grapp_name = fault_type_sr['graph']
+    graph_obj = graph_factory(fault_type_sr['graph'])()
+    if grapp_name=='ordinary':
+        graph_obj.init(var_names=var_names)
+    delta = pd.Timedelta(f'{fault_type_sr["time_span"]}m')
+    fig, note = dcmpt.dash_try(
+        note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL, 
+        func=graph_obj.plot,
+        set_id=set_id,
+        device_ids=device_id,
+        start_time=sample_sr['start_time']-delta, 
+        end_time=sample_sr['end_time']+delta,
+        title=fault_type_sr['name']
+        )
+    return note, fig
 
-# @callback(
-#     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-#     Output(get_component_id('datepicker_date'), 'disabledDates'),
-#     Output(get_component_id('datepicker_date'), 'minDate'),
-#     Output(get_component_id('datepicker_date'), 'maxDate'),
-#     Output(get_component_id('datepicker_date'), 'value'),
-#     Input(get_component_id('select_device_name'), 'value'),
-#     Input(get_component_id('select_type'), 'value'),
-#     prevent_initial_call=True
-#     )
-# def callback_update_datepicker_date_fault(map_id, _type):
-#     if None in (map_id, _type):
-#         return no_update, no_update, no_update, no_update, None    
-#     turbine_id = utils.interchage_device_name_and_tid(map_id=map_id)
-#     df, note = utils.dash_try(
-#         note_title = cfg.NOTIFICATION_TITLE_DBQUERY_FAIL, 
-#         func=RSDBFacade.read_statistics_fault, 
-#         turbine_id=turbine_id if turbine_id is not None else '', 
-#         fault_id=utils.get_fault_id(name=_type),
-#         columns=['date']
-#         )
-#     if df is None:
-#         return note, no_update, no_update, no_update
-#     if len(df)>0:
-#         availableDates = df['date'].squeeze()
-#         minDate = availableDates.min()
-#         maxDate = availableDates.max()
-#         disabledDates = pd.date_range(minDate, maxDate)
-#         disabledDates = disabledDates[~disabledDates.isin(availableDates)]
-#         disabledDates = [i.date().isoformat() for i in disabledDates]
-#     else:
-#         minDate = cfg.DATE
-#         maxDate = cfg.DATE
-#         disabledDates = [cfg.DATE]
-#     return no_update, disabledDates, minDate, maxDate, None
-
-# @callback(
-#     Output(get_component_id('btn_refresh'), 'disabled'), 
-#     Input(get_component_id('datepicker_date'), 'value'),  
-#     prevent_initial_call=True 
-# )
-# def callback_update_btn_resresh_fault(dt):
-#     return True if dt is None else False
-
-# @callback(
-#     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-#     Output(get_component_id('graph'), 'figure'),
-#     Input(get_component_id('btn_refresh'), 'n_clicks'),
-#     State(get_component_id('select_setid'), 'value'),
-#     State(get_component_id('select_device_name'), 'value'),
-#     State(get_component_id('select_type'), 'value'),
-#     State(get_component_id('datepicker_date'), 'value'),
-#     prevent_initial_call=True
-#     )
-# def callback_on_btn_refresh_fault(n, set_id, map_id, _type, dt):
-#     turbine_id = utils.interchage_device_name_and_tid(map_id)
-#     df, note = utils.dash_dbquery( 
-#         func=RSDBFacade.read_statistics_fault, 
-#         turbine_id = turbine_id,
-#         date = dt
-#         )
-#     if note is not None:
-#         return note, no_update
-#     dt = df['timestamp'].iloc[0]
-#     delta = pd.Timedelta('10m')
-#     target_df = dict(set_id=set_id, map_id=map_id, start_time=dt-delta, end_time=dt+delta)
-#     graph = None
-#     if len(target_df)>0:
-#         graph, note = utils.dash_try(
-#             note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,   
-#             func=GRAPH_CONF.loc[_type]['class'], 
-#             target_df=target_df,
-#             title=_type
-#             )
-#     figure = no_update if graph is None else graph.figs[0]
-#     return note, figure
-
+@callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
+    Output(get_component_id('download_dataframe'), 'data'),
+    Input(get_component_id('btn_download'), 'n_clicks'),
+    State(get_component_id('select_setid'), 'value'),
+    State(get_component_id('select_device_id'), 'value'),
+    State(get_component_id('select_item'), 'value'),
+    prevent_initial_call=True
+    )
+def callback_on_btn_download_fault(n, set_id, device_id, sample_id):
+    df, note = dcmpt.dash_dbquery(
+        func=RSDBFacade.read_statistics_fault,
+        id_=sample_id
+        )
+    if note is not None:
+        return note, no_update
+    sample_sr = df.iloc[0]
+    fault_type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sample_sr['fault_id']]
+    delta = pd.Timedelta(f'{fault_type_sr["time_span"]}m')
+    columns = pd.Series(fault_type_sr['var_names'].split(','))
+    available_cols = cfg.WINDFARM_VAR_NAME[cfg.WINDFARM_VAR_NAME['set_id']==set_id]['var_name']
+    columns = columns[columns.isin(available_cols)]
+    df, note = dcmpt.dash_dbquery(
+        func=TDFC.read,
+        set_id=set_id, 
+        device_id=device_id,
+        start_time=sample_sr['start_time']-delta, 
+        end_time=sample_sr['end_time']+delta,
+        columns=fault_type_sr['var_names'].split(','),
+        remote=True    
+        )
+    data = dcc.send_data_frame(df.to_csv, "mydf.csv") if note is None else no_update
+    return note, data
 
 #%% main
 if __name__ == '__main__':     

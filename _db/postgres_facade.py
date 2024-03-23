@@ -21,7 +21,7 @@ _ENGINE = create_engine(POSTGRES_URI)
 #%% class
 class PGFacade():
     @classmethod  
-    def read_model_point(cls, set_id:str, var_name:List[str]=[], point_name:List[str]=[]):
+    def read_model_point(cls, set_id:str=None, var_name:List[str]=[], point_name:List[str]=[]):
         '''
         >>> len(PGFacade.read_model_point(set_id='20835'))>0
         True
@@ -35,8 +35,9 @@ class PGFacade():
         var_name = make_sure_list(var_name)
         point_name = make_sure_list(point_name)
         cols = ['set_id', 'var_name', 'point_name', 'datatype', 'unit']
-        sql = text(f"select {','.join(cols)} from model_points where set_id='{set_id}' and local_save=1")
-        df = pd.read_sql(sql, con=_ENGINE)
+        sql = f"select {','.join(cols)} from model_points where local_save=1"
+        sql += f" and set_id='{set_id}'" if set_id is not None else ''
+        df = pd.read_sql(text(sql), con=_ENGINE)
         df['var_name'] = df['var_name'].str.lower()
         if 'unit' in df.columns:
             df['unit'] = df['unit'].fillna('unknown')
