@@ -35,32 +35,6 @@ TABLE_HEIGHT = '200PX'
 #%% function
 get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
-def load_figure(sample_id, var_names):
-    df, note = dcmpt.dash_dbquery(
-    func=RSDBFacade.read_statistics_fault,
-        id_=sample_id
-        )
-    if note is not None:
-        return {}, note
-    sample_sr = df.iloc[0]
-    fault_type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sample_sr['fault_id']]
-    grapp_name = fault_type_sr['graph']
-    graph_obj = graph_factory(fault_type_sr['graph'])()
-    if grapp_name=='ordinary':
-        graph_obj.init(var_names=var_names)
-    delta = pd.Timedelta(f'{fault_type_sr["time_span"]}m')
-    fig, note = dcmpt.dash_try(
-        note_title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA, 
-        func=graph_obj.plot,
-        set_id=sample_sr['set_id'],
-        device_ids=sample_sr['device_id'],
-        start_time=sample_sr['start_time']-delta, 
-        end_time=sample_sr['end_time']+delta,
-        title=fault_type_sr['name']
-        )
-    return fig, note
-
-
 #%% component
 def create_toolbar_content():
     return dmc.Stack(
@@ -73,29 +47,24 @@ def create_toolbar_content():
             dcmpt.select(id=get_component_id('select_item'), data=[], value=None, label='故障发生时间', description='只显示最新15个'),
             dcmpt.multiselecdt_var_name(id=get_component_id('select_var_name')),
             dmc.Space(h='20px'),
-            dmc.LoadingOverlay(
-                children=[
-                    dmc.Button(
-                        fullWidth=True,
-                        disabled=True,
-                        id=get_component_id('btn_refresh'),
-                        leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
-                        size=cfg.TOOLBAR_COMPONENT_SIZE,
-                        children="刷新图像",
-                        ),
-                    dmc.Space(h='20px'),
-                    dcc.Download(id=get_component_id('download_dataframe')),
-                    dmc.Button(
-                        fullWidth=True,
-                        disabled=True,
-                        id=get_component_id('btn_download'),
-                        leftIcon=DashIconify(icon="mdi:arrow-collapse-down", width=cfg.TOOLBAR_ICON_WIDTH),
-                        size=cfg.TOOLBAR_COMPONENT_SIZE,
-                        children="下载数据",
-                        color='green'
-                        ),
-                    ],
-                loaderProps={"size": "sm"},
+            dmc.Button(
+                fullWidth=True,
+                disabled=True,
+                id=get_component_id('btn_refresh'),
+                leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
+                size=cfg.TOOLBAR_COMPONENT_SIZE,
+                children="刷新图像",
+                ),
+            dmc.Space(h='20px'),
+            dcc.Download(id=get_component_id('download_dataframe')),
+            dmc.Button(
+                fullWidth=True,
+                disabled=True,
+                id=get_component_id('btn_download'),
+                leftIcon=DashIconify(icon="mdi:arrow-collapse-down", width=cfg.TOOLBAR_ICON_WIDTH),
+                size=cfg.TOOLBAR_COMPONENT_SIZE,
+                children="下载数据",
+                color='green'
                 ),
             dmc.Space(h='200px'), 
             ]
@@ -140,7 +109,6 @@ dash.register_page(
 
 layout = [
     html.Div(id=get_component_id('notification')),
-    dcc.Store(id=get_component_id('dcc_figure'), storage_type='session', data={}),
     dmc.Container(children=[creat_content()], size=cfg.CONTAINER_SIZE,pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
         smallerThan=cfg.TOOLBAR_HIDE_SMALLER_THAN,
@@ -261,61 +229,63 @@ def callback_update_select_var_name_fault(id_, set_id):
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('btn_refresh'), 'disabled'),
     Output(get_component_id('btn_download'), 'disabled'),
-    Output(get_component_id('dcc_figure'), 'data'),
     Input(get_component_id('select_item'), 'value'), 
     Input(get_component_id('select_var_name'), 'value'), 
     prevent_initial_call=True
     )
-def callback_update_btns_fault(sample_id, var_names):
-    if sample_id in (None, ''):
-        return no_update, True, True, {}
-    figure, note = load_figure(sample_id, var_names)
-    btn_refresh = not(note is None)
-    return note, btn_refresh, False, figure
+def callback_disable_btns_fault(id_, var_names):
+    note = no_update
+    btn_refresh = True
+    btn_download = True
+    if id_ in (None, ''):
+        return note, btn_refresh, btn_download
+    df, note = dcmpt.dash_dbquery(
+        func=RSDBFacade.read_statistics_fault,
+        id_=id_
+        )
+    if note is None:
+        btn_download = False
+        btn_refresh = False
+        sr = df.squeeze()
+        type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sr['fault_id'], :]
+        if type_sr['graph']=='ordinary' and (var_names in (None, '') or len(var_names)<1):
+            btn_refresh = True
+    return note, btn_refresh, btn_download
 
 @callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('graph'), 'figure'),
     Input(get_component_id('btn_refresh'), 'n_clicks'),
-    State(get_component_id('dcc_figure'), 'data'),
+    State(get_component_id('select_setid'), 'value'),
+    State(get_component_id('select_device_id'), 'value'),
+    State(get_component_id('select_item'), 'value'),
+    State(get_component_id('select_var_name'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_btn_refresh_fault(n, figure):
-    return figure
-
-# @callback(
-#     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-#     Output(get_component_id('graph'), 'figure'),
-#     Input(get_component_id('btn_refresh'), 'n_clicks'),
-#     State(get_component_id('select_setid'), 'value'),
-#     State(get_component_id('select_device_id'), 'value'),
-#     State(get_component_id('select_item'), 'value'),
-#     State(get_component_id('select_var_name'), 'value'),
-#     prevent_initial_call=True
-#     )
-# def callback_on_btn_refresh_fault(n, set_id, device_id, sample_id, var_names):
-#     df, note = dcmpt.dash_dbquery(
-#         func=RSDBFacade.read_statistics_fault,
-#         id_=sample_id
-#         )
-#     if note is not None:
-#         return note, {}
-#     sample_sr = df.iloc[0]
-#     fault_type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sample_sr['fault_id']]
-#     grapp_name = fault_type_sr['graph']
-#     graph_obj = graph_factory(fault_type_sr['graph'])()
-#     if grapp_name=='ordinary':
-#         graph_obj.init(var_names=var_names)
-#     delta = pd.Timedelta(f'{fault_type_sr["time_span"]}m')
-#     fig, note = dcmpt.dash_try(
-#         note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL, 
-#         func=graph_obj.plot,
-#         set_id=set_id,
-#         device_ids=device_id,
-#         start_time=sample_sr['start_time']-delta, 
-#         end_time=sample_sr['end_time']+delta,
-#         title=fault_type_sr['name']
-#         )
-#     return note, fig
+def callback_on_btn_refresh_fault(n, set_id, device_id, sample_id, var_names):
+    df, note = dcmpt.dash_dbquery(
+        func=RSDBFacade.read_statistics_fault,
+        id_=sample_id
+        )
+    if note is not None:
+        return note, {}
+    sample_sr = df.iloc[0]
+    fault_type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sample_sr['fault_id']]
+    grapp_name = fault_type_sr['graph']
+    graph_obj = graph_factory(fault_type_sr['graph'])()
+    if grapp_name=='ordinary':
+        graph_obj.init(var_names=var_names)
+    delta = pd.Timedelta(f'{fault_type_sr["time_span"]}m')
+    fig, note = dcmpt.dash_try(
+        note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL, 
+        func=graph_obj.plot,
+        set_id=set_id,
+        device_ids=device_id,
+        start_time=sample_sr['start_time']-delta, 
+        end_time=sample_sr['end_time']+delta,
+        title=fault_type_sr['name']
+        )
+    return note, fig
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),

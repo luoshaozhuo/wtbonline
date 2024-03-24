@@ -46,14 +46,17 @@ def create_toolbar_content():
             dcmpt.date_picker(id=get_component_id('datepicker_end'), label="结束日期", description="此日期的零点为区间右端"),
             dcmpt.number_input(id=get_component_id('input_span'), label='时长', value=90, min=1, description='单位，天'),
             dmc.Space(h='10px'),
-            dmc.Button(
-                fullWidth=True,
-                disabled=True,
-                id=get_component_id('btn_refresh'),
-                leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
-                size=cfg.TOOLBAR_COMPONENT_SIZE,
-                children="刷新图像",
-                ), 
+            dmc.LoadingOverlay(
+                dmc.Button(
+                    fullWidth=True,
+                    disabled=True,
+                    id=get_component_id('btn_refresh'),
+                    leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
+                    size=cfg.TOOLBAR_COMPONENT_SIZE,
+                    children="刷新图像",
+                    ),
+                loaderProps={"size": "sm"},
+                ),
             dmc.Space(h='200px'),
             ]
         )
@@ -75,11 +78,11 @@ def creat_toolbar():
 
 def creat_content():
     return  dmc.LoadingOverlay(       
-            dcc.Graph(
-                id=get_component_id('graph'),
-                config={'displaylogo':False},
-                )
+        dcc.Graph(
+            id=get_component_id('graph'),
+            config={'displaylogo':False},
             )
+        )
 
 #%% layout
 if __name__ == '__main__':     
@@ -97,6 +100,7 @@ dash.register_page(
 
 layout = [
     html.Div(id=get_component_id('notification')),
+    dcc.Store(id=get_component_id('store_figure'), storage_type='session', data={}),
     dmc.Container(children=[creat_content()], size=cfg.CONTAINER_SIZE, pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
         smallerThan=cfg.TOOLBAR_HIDE_SMALLER_THAN,
@@ -131,46 +135,43 @@ def callback_update_datepicker_start_performance(device_names):
     maxDate = df['end_date'].min() if len(df)>0 else None
     return minDate, maxDate, maxDate
 
-
-@callback(
-    Output(get_component_id('btn_refresh'), 'disabled'),
-    Input(get_component_id('select_setid'), 'value'),
-    Input(get_component_id('multiselect_device_name'), 'value'),
-    Input(get_component_id('datepicker_end'), 'value'),
-    prevent_initial_call=True
-    )
-def callback_disable_btn_refresh_performance(set_id, device_names, end_date):
-    if None in (set_id, device_names, end_date) or  len(device_names)<1:
-        return True
-    return False
-
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-    Output(get_component_id('graph'), 'figure'),
-    Input(get_component_id('btn_refresh'), 'n_clicks'),
+    Output(get_component_id('store_figure'), 'data'),
+    Output(get_component_id('btn_refresh'), 'disabled'),
+    Input(get_component_id('datepicker_end'), 'value'),
+    Input(get_component_id('input_span'), 'value'),
     State(get_component_id('select_type'), 'value'),
     State(get_component_id('select_setid'), 'value'),
     State(get_component_id('multiselect_device_name'), 'value'),
-    State(get_component_id('datepicker_end'), 'value'),
-    State(get_component_id('input_span'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_btn_refresh_performance(n, type_, set_id, device_names, end_date, span):
+def callback_udpate_graph_data_performance(end_date, span, type_, set_id, device_names):
+    if None in [end_date, span]:
+        return no_update, {}, True
     end_time = pd.to_datetime(end_date)   
     start_time =  pd.to_datetime(end_date) - pd.Timedelta(f'{span}d')
     figure, note = dcmpt.dash_try(
-        note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,   
+        note_title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,   
         func=GRAPH_CONF.loc[type_]['class']().plot, 
         set_id=set_id,
         device_ids=cfg.WINDFARM_MODEL_DEVICE[cfg.WINDFARM_MODEL_DEVICE['device_name'].isin(device_names)]['device_id'],
         start_time=start_time,
         end_time=end_time
         )
-    return note, figure
+    return note, figure, not(note is None)
 
+@callback(
+    Output(get_component_id('graph'), 'figure'),
+    Input(get_component_id('btn_refresh'), 'n_clicks'),
+    State(get_component_id('store_figure'), 'data'),
+    prevent_initial_call=True
+)
+def callback_on_btn_refresh_performance(n, figure):
+    return figure
 
 #%% main
 if __name__ == '__main__':  
-    layout =  dmc.NotificationsProvider(children=layout)   
+    layout =  dmc.NotificationsProvider(children=layout, limit=5)   
     app.layout = layout
     app.run_server(debug=True)
