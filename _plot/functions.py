@@ -2,15 +2,17 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
+import numpy as np
 from typing import List
 
 from wtbonline._common.utils import make_sure_list, make_sure_dataframe
 # from wtbonline._common import utils
 # from wtbonline._db.rsdb_facade import RSDBFacade
-# import wtbonline.configure as cfg
+import wtbonline.configure as cfg
 # from wtbonline._process.tools.frequency import power_spectrum, amplitude_spectrum
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.frequency import power_spectrum
+from wtbonline._db.postgres_facade import PGFacade
 
 #%% constant
 ANOMALY_MATRIX_PLOT_COLOR = {
@@ -223,38 +225,39 @@ def spc_plot_multiple_y(df, ycols:List[str], ytitles:List[str]=None, ref_freqs=[
                 )
     return fig
 
-# def get_simple_plot_parameters(xcol:str, ycol:str, y2col:str, plot_type:str, set_id:str):
-#     point_name = pd.Series([xcol, ycol, y2col]).replace(['ts', '时间','频率'], None).dropna()
-#     df = RSDBInterface.read_turbine_model_point(
-#         set_id=set_id,
-#         point_name=point_name,
-#         select=None
-#         ).drop_duplicates('point_name').set_index('point_name', drop=False)
-#     assert len(df)==len(point_name), f'部分字段获取失败，需要{point_name.tolist()}，实际返回{df.index.tolist()}'
+def get_simple_plot_parameters(xcol:str, ycol:str, plot_type:str, set_id:str):
+    '''
+    >>> get_simple_plot_parameters('var_101', 'var_102', '时序图', set_id='20835')
+    ('ts', '时间', 'var_102', '2#叶片实际角度_°')
+    >>> get_simple_plot_parameters('var_101', 'var_102', '频谱图', set_id='20835')
+    ('ts', '频率 Hz', 'var_102', '2#叶片实际角度_°')
+    >>> get_simple_plot_parameters('var_101', 'var_102', '散点图', set_id='20835')
+    ('var_101', '1#叶片实际角度_°', 'var_102', '2#叶片实际角度_°')
+    >>> get_simple_plot_parameters('var_101', 'var_102', '极坐标图', set_id='20835')
+    ('var_101', '1#叶片实际角度_°', 'var_102', '2#叶片实际角度_°')
+    '''
+    var_names = pd.Series([xcol, ycol]).replace(['ts', '时间','频率'], None).dropna().drop_duplicates()
+    df = cfg.WINDFARM_VAR_NAME[cfg.WINDFARM_VAR_NAME['set_id']==set_id].set_index('var_name', drop=False)
+    df = df.loc[var_names,:]
+    assert len(df)==len(var_names), f'部分字段获取失败，需要{var_names.tolist()}，实际返回{df.index.tolist()}'
     
-#     get_col = lambda x:None if x in [None, ''] else df.loc[x, 'var_name'].lower()
-#     get_title = lambda x:None if x in [None, ''] else df.loc[x, 'point_name'] + '_' + df.loc[x, 'unit']
+    get_col = lambda x:None if x in [None, ''] else df.loc[x, 'var_name']
+    get_title = lambda x:None if x in [None, ''] else df.loc[x, 'point_name'] + '_' + df.loc[x, 'unit']
     
-#     ytitle = get_title(ycol)
-#     ycol = get_col(ycol)
-#     y2title = get_title(y2col)
-#     y2col = get_col(y2col)
-#     if plot_type == '时序图':
-#         xcol = 'ts'
-#         xtitle = '时间'
-#         mode = 'markers+lines'
-#     elif plot_type in ('散点图', '极坐标图'):
-#         xtitle = get_title(xcol)
-#         xcol = get_col(xcol)
-#         mode = 'markers'
-#     elif plot_type == '频谱图':
-#         xtitle = '频率 Hz'
-#         xcol = 'ts'
-#         mode = 'markers+lines'
-#     else:
-#         raise ValueError(f'不支持此种图形类别：{plot_type}')
-    
-#     return xcol, xtitle, ycol, ytitle, y2col, y2title, mode
+    ytitle = get_title(ycol)
+    ycol = get_col(ycol)
+    if plot_type == '时序图':
+        xcol = 'ts'
+        xtitle = '时间'
+    elif plot_type in ('散点图', '极坐标图'):
+        xtitle = get_title(xcol)
+        xcol = get_col(xcol)
+    elif plot_type == '频谱图':
+        xtitle = '频率 Hz'
+        xcol = 'ts'
+    else:
+        raise ValueError(f'不支持此种图形类别：{plot_type}')
+    return xcol, xtitle, ycol, ytitle
 
 # def get_simple_plot_selections(set_id, plot_type):
 #     model_point_df = RSDBInterface.read_turbine_model_point(

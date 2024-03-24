@@ -11,6 +11,7 @@ from dash_iconify import DashIconify
 from dash import Output, Input, html, dcc, State, callback, no_update
 import pandas as pd
 from functools import partial
+import json
 
 from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
@@ -271,6 +272,7 @@ def callback_update_btns_fault(sample_id, var_names):
         return no_update, True, True, {}
     figure, note = load_figure(sample_id, var_names)
     btn_refresh = not(note is None)
+    figure = figure.to_json() if note is None else {}
     return note, btn_refresh, False, figure
 
 @callback(
@@ -280,42 +282,7 @@ def callback_update_btns_fault(sample_id, var_names):
     prevent_initial_call=True
     )
 def callback_on_btn_refresh_fault(n, figure):
-    return figure
-
-# @callback(
-#     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-#     Output(get_component_id('graph'), 'figure'),
-#     Input(get_component_id('btn_refresh'), 'n_clicks'),
-#     State(get_component_id('select_setid'), 'value'),
-#     State(get_component_id('select_device_id'), 'value'),
-#     State(get_component_id('select_item'), 'value'),
-#     State(get_component_id('select_var_name'), 'value'),
-#     prevent_initial_call=True
-#     )
-# def callback_on_btn_refresh_fault(n, set_id, device_id, sample_id, var_names):
-#     df, note = dcmpt.dash_dbquery(
-#         func=RSDBFacade.read_statistics_fault,
-#         id_=sample_id
-#         )
-#     if note is not None:
-#         return note, {}
-#     sample_sr = df.iloc[0]
-#     fault_type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sample_sr['fault_id']]
-#     grapp_name = fault_type_sr['graph']
-#     graph_obj = graph_factory(fault_type_sr['graph'])()
-#     if grapp_name=='ordinary':
-#         graph_obj.init(var_names=var_names)
-#     delta = pd.Timedelta(f'{fault_type_sr["time_span"]}m')
-#     fig, note = dcmpt.dash_try(
-#         note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL, 
-#         func=graph_obj.plot,
-#         set_id=set_id,
-#         device_ids=device_id,
-#         start_time=sample_sr['start_time']-delta, 
-#         end_time=sample_sr['end_time']+delta,
-#         title=fault_type_sr['name']
-#         )
-#     return note, fig
+    return figure if isinstance(figure, dict) else json.loads(figure)
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),

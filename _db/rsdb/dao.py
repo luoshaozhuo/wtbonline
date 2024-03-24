@@ -147,7 +147,7 @@ class RSDBDAO():
         orderby = make_sure_list(orderby)
         assert model_ is not None, f'table {tbname} not defined in model.py'
         
-        stmt = Select()(model_=model_, params=columns)
+        stmt = Select()(model_=model_, params=[columns, groupby])
         stmt = Where()(model_=model_, params={'eq':eq_clause,'lge':lge_clause,'lt':lt_clause,'in':in_clause}, stmt=stmt)        
         
         stmt = stmt if unique==False else stmt.distinct()

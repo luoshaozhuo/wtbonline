@@ -14,9 +14,11 @@ from dash_iconify import DashIconify
 from dash import Output, Input, html, dcc, State, callback, no_update
 import pandas as pd
 from functools import partial
+import json
 
 import wtbonline.configure as cfg
 from wtbonline._common import dash_component as dcmpt
+from wtbonline._process.tools.common import get_date_range_statistics_sample
 
 #%% constant
 SECTION = '分析'
@@ -42,7 +44,7 @@ def create_toolbar_content():
         children=[
             dcmpt.select_analysis_type(id=get_component_id('select_type'), data=list(GRAPH_CONF.index), label='分析类型'),
             dcmpt.select_setid(id=get_component_id('select_setid')),
-            dcmpt.multiselect_device_name(id=get_component_id('multiselect_device_name')),
+            dcmpt.multiselect_device_id(id=get_component_id('multiselect_device_id')),
             dcmpt.date_picker(id=get_component_id('datepicker_end'), label="结束日期", description="此日期的零点为区间右端"),
             dcmpt.number_input(id=get_component_id('input_span'), label='时长', value=90, min=1, description='单位，天'),
             dmc.Space(h='10px'),
@@ -111,29 +113,34 @@ layout = [
 
 #%% callback
 @callback(
-    Output(get_component_id('multiselect_device_name'), 'data'),
-    Output(get_component_id('multiselect_device_name'), 'value'),
+    Output(get_component_id('multiselect_device_id'), 'data'),
+    Output(get_component_id('multiselect_device_id'), 'value'),
     Input(get_component_id('select_setid'), 'value'),
     )
-def callback_update_multiselect_device_name_performance(set_id):
+def callback_update_multiselect_device_id_performance(set_id):
     df = cfg.WINDFARM_MODEL_DEVICE[cfg.WINDFARM_MODEL_DEVICE['set_id']==set_id]
-    data = [] if df is None else [{'value':i, 'label':i} for i in df['device_name']]
+    data = [] if df is None else [{'label':row['device_name'], 'value':row['device_id']} for _,row in df.iterrows()]
     return data, None
 
 @callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
+    Output(get_component_id('datepicker_end'), 'disabled'),
     Output(get_component_id('datepicker_end'), 'minDate'),
     Output(get_component_id('datepicker_end'), 'maxDate'),
     Output(get_component_id('datepicker_end'), 'value'),
-    Input(get_component_id('multiselect_device_name'), 'value'),
+    Input(get_component_id('multiselect_device_id'), 'value'),
     prevent_initial_call=True
     )
-def callback_update_datepicker_start_performance(device_names):
-    if device_names is None or len(device_names)<1:
-        return None, None, None
-    df = cfg.WINDFARM_DATE_RANGE_RSDB[cfg.WINDFARM_DATE_RANGE_RSDB['device_name'].isin(device_names)]
-    minDate = df['start_date'].max() if len(df)>0 else None
-    maxDate = df['end_date'].min() if len(df)>0 else None
-    return minDate, maxDate, maxDate
+def callback_update_datepicker_end_performance(device_ids):
+    if device_ids in (None, '') or len(device_ids)<1:
+        return no_update, True, None, None, None
+    df, note = dcmpt.dash_dbquery(
+        func = get_date_range_statistics_sample,
+        device_id=device_ids
+        )
+    minDate = df['start_date'].max() if note is None else None
+    maxDate = df['end_date'].min() if note is None else None
+    return note, not(note is None), minDate, maxDate, maxDate
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
@@ -141,12 +148,12 @@ def callback_update_datepicker_start_performance(device_names):
     Output(get_component_id('btn_refresh'), 'disabled'),
     Input(get_component_id('datepicker_end'), 'value'),
     Input(get_component_id('input_span'), 'value'),
-    State(get_component_id('select_type'), 'value'),
+    Input(get_component_id('select_type'), 'value'),
     State(get_component_id('select_setid'), 'value'),
-    State(get_component_id('multiselect_device_name'), 'value'),
+    State(get_component_id('multiselect_device_id'), 'value'),
     prevent_initial_call=True
     )
-def callback_udpate_graph_data_performance(end_date, span, type_, set_id, device_names):
+def callback_udpate_graph_data_performance(end_date, span, type_, set_id, device_ids):
     if None in [end_date, span]:
         return no_update, {}, True
     end_time = pd.to_datetime(end_date)   
@@ -155,10 +162,11 @@ def callback_udpate_graph_data_performance(end_date, span, type_, set_id, device
         note_title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,   
         func=GRAPH_CONF.loc[type_]['class']().plot, 
         set_id=set_id,
-        device_ids=cfg.WINDFARM_MODEL_DEVICE[cfg.WINDFARM_MODEL_DEVICE['device_name'].isin(device_names)]['device_id'],
+        device_ids=device_ids,
         start_time=start_time,
         end_time=end_time
         )
+    figure = figure.to_json() if note is None else {}
     return note, figure, not(note is None)
 
 @callback(
@@ -168,7 +176,7 @@ def callback_udpate_graph_data_performance(end_date, span, type_, set_id, device
     prevent_initial_call=True
 )
 def callback_on_btn_refresh_performance(n, figure):
-    return figure
+    return figure if isinstance(figure, dict) else json.loads(figure)
 
 #%% main
 if __name__ == '__main__':  

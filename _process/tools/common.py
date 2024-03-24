@@ -57,49 +57,69 @@ def get_dates_tsdb(turbine_id, remote=True):
     sr = sr.drop_duplicates().sort_values()
     return sr
 
-def get_date_rage_tsdb(remote=True):
+def get_date_range_tsdb(device_id=None, remote=True):
     '''
-    >>> get_date_rage_tsdb(remote=True)
-       start_date    end_date device_id device_name
-    0  2022-12-18  2023-10-10    s10003         A03
-    1  2022-12-26  2023-10-10    s10004         A04
-    >>> get_date_rage_tsdb(remote=False)
-       start_date    end_date device_id device_name
-    0  2022-12-18  2023-10-10    s10003         A03
-    1  2022-12-26  2023-10-10    s10004         A04
+    # >>> get_date_range_tsdb(remote=True)
+    #   set_id device_id device_name  start_date    end_date
+    # 0  20835    s10003         A03  2022-12-18  2023-10-10
+    # 1  20835    s10004         A04  2022-12-26  2023-10-10
+    # >>> get_date_range_tsdb(remote=False)
+    #   set_id device_id device_name  start_date    end_date
+    # 1  20835    s10003         A03  2022-12-18  2023-10-10
+    # 0  20835    s10004         A04  2022-12-26  2023-10-10
+    >>> get_date_range_tsdb(device_id='s10003')
+      set_id device_id device_name  start_date    end_date
+    0  20835    s10003         A03  2022-12-18  2023-10-10
     '''
-    db = get_td_remote_restapi()['database'] if remote==True else get_td_local_connector()['database']
-    columns = ['first(ts) as start_date', 'last(ts) as end_date']
-    columns = columns if remote==True else columns+['device']
-    set_ids = PGFacade.read_model_device()['set_id'].unique()
+    columns = {'ts':['first', 'last']}
+    device_df = PGFacade.read_model_device(device_id=device_id)
     rev = []
-    for set_id in set_ids:
-        sql = f'''select {','.join(columns)} from {db}.s_{set_id} group by device'''  
-        rev.append(TDFC.query(sql=sql, remote=remote))
+    for _,row  in device_df.iterrows():
+        df = TDFC.read(
+            set_id=row['set_id'],
+            device_id=row['device_id'],
+            groupby='device',
+            columns=columns,
+            remote=remote
+            )
+        if 'set_id' not in (df.columns):
+            df['set_id'] = row['set_id']
+        if 'device_id' not in (df.columns):
+            df['device_id'] = row['device_id']
+        rev.append(df)
     rev = pd.concat(rev, ignore_index=True)
+    rev = rev.rename(columns={'ts_first':'start_date', 'ts_last':'end_date'})
     rev['start_date'] = pd.to_datetime(rev['start_date']).dt.date
-    rev['end_date'] = pd.to_datetime(rev['end_date']).dt.date
-    rev = rev.sort_values('device').reset_index(drop=True)
-    rev.rename(columns={'device':'device_id'}, inplace=True) 
-    
+    rev['end_date'] = pd.to_datetime(rev['end_date']).dt.date 
     device_df = PGFacade.read_model_device()[['device_id', 'device_name']]
-    rev = pd.merge(rev, device_df, how='left')    
-    return rev
+    rev = pd.merge(rev, device_df, how='left')
+    rev = rev.sort_values('device_id')    
+    columns = ['set_id','device_id','device_name', 'start_date','end_date'] 
+    return rev[columns]
 
-def get_date_rage_rsdb():
+def get_date_range_statistics_sample(device_id:Union[str, List[str]]=None):
     '''
-    >>> get_date_rage_tsdb(remote=True)
-       start_date    end_date device_id device_name
-    0  2022-12-18  2023-10-10    s10003         A03
-    1  2022-12-26  2023-10-10    s10004         A04
+    >>> get_date_range_statistics_sample()
+      set_id device_id device_name  start_date    end_date
+    0  20835    s10003         A03  2022-12-18  2023-10-10
+    1  20835    s10004         A04  2022-12-26  2023-01-14
+    >>> get_date_range_statistics_sample(device_id='s10003')
+      set_id device_id device_name  start_date    end_date
+    0  20835    s10003         A03  2022-12-18  2023-10-10
     '''
-    sql = 'select set_id, device_id, min(bin) as start_date, max(bin) as end_date from online.statistics_sample group by set_id, device_id'
-    rev = RSDB.read_sql(sql, 10)
+    rev = RSDBFacade.read_statistics_sample(
+        device_id=device_id, 
+        columns={'bin':['min', 'max']},
+        groupby=['set_id', 'device_id']
+        )
+    rev = rev.rename(columns={'bin_min':'start_date', 'bin_max':'end_date'})
     rev['start_date'] = pd.to_datetime(rev['start_date']).dt.date
     rev['end_date'] = pd.to_datetime(rev['end_date']).dt.date    
     device_df = PGFacade.read_model_device()[['device_id', 'device_name']]
-    rev = pd.merge(rev, device_df, how='left')    
-    return rev
+    rev = pd.merge(rev, device_df, how='left')   
+    rev = rev.sort_values('device_id')
+    columns = ['set_id','device_id','device_name', 'start_date','end_date'] 
+    return rev[columns]
 
 #%% test
 if __name__ == "__main__":

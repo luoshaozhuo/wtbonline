@@ -258,7 +258,7 @@ class TDEngine_FACADE():
             ts>="{start_time}" and
             ts<"{end_time}"
             '''
-        sql = (sql+' group by '+','.join(groupby)) if len(groupby)>0 else sql
+        sql = (sql+' group by '+','.join(groupby)) if len(groupby)>0 and device_id is None else sql
         sql = (sql+f' INTERVAL({interval})') if interval is not None else sql
         sql = (sql+f' SLIDING({sliding})') if sliding is not None and interval is not None else sql 
         sql = (sql+f' order by '+','.join(orderby)) if len(orderby)>0 else sql

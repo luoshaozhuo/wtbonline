@@ -51,7 +51,7 @@ def multiselect(id, label, description, maxSelectedValues, disabled=False):
         style={"width": cfg.TOOLBAR_COMPONENT_WIDTH, "marginBottom": 10},
         )
 
-def multiselect_device_name(id):
+def multiselect_device_id(id):
     return multiselect(id=id, label='风机编号', description='最多选择5台设备', maxSelectedValues=5)
 
 def multiselecdt_var_name(id, disabled=False):
@@ -65,7 +65,7 @@ def select_job_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPO
     type_ = list(cfg.SCHEDULER_JOB_TYPE.keys())
     return select(id, label="任务类型", data=type_, value=type_[-1], size=size, width=width, withAsterisk=withAsterisk)
 
-def date_picker(id, label, description, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
+def date_picker(id, label, description, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False, disabled=True):
     disabledDates = [cfg.DATE] 
     return dmc.DatePicker(
         id=id,
@@ -77,6 +77,7 @@ def date_picker(id, label, description, size=cfg.TOOLBAR_COMPONENT_SIZE, width=c
         amountOfMonths=1,
         style={"width": width},
         openDropdownOnClear =True,
+        disabled=disabled,
         withAsterisk=withAsterisk
         )
     

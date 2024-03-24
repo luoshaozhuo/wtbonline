@@ -4,7 +4,6 @@ import dash_mantine_components as dmc
 import wtbonline._plot as plt
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb_facade import RSDBFacade
-from wtbonline._process.tools.common import get_date_rage_tsdb, get_date_rage_rsdb
 
 THEME_PRIMARY_COLOR = 'indigo'
 THEME_PRIMARY_SHADE = {'light': 5, 'dark':7}
@@ -80,8 +79,6 @@ WINDFARM_INFORMATION =  PGFacade.read_model_factory()
 WINDFARM_FAULT_TYPE = RSDBFacade.read_turbine_fault_type().set_index('id', drop=False)
 WINDFARM_MODEL_DEVICE = PGFacade.read_model_device().set_index('device_name', drop=False)
 WINDFARM_VAR_NAME = PGFacade.read_model_point()
-WINDFARM_DATE_RANGE = get_date_rage_tsdb().set_index('device_name', drop=False)
-WINDFARM_DATE_RANGE_RSDB = get_date_rage_rsdb().set_index('device_name', drop=False)
 
 NOTIFICATION = {
     'error':{'color':'red', 'icon':'mdi:close-circle-outline'},
