@@ -38,7 +38,7 @@ def select_setid(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONEN
 def select_device_name(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False, description=''):
     return select(id, label="风机编号", data=[], value=None, size=size, width=width, withAsterisk=withAsterisk, description=description)
 
-def multiselect(id, label, description, maxSelectedValues, disabled):
+def multiselect(id, label, description, maxSelectedValues, disabled=False):
     return dmc.MultiSelect(
         label=label,
         description=description,

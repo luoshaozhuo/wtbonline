@@ -9,19 +9,15 @@ import dash_mantine_components as dmc
 from dash import dcc, html
 from dash_iconify import DashIconify
 from dash import Output, Input, html, dcc, State, callback, no_update
-from matplotlib.style import available
 import pandas as pd
 from functools import partial
 
 from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
-from wtbonline._common import utils 
 from wtbonline._common import dash_component as dcmpt
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._plot import graph_factory
 from wtbonline._db.tsdb_facade import TDFC
-
-import time
 
 #%% constant
 SECTION = '分析'
@@ -51,30 +47,25 @@ def create_toolbar_content():
             dcmpt.select(id=get_component_id('select_item'), data=[], value=None, label='故障发生时间', description='只显示最新15个'),
             dcmpt.multiselecdt_var_name(id=get_component_id('select_var_name')),
             dmc.Space(h='20px'),
-            dmc.LoadingOverlay(
-                loaderProps={"size": "sm"},
-                children=[
-                    dmc.Button(
-                        fullWidth=True,
-                        disabled=True,
-                        id=get_component_id('btn_refresh'),
-                        leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
-                        size=cfg.TOOLBAR_COMPONENT_SIZE,
-                        children="刷新图像",
-                        ),
-                    dmc.Space(h='20px'),
-                    dcc.Download(id=get_component_id('download_dataframe')),
-                    dmc.Button(
-                        fullWidth=True,
-                        disabled=True,
-                        id=get_component_id('btn_download'),
-                        leftIcon=DashIconify(icon="mdi:arrow-collapse-down", width=cfg.TOOLBAR_ICON_WIDTH),
-                        size=cfg.TOOLBAR_COMPONENT_SIZE,
-                        children="下载数据",
-                        color='green'
-                        ),
-                    ]  
-            ),
+            dmc.Button(
+                fullWidth=True,
+                disabled=True,
+                id=get_component_id('btn_refresh'),
+                leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
+                size=cfg.TOOLBAR_COMPONENT_SIZE,
+                children="刷新图像",
+                ),
+            dmc.Space(h='20px'),
+            dcc.Download(id=get_component_id('download_dataframe')),
+            dmc.Button(
+                fullWidth=True,
+                disabled=True,
+                id=get_component_id('btn_download'),
+                leftIcon=DashIconify(icon="mdi:arrow-collapse-down", width=cfg.TOOLBAR_ICON_WIDTH),
+                size=cfg.TOOLBAR_COMPONENT_SIZE,
+                children="下载数据",
+                color='green'
+                ),
             dmc.Space(h='200px'), 
             ]
         )
@@ -294,7 +285,7 @@ def callback_on_btn_refresh_fault(n, set_id, device_id, sample_id, var_names):
         end_time=sample_sr['end_time']+delta,
         title=fault_type_sr['name']
         )
-    return note, fig
+    return fig
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
@@ -327,7 +318,8 @@ def callback_on_btn_download_fault(n, set_id, device_id, sample_id):
         columns=fault_type_sr['var_names'].split(','),
         remote=True    
         )
-    data = dcc.send_data_frame(df.to_csv, "mydf.csv") if note is None else no_update
+    now = pd.Timestamp.now().strftime('%y%m%d%H%M%S')
+    data = dcc.send_data_frame(df.to_csv, f"data{now}.csv") if note is None else no_update
     return note, data
 
 #%% main
