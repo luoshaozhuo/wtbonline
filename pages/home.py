@@ -6,14 +6,13 @@ import dash_mantine_components as dmc
 from functools import partial
 from dash_extensions import Lottie
 
-from wtbonline._common import utils
-
+import wtbonline._common.dash_component as dcmpt
 
 #%% constant
 PREFIX = 'home'
 
 #%% function
-get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
+get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 #%% component
 

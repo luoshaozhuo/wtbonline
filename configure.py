@@ -47,27 +47,6 @@ TIME_START = '2024-02-19T00:00:00'
 TIME_END = '2024-02-19T23:59:00'
 
 GRAPH_PADDING_TOP = '30px'
-GRAPH_CONF = pd.DataFrame(
-    [
-        ['性能', '功率曲线', plt.PowerCurve],
-        ['性能', '功率差异', plt.PowerCompare],
-        ['故障', '齿轮箱关键参数超限', plt.Gearbox],
-        ['故障', '发电机关键参数超限', plt.GeneratorOverloaded],
-        ['故障', '变流器关键参数超限', plt.Convertor],
-        ['故障', '风轮方位角异常', plt.HubAzimuth],
-        ['故障', '叶片桨距角不同步', plt.BladeAsynchronous],
-        ['故障', '叶根摆振弯矩超限', plt.BladeOverloaded],
-        ['故障', '叶根挥舞弯矩超限', plt.BladeOverloaded],
-        ['故障', '叶根载荷不平衡', plt.BladeUnblacedLoad],
-        ['故障', '叶片pitchkick', plt.BladePitchkick],
-        ['安全', '叶片净空', None],
-        ['安全', '塔顶振动', None],
-        ['通用质量特性', '可靠性', None],
-        ['通用质量特性', '可维修性', None],
-        ['通用质量特性', '保障性', None]
-        ],
-    columns=['item', 'clause', 'class']
-    )
 
 NOTIFICATION_TITLE_DBQUERY_FAIL = '数据库操作失败'
 NOTIFICATION_TITLE_DBQUERY_NODATA = '查无数据'
@@ -109,9 +88,6 @@ MISFIRE_GRACE_TIME = 600 # 600s
 SCHEDULER_JOB_INTER_UNIT = ['weeks', 'days', 'hours', 'miniues', 'seconds']
 SCHEDULER_URL='http://scheduler:40000/scheduler/jobs'
 SCHEDULER_TIMEOUT = 10
-
-SIMPLE_PLOT_TYPE = ['时序图', '散点图', '极坐标图', '频谱图']
-SIMPLE_PLOT_SAMPLE_NUM = 5000
 
 _sess_lifttime = int(RSDBFacade.read_app_configuration(key_='session_lifetime')['value'].iloc[0])
 SESSION_LIFETIME = max(_sess_lifttime, 1)   #最少1天

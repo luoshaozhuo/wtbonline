@@ -11,7 +11,6 @@ from dash_iconify import DashIconify
 from dash import Output, Input, html, dcc, State, callback, no_update
 import pandas as pd
 from functools import partial
-import json
 
 from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
@@ -27,11 +26,11 @@ ITEM='故障'
 ITEM_ORDER = 2
 PREFIX = 'analysis_fault'
 
-GRAPH_CONF = cfg.GRAPH_CONF[cfg.GRAPH_CONF['item']==ITEM].set_index('clause')
-
 TABLE_COLUMNS = ['图例号', 'map_id', 'start_time', 'end_time', 'set_id']
 TABLE_FONT_SIZE = '2px'
 TABLE_HEIGHT = '200PX'
+
+FAULT_TYPE = cfg.WINDFARM_FAULT_TYPE.dropna(subset=['var_names', 'index', 'value'])
 
 #%% function
 get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
@@ -46,19 +45,21 @@ def load_figure(sample_id, var_names):
     sample_sr = df.iloc[0]
     fault_type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sample_sr['fault_id']]
     grapp_name = fault_type_sr['graph']
-    graph_obj = graph_factory(fault_type_sr['graph'])()
+    graph_obj = graph_factory.get(grapp_name)()
     if grapp_name=='ordinary':
         graph_obj.init(var_names=var_names)
     delta = pd.Timedelta(f'{fault_type_sr["time_span"]}m')
     fig, note = dcmpt.dash_try(
         note_title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA, 
-        func=graph_obj.plot,
+        # func=graph_obj.plot,
+        func = graph_factory.get(grapp_name)().plot,
         set_id=sample_sr['set_id'],
         device_ids=sample_sr['device_id'],
         start_time=sample_sr['start_time']-delta, 
         end_time=sample_sr['end_time']+delta,
         title=fault_type_sr['name']
         )
+    fig = {} if fig is None else fig
     return fig, note
 
 
@@ -141,7 +142,6 @@ dash.register_page(
 
 layout = [
     html.Div(id=get_component_id('notification')),
-    dcc.Store(id=get_component_id('dcc_figure'), storage_type='session', data={}),
     dmc.Container(children=[creat_content()], size=cfg.CONTAINER_SIZE,pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
         smallerThan=cfg.TOOLBAR_HIDE_SMALLER_THAN,
@@ -188,7 +188,7 @@ def callback_update_select_fault_name_fault(device_id):
         )
     if note is None:
         sr = df['fault_id'].unique()
-        fault_types = cfg.WINDFARM_FAULT_TYPE['name'].loc[sr].unique()
+        fault_types = FAULT_TYPE[FAULT_TYPE['id'].isin(sr)]['name'].unique()
         data = [{'label':i, 'value':i} for i in fault_types]
     else:
         data = []
@@ -205,7 +205,7 @@ def callback_update_select_fault_name_fault(device_id):
 def callback_update_select_item_fault(fault_name, device_id):
     if fault_name in (None, ''):
         return no_update, [], None
-    fault_ids = cfg.WINDFARM_FAULT_TYPE[cfg.WINDFARM_FAULT_TYPE['name']==fault_name]['id'].astype(str)
+    fault_ids = FAULT_TYPE[FAULT_TYPE['name']==fault_name]['id'].astype(str)
     sql = (
         f'select id, start_time from statistics_fault '
         f'where device_id="{device_id}" and fault_id in ({",".join(fault_ids)}) ' 
@@ -245,7 +245,7 @@ def callback_update_select_var_name_fault(id_, set_id):
         )
     if note is None:
         sr = df.squeeze()
-        type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sr['fault_id'], :]
+        type_sr = FAULT_TYPE.loc[sr['fault_id'], :]
         if type_sr['graph']=='ordinary':
             df = cfg.WINDFARM_VAR_NAME[cfg.WINDFARM_VAR_NAME['set_id']==set_id]
             data = [{'label':row['point_name'], 'value':row['var_name']} for _,row in df.iterrows()]
@@ -259,30 +259,28 @@ def callback_update_select_var_name_fault(id_, set_id):
     return note, disabled, data, value
 
 @callback(
-    Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('btn_refresh'), 'disabled'),
     Output(get_component_id('btn_download'), 'disabled'),
-    Output(get_component_id('dcc_figure'), 'data'),
     Input(get_component_id('select_item'), 'value'), 
-    Input(get_component_id('select_var_name'), 'value'), 
     prevent_initial_call=True
     )
-def callback_update_btns_fault(sample_id, var_names):
-    if sample_id in (None, ''):
-        return no_update, True, True, {}
-    figure, note = load_figure(sample_id, var_names)
-    btn_refresh = not(note is None)
-    figure = figure.to_json() if note is None else {}
-    return note, btn_refresh, False, figure
+def callback_disable_btns_fault(value):
+    disabled = value in [None, '']
+    return [disabled]*2
 
 @callback(
+    Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('graph'), 'figure'),
     Input(get_component_id('btn_refresh'), 'n_clicks'),
-    State(get_component_id('dcc_figure'), 'data'),
+    State(get_component_id('select_item'), 'value'), 
+    State(get_component_id('select_var_name'), 'value'), 
     prevent_initial_call=True
     )
-def callback_on_btn_refresh_fault(n, figure):
-    return figure if isinstance(figure, dict) else json.loads(figure)
+def callback_on_btn_refresh_fault(n, sample_id, var_names):
+    if sample_id in (None, ''):
+        return None, {}
+    figure, note = load_figure(sample_id, var_names)
+    return note, figure
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),

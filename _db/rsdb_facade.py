@@ -394,6 +394,7 @@ class RSDBFacade():
         *,
         username:Optional[Union[list, int, str]]=None,
         privilege:list = None,
+        columns:Optional[Union[List[str], str]]=None,
         ):
         '''
         >>> RSDBFacade.read_user(
@@ -406,7 +407,7 @@ class RSDBFacade():
         eq_clause, in_clause = cls.get_in_or_eq_clause(
             privilege=privilege, username=username
             )
-        return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause)  
+        return RSDB.query(tbname, columns=columns, eq_clause=eq_clause, in_clause=in_clause)  
 
 if __name__ == "__main__":
     '''

@@ -33,3 +33,4 @@ class ORMFactory:
         ''' 通过数据表名获取orm对象 '''
         return self._tbl_mapping.get(tbname)
 
+ORMFactory()

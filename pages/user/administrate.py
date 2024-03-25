@@ -19,9 +19,9 @@ from werkzeug.security import check_password_hash
 from dash_iconify import DashIconify
 import pandas as pd
 
-from _db.rsdb_facade import RSDBInterface
+from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
-from wtbonline._common import utils
+import wtbonline._common.dash_component as dcmpt
 from wtbonline._common.dash_component import notification
 
 #%% constant
@@ -32,7 +32,7 @@ COLUMN_NAME = ['username', 'privilege']
 PRIVILEGE = pd.DataFrame([[1, '管理员'], [2,'用户']], columns=['int_', 'str_'])
 
 #%% function
-get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
+get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
     
 def func_build_table_content(df):
     columns, values = df.columns, df.values
@@ -42,8 +42,8 @@ def func_build_table_content(df):
     return table    
 
 def func_read_user_table():
-    df, note = utils.dash_dbquery(RSDBInterface.read_user, columns=COLUMN_NAME)
-    if note==no_update:
+    df, note = dcmpt.dash_dbquery(RSDBFacade.read_user, columns=COLUMN_NAME)
+    if note is None:
         df['privilege'] = PRIVILEGE.set_index('int_').loc[df['privilege'], 'str_'].tolist()
         df.columns = TABLE_HEADERS
         data = df.to_dict('records')
@@ -176,20 +176,20 @@ def callback_on_icon_refresh_administrate(n):
     prevent_initial_call=True,
     )
 def callback_on_icon_save_administrate(n, username, password, privilege):    
-    df, note = utils.dash_dbquery(RSDBInterface.read_user)
+    df, note = dcmpt.dash_dbquery(RSDBFacade.read_user)
     if note!=no_update:
         return note, no_update, ''
     privilege = PRIVILEGE.set_index('str_').loc[privilege, 'int_']
     hashed_password = generate_password_hash(password) if password is not None else None
-    exist_user = RSDBInterface.read_user()['username'].tolist()
+    exist_user = RSDBFacade.read_user()['username'].tolist()
     # 修改用户信息
     is_updating = username in exist_user
     if is_updating:
         new_values = {'privilege':privilege}
         if password is not None:
             new_values.update({'password':hashed_password})
-        _, note = utils.dash_dbquery(
-            RSDBInterface.update,
+        _, note = dcmpt.dash_dbquery(
+            RSDBFacade.update,
             tbname='user',
             new_values=new_values,
             eq_clause={'username':username}
@@ -203,8 +203,8 @@ def callback_on_icon_save_administrate(n, username, password, privilege):
             'password':hashed_password,
             'privilege':privilege},
             index=[0])
-        _, note = utils.dash_dbquery(
-            RSDBInterface.insert,
+        _, note = dcmpt.dash_dbquery(
+            RSDBFacade.insert,
             df=df,
             tbname='user',
             )        

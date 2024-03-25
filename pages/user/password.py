@@ -17,16 +17,16 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 
-from _db.rsdb_facade import RSDBInterface
+from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
-from wtbonline._common import utils
+import wtbonline._common.dash_component as dcmpt
 from wtbonline._common.dash_component import notification
 
 #%% constant
 PREFIX = 'user_password'
 
 #%% function
-get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
+get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 #%% component
 
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     prevent_initial_call=True,
     )
 def callback_on_btn_submit_pasword(n, oldPassword, newPassword):
-    username, note = utils.dash_get_username(current_user, __name__=='__main__')
+    username, note = dcmpt.dash_get_username(current_user, __name__=='__main__')
     error_oldPassword = error_newPassword = ''
     for _ in range(1):
         # 无法获取用户名
@@ -96,14 +96,14 @@ def callback_on_btn_submit_pasword(n, oldPassword, newPassword):
             error_newPassword = '输入新密码' if oldPassword is None else ''
             break
         # 旧密码错误
-        this_user = RSDBInterface.read_user(username=username).squeeze()
+        this_user = RSDBFacade.read_user(username=username).squeeze()
         if not check_password_hash(this_user.password, oldPassword):
             error_oldPassword = '旧密码错误'
             break
         # 更新密码
         newPassword = generate_password_hash(newPassword)
-        _, note = utils.dash_dbquery(
-                RSDBInterface.update,
+        _, note = dcmpt.dash_dbquery(
+                RSDBFacade.update,
                 tbname='user',
                 new_values={'password':newPassword}, 
                 eq_clause={'username':this_user.username}

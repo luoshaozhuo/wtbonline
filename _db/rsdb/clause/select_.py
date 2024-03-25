@@ -54,7 +54,7 @@ class Select():
                             eval(f'func.{f}')(getattr(model_, key_)).label(f'{key_}_{f}')
                             for f in funcs
                             ]
-                elif isinstance(i, (list, tuple)):
+                elif isinstance(i, (list, tuple, set)):
                     columns += func(i)
                 else:
                     raise ValueError(f'支持参数类型为str, dict， 传入{type(i)}')              

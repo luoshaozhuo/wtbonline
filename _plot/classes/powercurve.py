@@ -1,7 +1,7 @@
 # author luosz
 # created on 10.23.2023
 
-from typing import List
+from typing import List, Union
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -13,7 +13,11 @@ from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.postgres_facade import PGFacade
 
+#%% constant
+COL_AUG = ['device_id', 'totalfaultbool_mode', 'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 
+           'workmode_mode', 'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean', 'bin']
 
+#%% class
 class PowerCurve(Base):
     '''
     >>> pc = PowerCurve()
@@ -23,25 +27,25 @@ class PowerCurve(Base):
     def init(self, var_names=[]):
         ''' 定制的初始化过程 '''
         self.height = 600
+        self.var_names = ['var_355_mean', 'var_246_mean']
     
     def get_ytitles(self, set_id):
         return []
     
-    def get_title(self, set_id, device_ids):
+    def get_title(self, set_id, device_ids, ytitles):
         return '功率曲线'
     
-    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str):
-        device_ids = make_sure_list(device_ids)
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]]):
+        var_names = make_sure_list(var_names)
         df = RSDBFacade.read_statistics_sample(
             set_id=set_id,
             device_id=device_ids,
             start_time=start_time,
             end_time=end_time,
-            columns = ['device_id', 'var_355_mean', 'var_246_mean', 'totalfaultbool_mode',
-                    'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
-                    'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean', 'bin'],
+            columns = list(set(COL_AUG+var_names)),
             )
-        assert len(device_ids)==len(df['device_id'].unique()), f'部分机组查无数据，实际：{df["device_id"].unique().tolist()}，需求：{device_ids}'
+        if len(device_ids)!=len(df['device_id'].unique()):
+            raise ValueError(f'部分机组查无数据，实际：{df["device_id"].unique().tolist()}，需求：{device_ids}')
         # 正常发电数据
         df = df[
             (df['totalfaultbool_mode']=='False') &
@@ -59,11 +63,13 @@ class PowerCurve(Base):
         wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)
         df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
         power_curve = df.groupby(['wspd', 'device_id'])['mean_power'].median().reset_index()
-        df = df.groupby('device_id').apply(lambda x:x.sample(self.nsamples) if x.shape[0]>self.nsamples else x)
-        df = df.reset_index(drop=True)
+        sample_df = []
+        for _, grp in df.groupby('device_id'):
+            sample_df.append(grp.sample(self.nsamples) if grp.shape[0]>self.nsamples else grp)
+        sample_df = pd.concat(sample_df, ignore_index=True)
         # 读取保证功率曲线
         power_curve_ref = PGFacade.read_model_powercurve_current(set_id=set_id)
-        return df, power_curve, power_curve_ref
+        return sample_df, power_curve, power_curve_ref
     
     def build(self, data, ytitles):
         df, power_curve, power_curve_ref = data

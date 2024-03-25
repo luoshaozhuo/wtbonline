@@ -1,45 +1,42 @@
-from wtbonline._plot.classes.blade_asynchronous import BladeAsynchronous
-from wtbonline._plot.classes.blade_overloaded import BladeOverloaded
-from wtbonline._plot.classes.blade_pitchkick import BladePitchkick
-from wtbonline._plot.classes.blade_unbalanced_load import BladeUnblacedLoad 
-from wtbonline._plot.classes.generator_overloaded import GeneratorOverloaded
-from wtbonline._plot.classes.hub_azimuth import HubAzimuth
-from wtbonline._plot.classes.powercurve import PowerCurve
-from wtbonline._plot.classes.power_compare import PowerCompare
-from wtbonline._plot.classes.gearbox import Gearbox
-from wtbonline._plot.classes.convertor import Convertor
-from wtbonline._plot.classes.base import Base
-from wtbonline._db.rsdb_facade import RSDBFacade
+import inspect
+import importlib
+from pathlib import Path
 
-_GRAPH = dict(
-    bladeAsynchronous=BladeAsynchronous,
-    bladeOverloaded=BladeOverloaded,
-    bladePitchkick=BladePitchkick,
-    bladeUnblacedLoad=BladeUnblacedLoad,
-    generatorOverloaded=GeneratorOverloaded,
-    hubAzimuth=HubAzimuth,
-    powerCurve=PowerCurve,
-    powerCompare=PowerCompare,
-    gearbox=Gearbox,
-    convertor=Convertor,
-    )
+from wtbonline._plot import classes as graph_classes
 
-def graph_factory(graph):
-    return _GRAPH.get(graph, Base)
+class Graph_Factory:
+    '''
+    >>> _ = Graph_Factory().available_keys()
+    >>> Graph_Factory().get('Spectrum')
+    <class 'wtbonline._plot.classes.spectrum.Spectrum'>
+    >>> Graph_Factory().get('ordinary')
+    <class 'wtbonline._plot.classes.base.Base'>
+    >>> Graph_Factory().get('abc')
+    Traceback (most recent call last):
+    ...
+    KeyError: 'abc'
+    '''
+    def __init__(self):
+        self._mapping = self._get_table_mapping()
+    
+    def _get_table_mapping(self):
+        rev = {}
+        for i in Path(graph_classes.__path__[0]).glob('*.py'):
+            pakage_name = i.name[:-3]
+            module = importlib.import_module('.'.join([graph_classes.__name__, pakage_name]))
+            for name,obj in inspect.getmembers(module, inspect.isclass):
+                rev.update({name:obj})
+        return rev
 
-# def graph_factory(cause=None):
-#     '''
-#     >>> type(graph_factory('发电机关键参数超限'))
-#     <class 'wtbonline._plot.classes.base.Base'>
-#     >>> type(graph_factory('叶片pitchkick'))
-#     <class 'wtbonline._plot.classes.blade_pitchkick.BladePitchkick'>
-#     '''
-#     sr = RSDBFacade.read_turbine_fault_type(cause=cause).iloc[0].squeeze()
-#     rev =  _GRAPH.get(sr['graph'], Base)()
-#     if rev == Base:
-#         var_names=(sr['var_names'].str.split(',', expand=True)).str.strip()
-#         rev = rev.init(var_names=var_names)
-#     return rev
+    def available_keys(self):
+        return list(self._mapping.keys())
+
+    def get(self, name):
+        if name=='ordinary':
+            return self._mapping['Base']
+        return self._mapping[name]
+
+graph_factory = Graph_Factory()
     
 if __name__ == '__main__':
     import doctest

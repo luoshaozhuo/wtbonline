@@ -16,7 +16,7 @@ from flask_login import current_user
 import requests
 import time
 
-from _db.rsdb_facade import RSDBInterface
+from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
 from wtbonline._common import utils 
 from wtbonline._common import dash_component as dcmpt
@@ -52,14 +52,14 @@ UNIT = [{'label':i, 'value':i} for i in cfg.SCHEDULER_JOB_INTER_UNIT]
 JOB_DF = cfg.SCHEDULER_JOB_PARAMETER.set_index('name')
 
 #%% function
-get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
+get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 def func_read_task_table():
-    apschduler_df, note = utils.dash_dbquery(func=RSDBInterface.read_apscheduler_jobs, not_empty=False)
+    apschduler_df, note = dcmpt.dash_dbquery(func=RSDBFacade.read_apscheduler_jobs, not_empty=False)
     if note is not None:
         return no_update, note
     apschduler_df['next_run_time'] = pd.to_datetime(apschduler_df['next_run_time'].astype(int), unit='s') + pd.Timedelta('8h')
-    timed_task_df, note = utils.dash_dbquery(func=RSDBInterface.read_timed_task, not_empty=False)
+    timed_task_df, note = dcmpt.dash_dbquery(func=RSDBFacade.read_timed_task, not_empty=False)
     if note is not None:
         return no_update, note   
     df = pd.merge(timed_task_df, apschduler_df, how='left', left_on='task_id', right_on='id')
@@ -344,13 +344,13 @@ def callback_on_btn_add_job(
     # 检查输入
     if start_date in [None, '']:
         return no_update, no_update, '选择一个日期'     
-    esisted_job, note = utils.dash_dbquery(RSDBInterface.read_timed_task)
+    esisted_job, note = dcmpt.dash_dbquery(RSDBFacade.read_timed_task)
     if esisted_job is None:
         return note, no_update, ''
     if func=='统计10分钟样本' and func in esisted_job['func']:
        return dcmpt(title='重复任务', msg='请先删除重复任务', _type='error'), no_update, ''
    # 获取任务发布者
-    username, note = utils.dash_get_username(current_user, __name__=='__main__')
+    username, note = dcmpt.dash_get_username(current_user, __name__=='__main__')
     if note is not None:
         return note, no_update, ''
     task_id = str(pd.Timestamp.now().date()) + '-' + str(np.random.randint(0, 10**6))
@@ -380,8 +380,8 @@ def callback_on_btn_add_job(
         )
     # 更新数据库
     _, note = utils.dash_dbquery(
-        func =  RSDBInterface.insert,
-        df = dct,
+        func=RSDBFacade.insert,
+        df=dct,
         tbname = 'timed_task'
         )
     if note is not None:

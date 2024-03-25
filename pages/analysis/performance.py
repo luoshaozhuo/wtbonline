@@ -14,11 +14,11 @@ from dash_iconify import DashIconify
 from dash import Output, Input, html, dcc, State, callback, no_update
 import pandas as pd
 from functools import partial
-import json
 
 import wtbonline.configure as cfg
 from wtbonline._common import dash_component as dcmpt
 from wtbonline._process.tools.common import get_date_range_statistics_sample
+from wtbonline._plot import graph_factory
 
 #%% constant
 SECTION = '分析'
@@ -27,8 +27,6 @@ ITEM='性能'
 ITEM_ORDER = 1
 PREFIX =  'analysis_performance'
 
-GRAPH_CONF = cfg.GRAPH_CONF[cfg.GRAPH_CONF['item']==ITEM].set_index('clause')
-
 TABLE_COLUMNS = cfg.TOOLBAR_TABLE_COLUMNS
 TABLE_FONT_SIZE = cfg.TOOLBAR_TABLE_FONT_SIZE
 TABLE_HEIGHT = cfg.TOOLBAR_TABLE_HEIGHT
@@ -36,13 +34,18 @@ TABLE_HEIGHT = cfg.TOOLBAR_TABLE_HEIGHT
 #%% function
 get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
+TYPE_  = [
+    {'label':'功率曲线', 'value':'PowerCurve'},
+    {'label':'功率对比', 'value':'PowerCompare'}
+    ]
+
 #%% component
 def create_toolbar_content():
     return dmc.Stack(
         spacing=0, 
         px=cfg.TOOLBAR_PADDING, 
         children=[
-            dcmpt.select_analysis_type(id=get_component_id('select_type'), data=list(GRAPH_CONF.index), label='分析类型'),
+            dcmpt.select_analysis_type(id=get_component_id('select_type'), data=TYPE_, label='分析类型'),
             dcmpt.select_setid(id=get_component_id('select_setid')),
             dcmpt.multiselect_device_id(id=get_component_id('multiselect_device_id')),
             dcmpt.date_picker(id=get_component_id('datepicker_end'), label="结束日期", description="此日期的零点为区间右端"),
@@ -51,7 +54,7 @@ def create_toolbar_content():
             dmc.LoadingOverlay(
                 dmc.Button(
                     fullWidth=True,
-                    disabled=True,
+                    disabled=False,
                     id=get_component_id('btn_refresh'),
                     leftIcon=DashIconify(icon="mdi:refresh", width=cfg.TOOLBAR_ICON_WIDTH),
                     size=cfg.TOOLBAR_COMPONENT_SIZE,
@@ -102,7 +105,6 @@ dash.register_page(
 
 layout = [
     html.Div(id=get_component_id('notification')),
-    dcc.Store(id=get_component_id('store_figure'), storage_type='session', data={}),
     dmc.Container(children=[creat_content()], size=cfg.CONTAINER_SIZE, pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
         smallerThan=cfg.TOOLBAR_HIDE_SMALLER_THAN,
@@ -128,55 +130,53 @@ def callback_update_multiselect_device_id_performance(set_id):
     Output(get_component_id('datepicker_end'), 'minDate'),
     Output(get_component_id('datepicker_end'), 'maxDate'),
     Output(get_component_id('datepicker_end'), 'value'),
+    Output(get_component_id('btn_refresh'), 'disabled'), 
     Input(get_component_id('multiselect_device_id'), 'value'),
     prevent_initial_call=True
     )
-def callback_update_datepicker_end_performance(device_ids):
+def callback_update_components_performance(device_ids):
     if device_ids in (None, '') or len(device_ids)<1:
-        return no_update, True, None, None, None
+        return no_update, True, None, None, None, True
     df, note = dcmpt.dash_dbquery(
         func = get_date_range_statistics_sample,
         device_id=device_ids
         )
+    ids = df['device_id'].unique().tolist()
+    if len(device_ids) != len(ids):
+        note = dcmpt.notification(
+            title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,
+            msg=f'部分机组查询数据失败，返回{ids}，需求{device_ids}',
+            _type='error'
+            )
     minDate = df['start_date'].max() if note is None else None
     maxDate = df['end_date'].min() if note is None else None
-    return note, not(note is None), minDate, maxDate, maxDate
+    disabled = not(note is None)
+    return note, disabled, minDate, maxDate, maxDate, disabled
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-    Output(get_component_id('store_figure'), 'data'),
-    Output(get_component_id('btn_refresh'), 'disabled'),
-    Input(get_component_id('datepicker_end'), 'value'),
-    Input(get_component_id('input_span'), 'value'),
-    Input(get_component_id('select_type'), 'value'),
+    Output(get_component_id('graph'), 'figure'),
+    Input(get_component_id('btn_refresh'), 'n_clicks'),
+    State(get_component_id('datepicker_end'), 'value'),
+    State(get_component_id('input_span'), 'value'),
+    State(get_component_id('select_type'), 'value'),
     State(get_component_id('select_setid'), 'value'),
     State(get_component_id('multiselect_device_id'), 'value'),
     prevent_initial_call=True
     )
-def callback_udpate_graph_data_performance(end_date, span, type_, set_id, device_ids):
-    if None in [end_date, span]:
-        return no_update, {}, True
+def callback_on_btn_refresh_performance(n, end_date, span, type_, set_id, device_ids):
     end_time = pd.to_datetime(end_date)   
     start_time =  pd.to_datetime(end_date) - pd.Timedelta(f'{span}d')
     figure, note = dcmpt.dash_try(
         note_title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,   
-        func=GRAPH_CONF.loc[type_]['class']().plot, 
+        func=graph_factory.get(type_)().plot, 
         set_id=set_id,
         device_ids=device_ids,
         start_time=start_time,
         end_time=end_time
         )
-    figure = figure.to_json() if note is None else {}
-    return note, figure, not(note is None)
-
-@callback(
-    Output(get_component_id('graph'), 'figure'),
-    Input(get_component_id('btn_refresh'), 'n_clicks'),
-    State(get_component_id('store_figure'), 'data'),
-    prevent_initial_call=True
-)
-def callback_on_btn_refresh_performance(n, figure):
-    return figure if isinstance(figure, dict) else json.loads(figure)
+    figure = {} if figure is None else figure
+    return note, figure
 
 #%% main
 if __name__ == '__main__':  

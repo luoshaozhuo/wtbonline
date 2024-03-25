@@ -8,6 +8,15 @@ import traceback
 import wtbonline.configure as cfg
 from wtbonline._db.rsdb_facade import RSDBFacade
 
+#%% constant
+GENERAL_GRAPH = [
+    {'label':'时序图', 'value':'Base'}, 
+    {'label':'散点图', 'value':'Scatter'}, 
+    {'label':'极坐标图', 'value':'Polar'}, 
+    {'label':'频谱图', 'value':'Spectrum'}
+    ]
+
+#%% funcionts
 def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, 
            description='', disabled=False, clearable=False, withAsterisk=False) :
     if len(data)>1 and not isinstance(data[0], dict):
@@ -29,7 +38,7 @@ def select(id, data:list, value, label, size=cfg.TOOLBAR_COMPONENT_SIZE, width=c
         )
 
 def select_analysis_type(id, data:list, label:str, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
-    return select(id=id, data=data, value=data[0], label=label, size=size, width=width, withAsterisk=withAsterisk)
+    return select(id=id, data=data, value=data[0]['value'], label=label, size=size, width=width, withAsterisk=withAsterisk)
 
 def select_setid(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False): 
     data = cfg.WINDFARM_MODEL_DEVICE['set_id'].unique().tolist()
@@ -38,17 +47,19 @@ def select_setid(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONEN
 def select_device_name(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False, description=''):
     return select(id, label="风机编号", data=[], value=None, size=size, width=width, withAsterisk=withAsterisk, description=description)
 
-def multiselect(id, label, description, maxSelectedValues, disabled=False):
+def multiselect(id, label:str, description:str=None, maxSelectedValues:int=5, disabled=False, data=[], value=None, clearable=True):
     return dmc.MultiSelect(
         label=label,
         description=description,
         maxSelectedValues=maxSelectedValues,
         size=cfg.TOOLBAR_COMPONENT_SIZE,
         id=id,
-        clearable=True,
+        clearable=clearable,
         searchable=True,
         disabled=disabled,
         style={"width": cfg.TOOLBAR_COMPONENT_WIDTH, "marginBottom": 10},
+        data=data,
+        value=value
         )
 
 def multiselect_device_id(id):
@@ -57,13 +68,12 @@ def multiselect_device_id(id):
 def multiselecdt_var_name(id, disabled=False):
     return multiselect(id=id, label='选择变量名', description='最多选择10个变量', maxSelectedValues=10, disabled=disabled)
 
-# def select_fault_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
-#     data = cfg.WINDFARM_FAULT_TYPE['name'].unique()
-#     return select(id=id, data=None, value=data[0], label='故障类型', size=size, width=width, withAsterisk=withAsterisk)
-
 def select_job_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
     type_ = list(cfg.SCHEDULER_JOB_TYPE.keys())
     return select(id, label="任务类型", data=type_, value=type_[-1], size=size, width=width, withAsterisk=withAsterisk)
+
+def select_general_graph_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
+    return select(id=id, data=GENERAL_GRAPH, value=None, label='绘图类型', size=size, width=width, withAsterisk=withAsterisk)
 
 def date_picker(id, label, description, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False, disabled=True):
     disabledDates = [cfg.DATE] 
@@ -152,3 +162,44 @@ def dash_dbquery(func,  not_empty=True,  *args, **kwargs):
             _type='warning'
             )
     return df, note
+
+def get_general_plot_selections(set_id, type_):
+    df = cfg.WINDFARM_VAR_NAME[cfg.WINDFARM_VAR_NAME['set_id']==set_id]
+    maxSelectedValues=1
+    if type_=='Base':
+        x_data = [{'label':'时间', 'value':'ts'}]
+        x_value = 'ts'
+        y_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in df.iterrows()]
+        maxSelectedValues=5
+    elif type_=='Scatter':
+        sub_df = df[df['datatype'].isin(['F', 'I'])]
+        x_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in sub_df.iterrows()]
+        x_value = None
+        y_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in sub_df.iterrows()]
+    elif type_=='Polar':
+        sub_df = df[(df['point_name'].str.find('角')>-1) & (df['unit']=='°')]
+        x_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in sub_df.iterrows()]
+        x_value = None
+        y_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in sub_df.iterrows()] 
+    elif type_=='Spectrum':
+        sub_df = df[df['datatype']=='F']
+        x_data = [{'label':'频率', 'value':'ts'}]
+        x_value = 'ts'
+        y_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in sub_df.iterrows()]
+        maxSelectedValues=2
+    else:
+        raise ValueError(f'不支持的类型{type_}')
+    y_values = []
+    return x_data, x_value, y_data, y_values, maxSelectedValues
+
+def dash_get_username(current_user, is_main=False):
+    note = None
+    username = None
+    try:
+        username = current_user.username
+    except Exception as e:
+        if is_main:
+            username = 'test'
+        else:
+            note = notification(title='获取用户名失败', msg=repr(e), _type='error')
+    return username, note

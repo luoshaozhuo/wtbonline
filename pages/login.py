@@ -20,14 +20,14 @@ from functools import partial
 
 from wtbonline._db.config import RSDB_URI
 from wtbonline._db.rsdb.model import User
-from wtbonline._common import utils
+import wtbonline._common.dash_component as dcmpt
 
 
 #%% constant
 PREFIX = 'login'
 
 #%% function
-get_component_id = partial(utils.dash_get_component_id, prefix=PREFIX)
+get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 #%% component
 

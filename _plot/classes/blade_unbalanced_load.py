@@ -10,7 +10,6 @@ from plotly.subplots import make_subplots
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._plot.classes.base import Base
 from wtbonline._process.tools.frequency import power_spectrum
-from wtbonline._plot.functions import power_spectrum
 
 
 class BladeUnblacedLoad(Base):

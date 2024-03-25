@@ -15,11 +15,11 @@ from wtbonline._db.tsdb_facade import TDFC
 class Base():
     '''
     >>> base = Base()
+    >>> base.init(var_names=['var_101', 'var_102'])
     >>> fig = base.plot(set_id='20835', device_ids=['s10003', 's10004'], start_time='2023-05-01 00:00:00', end_time='2023-05-01 02:00:00')
-    >>> fig.init(var_names=['var_101', 'var_102'])
     >>> fig.show(renderer='png')
     '''
-    def __init__(self, nsamples:int=3600, samplling_rate:int=1, row_height=200, showlegend=True):
+    def __init__(self, nsamples:int=3600, samplling_rate:int=1, row_height=300, width=900, showlegend=True):
         '''
         target_df -- 目标数据集
             必须包含set_id,device_id,start_time,end_time'，
@@ -29,28 +29,30 @@ class Base():
         self.samplling_rate = samplling_rate
         self.row_height = row_height
         self.showlegend=showlegend
-        self.width = 900  
-        self.init()
+        self.width = width
         
     def init(self, var_names=[]):
         ''' 定制的初始化过程 '''
-        self.var_names = var_names
+        self.var_names = make_sure_list(var_names)
         self.height = self.row_height*len(var_names)
+        self.mode='lines+markers'
     
-    def plot(self, set_id:str, device_ids:Union[str, List[str]], start_time:str, end_time:str, title=None):
+    def plot(self, set_id:str, device_ids:Union[str, List[str]], start_time:str, end_time:str, title=None, **kwargs):
+        if not hasattr(self, 'var_names'):
+            self.init()
         device_ids = make_sure_list(device_ids)
-        data = self.read_data(set_id=set_id, device_ids=device_ids, start_time=start_time, end_time=end_time)
+        data = self.read_data(set_id=set_id, device_ids=device_ids, start_time=start_time, end_time=end_time, var_names=self.var_names)
         ytitles = self.get_ytitles(set_id=set_id)
-        title = self.get_title(set_id=set_id, device_ids=device_ids) if title is None else title
-        fig = self.build(data=data, ytitles=ytitles)
+        title = self.get_title(set_id=set_id, device_ids=device_ids, ytitles=ytitles) if title is None else title
+        fig = self.build(data=data, ytitles=ytitles, **kwargs)
         self.tight_layout(fig, title)
         return fig
     
-    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str):
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]]):
         ''' 读取数据，默认从远程tsdb读取
         row : set_id, device_id, start_time, end_time
         '''
-        assert len(self.var_names), '没指定需要读取的变量名'
+        var_names = make_sure_list(var_names)
         device_ids = make_sure_list(device_ids)
         df = []
         for device_id in device_ids:
@@ -59,7 +61,7 @@ class Base():
                 device_id=device_id,
                 start_time=start_time,
                 end_time=end_time,
-                columns=self.var_names,
+                columns=var_names,
                 sample=self.nsamples,
                 remote=True,
                 )
@@ -67,21 +69,22 @@ class Base():
             df.append(temp)
         df = pd.concat(df, ignore_index=True)
         df = df.sort_values('ts')
-        df = df[['ts', 'device_id']+self.var_names]
-        assert df.shape[0]>1, '没有绘图数据'
+        df = df[['ts', 'device_id']+var_names]
+        if len(device_ids)!=len(df['device_id'].unique()):
+            raise ValueError(f'部分机组查无数据，实际：{df["device_id"].unique().tolist()}，需求：{device_ids}')
         return df
     
     def get_ytitles(self, set_id):
         df = TDFC._get_variable_info(set_id, self.var_names)
-        return df.set_index('var_name')['name']
+        return df.set_index('column')['name']
     
-    def get_title(self, set_id, device_ids):
+    def get_title(self, set_id, device_ids, ytitles):
         return device_ids[0] if len(device_ids)==1 else set_id
 
     def build(self, data, ytitles):
         df = data
         nrow = len(ytitles)
-        fig = make_subplots(rows=nrow, cols=1, shared_xaxes=True, vertical_spacing=0.01)
+        fig = make_subplots(rows=nrow, cols=1, shared_xaxes=True, vertical_spacing=0.05)
         colors = px.colors.qualitative.Dark2
         for i in range(len(self.var_names)):
             var_name = self.var_names[i]
@@ -91,16 +94,25 @@ class Base():
                     go.Scatter(
                         x=plot_df['ts'], 
                         y=plot_df[var_name],
-                        mode='lines+markers',           
+                        mode=self.mode,           
                         marker={'opacity':0.5, 'size':4, 'color':colors[j%len(colors)]},
+                        line={'color':colors[j%len(colors)]},
                         name=device_id,
-                        showlegend=i==0
+                        showlegend=(i==0)
                         ),
                     row=i+1, 
                     col=1)
                 j=j+1
             fig.update_yaxes(title_text=ytitles[var_name], row=i+1, col=1)
-        fig.update_xaxes(title_text='时间', row=nrow, col=1)
+            fig.update_yaxes(
+                title=dict(text=ytitles[var_name], font=dict(size=12)), 
+                automargin=True,
+                row=i+1, 
+                col=1)
+        fig.update_xaxes(
+            title=dict(text='时间', font=dict(size=12)), 
+            row=nrow, 
+            col=1)
         return fig
 
     def tight_layout(self, fig, title):

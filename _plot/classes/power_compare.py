@@ -1,7 +1,7 @@
 # author luosz
 # created on 10.23.2023
 
-from typing import List
+from typing import List, Union
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px 
@@ -11,7 +11,12 @@ from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 
-
+#%% constants
+COL_AUG = [
+    'device_id', 'totalfaultbool_mode','totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
+    'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique'
+    ]
+#%% class
 class PowerCompare(Base):
     '''
     >>> pc = PowerCompare()
@@ -20,17 +25,17 @@ class PowerCompare(Base):
     '''  
     def init(self, var_names=[]):
         ''' 定制的初始化过程 '''
+        self.var_names = ['var_101_mean', 'var_102_mean', 'var_103_mean', 'var_246_mean', 'var_94_mean']
         self.height = 600
     
-    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str):
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]]):
+        var_names = make_sure_list(var_names)
         df = RSDBFacade.read_statistics_sample(
             set_id=set_id,
             device_id=device_ids,
             start_time=start_time,
             end_time=end_time,
-            columns = ['device_id', 'var_101_mean', 'var_102_mean', 'var_103_mean', 'var_246_mean', 'var_94_mean',
-                       'totalfaultbool_mode','totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
-                        'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique'],
+            columns = list(set(COL_AUG+self.var_names)) ,
             )
         assert len(device_ids)==len(df['device_id'].unique()), f'部分机组查无数据，实际：{df["device_id"].unique().tolist()}，需求：{device_ids}'
         # 正常发电数据
@@ -53,7 +58,7 @@ class PowerCompare(Base):
     def get_ytitles(self, set_id):
         return []
 
-    def get_title(self, set_id, device_ids):
+    def get_title(self, set_id, device_ids, ytitles):
         return '功率差异'
 
     def build(self, data, ytitles):
