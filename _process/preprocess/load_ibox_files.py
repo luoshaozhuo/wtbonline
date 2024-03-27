@@ -6,7 +6,7 @@ from ftplib import FTP
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 from wtbonline._common.utils import make_sure_list, make_sure_series
-from _db.rsdb_facade import RSDBInterface
+from _db.rsdb_facade import RSDBFacade
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._logging import get_logger, log_it
 from wtbonline._process.preprocess import _LOGGER
@@ -47,7 +47,7 @@ class _FTP():
         self.password = ''
     
     def _initialize(self):
-        host = RSDBInterface.read_windfarm_configuration(
+        host = RSDBFacade.read_windfarm_configuration(
             set_id=self.set_id, 
             turbine_id=self.turbine_id, 
             columns=['ip_address', 'ftp_port', 'ftp_username', 'ftp_password']
@@ -130,7 +130,7 @@ def update_ibox_files(*args, **kwargs):
     executor = kwargs.get('executor', 'thread')
     max_worker = kwargs.get('max_worker', 1)
     import time
-    confs = RSDBInterface.read_windfarm_configuration(columns=['set_id', 'turbine_id'])
+    confs = RSDBFacade.read_windfarm_configuration(columns=['set_id', 'turbine_id'])
     confs = [(i,j) for _,(i,j) in confs.iterrows()]
     start = time.time()
     pool_executor = ThreadPoolExecutor if executor=='thread' else ProcessPoolExecutor

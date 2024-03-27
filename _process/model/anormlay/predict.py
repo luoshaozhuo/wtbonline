@@ -3,14 +3,14 @@
 #%% import 
 import pandas as pd
 
-from _db.rsdb_facade import RSDBInterface
-from wtbonline._db.common import make_sure_list
+from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._common.utils import make_sure_list
 from wtbonline._logging import log_it
 from wtbonline._process.model.anormlay import get_trainers, _LOGGER, OUTPATH
 
 #%% function
 def load_model(uuid, return_trainer=False):
-    model_sr = RSDBInterface.read_model(uuid=uuid).squeeze()
+    model_sr = RSDBFacade.read_model(uuid=uuid).squeeze()
     assert len(model_sr)>0, f'查无记录 uuid={uuid}'
     trainer = get_trainers()[model_sr['name']][0]
     pathname = OUTPATH/f'{uuid}.pkl'
@@ -30,7 +30,7 @@ def predict(
         model_uuid=None,
         ):
     uuids = make_sure_list(uuids)
-    data_df = RSDBInterface.read_statistics_sample(
+    data_df = RSDBFacade.read_statistics_sample(
         set_id=set_id,
         turbine_id=turbine_id,
         start_time=start_time,
@@ -50,7 +50,7 @@ def predict(
     anomaly_df.sort_values('sample_id', inplace=True)
     anomaly_df['model_uuid'] = ','.join(uuids) if model_uuid is None else model_uuid 
     anomaly_df['create_time'] = pd.Timestamp.now()
-    RSDBInterface.insert(anomaly_df, 'model_anormaly')
+    RSDBFacade.insert(anomaly_df, 'model_anormaly')
 
 @log_it(_LOGGER, True)
 def predict_all(*args, **kwargs):
@@ -63,12 +63,12 @@ def predict_all(*args, **kwargs):
         end_time = pd.Timestamp.now().date()
     start_time = end_time - pd.Timedelta(f"{kwargs['delta']}d")
     
-    model_df = RSDBInterface.read_model(
+    model_df = RSDBFacade.read_model(
         name=['lof_ctrl', 'lof_vibr'],
         func_dct={'create_time':['max']},
         groupby=['set_id', 'turbine_id', 'name'],
         ).rename(columns={'create_time_max':'create_time'})
-    model_df = RSDBInterface.read_model(
+    model_df = RSDBFacade.read_model(
         **{i:model_df[i].unique().tolist() for i in model_df}
         )
     for (sid,tid),grp in model_df.groupby(['set_id', 'turbine_id']):

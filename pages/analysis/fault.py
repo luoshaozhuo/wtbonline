@@ -48,10 +48,9 @@ def load_figure(sample_id, var_names):
     graph_obj = graph_factory.get(grapp_name)()
     if grapp_name=='ordinary':
         graph_obj.init(var_names=var_names)
-    delta = pd.Timedelta(f'{fault_type_sr["time_span"]}m')
+    delta = pd.Timedelta(f"{max(int(fault_type_sr['time_span']), 1)}m")
     fig, note = dcmpt.dash_try(
         note_title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA, 
-        # func=graph_obj.plot,
         func = graph_factory.get(grapp_name)().plot,
         set_id=sample_sr['set_id'],
         device_ids=sample_sr['device_id'],

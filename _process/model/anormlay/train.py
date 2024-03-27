@@ -5,8 +5,8 @@ import pandas as pd
 from typing import Union, List, Optional
  
 from wtbonline._db.rsdb.dao import RSDB
-from _db.rsdb_facade import RSDBInterface
-from wtbonline._db.common import make_sure_list
+from _db.rsdb_facade import RSDBFacade
+from wtbonline._common.utils import make_sure_list
 from wtbonline._logging import log_it
 from wtbonline._process.model.anormlay import get_trainers, _LOGGER
 
@@ -25,7 +25,7 @@ def train(
     ''' 从statistic_sample中读取数据训练模型 '''
     trainer_dct = get_trainers()
     uuids_ = make_sure_list(uuids_)
-    df = RSDBInterface.read_statistics_sample(
+    df = RSDBFacade.read_statistics_sample(
         set_id=set_id, 
         turbine_id=turbine_id, 
         start_time=start_time, 
@@ -73,8 +73,8 @@ def train_all(*args, **kwargs):
         end_time = pd.Timestamp.now().date()
     start_time = end_time - pd.Timedelta(f"{kwargs['delta']}d")
     
-    conf_df = RSDBInterface.read_windfarm_configuration()[['set_id', 'turbine_id']]
-    farm_name = RSDBInterface.read_windfarm_infomation()['farm_name'].iloc[0]
+    conf_df = RSDBFacade.read_windfarm_configuration()[['set_id', 'turbine_id']]
+    farm_name = RSDBFacade.read_windfarm_infomation()['farm_name'].iloc[0]
     for _, row in conf_df.iterrows():
         _LOGGER.info(f"train {row['set_id']} {row['turbine_id']}")
         train(

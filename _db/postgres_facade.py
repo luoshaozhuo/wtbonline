@@ -40,7 +40,7 @@ class PGFacade():
         df = pd.read_sql(text(sql), con=_ENGINE)
         df['var_name'] = df['var_name'].str.lower()
         if 'unit' in df.columns:
-            df['unit'] = df['unit'].fillna('unknown')
+            df['unit'] = df['unit'].fillna('NA')
         if len(var_name)>0:
             df = df[df['var_name'].isin(var_name)]
         if len(point_name)>0:

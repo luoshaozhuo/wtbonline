@@ -1,9 +1,7 @@
            
 
 #%% import
-from typing import Union
 import pandas as pd
-import datetime
 
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb_facade import RSDBFacade

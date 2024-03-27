@@ -128,7 +128,7 @@ def make_sure_list(x)->list:
         rev = list(x)
     elif x is None:
         rev = []
-    elif isinstance(x, (str, dict)):
+    elif isinstance(x, (str, dict, np.number, int, float)):
         rev = [x]
     elif hasattr(x, 'tolist'):
         rev = x.tolist()
@@ -140,7 +140,7 @@ def make_sure_list(x)->list:
     elif isinstance(x, Iterable):
         rev = [i for i in x]
     else:
-        rev = [x]
+        raise ValueError(f'不支持的数据类型{type(x)}')
     return rev
 
 def make_sure_datetime(

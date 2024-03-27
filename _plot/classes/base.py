@@ -10,12 +10,15 @@ import plotly.express as px
 
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.tsdb_facade import TDFC
+from wtbonline._db.postgres_facade import PGFacade
+
+#%%
+DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
 
 #%% class
 class Base():
     '''
     >>> base = Base()
-    >>> base.init(var_names=['var_101', 'var_102'])
     >>> fig = base.plot(set_id='20835', device_ids=['s10003', 's10004'], start_time='2023-05-01 00:00:00', end_time='2023-05-01 02:00:00')
     >>> fig.show(renderer='png')
     '''
@@ -31,7 +34,7 @@ class Base():
         self.showlegend=showlegend
         self.width = width
         
-    def init(self, var_names=[]):
+    def init(self, var_names=['totalfaultbool', 'workmode', 'limitpowbool']):
         ''' 定制的初始化过程 '''
         self.var_names = make_sure_list(var_names)
         self.height = self.row_height*len(var_names)
@@ -79,7 +82,7 @@ class Base():
         return df.set_index('column')['name']
     
     def get_title(self, set_id, device_ids, ytitles):
-        return device_ids[0] if len(device_ids)==1 else set_id
+        return '时间序列'
 
     def build(self, data, ytitles):
         df = data
@@ -97,7 +100,7 @@ class Base():
                         mode=self.mode,           
                         marker={'opacity':0.5, 'size':4, 'color':colors[j%len(colors)]},
                         line={'color':colors[j%len(colors)]},
-                        name=device_id,
+                        name=DEVICE_DF.loc[device_id, 'device_name'],
                         showlegend=(i==0)
                         ),
                     row=i+1, 
