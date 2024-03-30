@@ -38,10 +38,10 @@ COLUMNS_DCT = {
     'status':'状态', 
     'type':'类型', 
     'task_parameter':'参数', 
+    'start_time':'开始时间', 
+    'next_run_time':'下次运行时间',
     'func':'目标函数', 
     'function_parameter':'目标函数参数', 
-    'start_time':'开始时间', 
-    'next_run_time':'下次运行时间', 
     'username':'拥有者'
 }
 TABLE_COLUMNS = list(COLUMNS_DCT.keys())
