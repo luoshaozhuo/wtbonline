@@ -22,10 +22,9 @@ from apscheduler.events import (
 
 from wtbonline._db.rsdb.dao import create_engine_
 from wtbonline._logging import get_logger
-from _db.rsdb_facade import RSDBInterface
+from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._common.code import MYSQL_QUERY_FAILED
 # 这里不导入，发布任务时会提示找不到相关函数
-from wtbonline._process.statistics.daily import udpate_statistic_daily
 from wtbonline._report.brief_report import build_brief_report_all
 
 #%% config
@@ -100,7 +99,7 @@ def listen(event):
             if last is not None and (now - last[1])<1 and last[0]=='MISSED':
                 return
             RECORD.update({job_id:[status, now]})
-            RSDBInterface.update('timed_task', {'status':status, 'update_time':pd.Timestamp.now()}, eq_clause={'task_id':job_id})
+            RSDBFacade.update('timed_task', {'status':status, 'update_time':pd.Timestamp.now()}, eq_clause={'task_id':job_id})
         except Exception as e:
             logger.error(f'{MYSQL_QUERY_FAILED} job_id={job_id} status={status}, msg={e}')
 

@@ -18,7 +18,6 @@ import time
 
 from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
-from wtbonline._common import utils 
 from wtbonline._common import dash_component as dcmpt
 
 
@@ -379,7 +378,7 @@ def callback_on_btn_add_job(
         update_time=pd.Timestamp.now()
         )
     # 更新数据库
-    _, note = utils.dash_dbquery(
+    _, note = dcmpt.dash_dbquery(
         func=RSDBFacade.insert,
         df=dct,
         tbname = 'timed_task'

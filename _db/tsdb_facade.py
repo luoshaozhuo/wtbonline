@@ -64,11 +64,13 @@ class TDEngine_FACADE():
         if df.shape[0]==0:
             return df
         # null数据会导致类型转换报错
-        df.dropna(how='any', inplace=True)
+        df.dropna(how='all', inplace=True)
         var_info = self._get_variable_info(set_id=set_id, columns=df.columns)
         # 类型转换
         for _,row in var_info.iterrows():
             # 从tdengine读取Int数据，偶尔会出现float值，先强制做一次int转换
+            if row['datatype'] in ('I', 'F'):
+                df[row['column']] = df[row['column']].fillna('-999999')
             if row['datatype']=='I':
                 df[row['column']] = df[row['column']].astype(int)
             df[row['column']] = df[row['column']].astype(DATA_TYPE[row['datatype']])
@@ -405,8 +407,8 @@ class TDEngine_FACADE():
             return
         # 获取字段名称
         fields = self.get_filed(set_id=set_id, remote=False)
-        fieles = fields[fields!='device']
-        df = df[fieles] # 貌似必须字段按顺序写入，且必须包含全部字段
+        # fieles = fields[fields!='device']
+        # df = df[fieles] # 貌似必须字段按顺序写入，且必须包含全部字段
         df['ts'] = df['ts'].dt.tz_localize(None)
         if 'device' in df.columns:
             df.drop(columns='device', inplace=True)
