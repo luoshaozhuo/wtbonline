@@ -67,9 +67,9 @@ def extract(set_id:str, device_id:str, dt:Union[str, pd.Timestamp, date],
 
 def load_tsdb(set_id:str, device_id:str, dt:Union[str, date]):
     ''' 抽取数据到本地TSDB
-    >>> set_id='20835'
-    >>> device_id='s10003'
-    >>> start_time = pd.to_datetime('2023-06-01 00:00:00')
+    >>> set_id='20625'
+    >>> device_id='d10003'
+    >>> start_time = pd.to_datetime('2023-12-26 00:00:00')
     >>> end_time = start_time + pd.Timedelta('1d')
     >>> n = extract(set_id, device_id, start_time).shape[0]
     >>> load_tsdb(set_id, device_id, start_time)
@@ -105,7 +105,7 @@ def update_tsdb(*args, **kwargs):
         dts = dtrm[~dtrm.isin(dtlc)]
         for date in dts:
             # 不更新当天数据
-            if date==pd.Timestamp.now().date():
+            if date>=pd.Timestamp.now().date():
                 continue
             print(set_id, device_id, date)
             try:
@@ -117,6 +117,6 @@ def update_tsdb(*args, **kwargs):
             
 #%%
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
-    # update_tsdb()
+    # import doctest
+    # doctest.testmod()
+    update_tsdb()

@@ -195,9 +195,9 @@ class SimpleTrainer(BaseTrainer):
         ...         'max_features':['sqrt', 'log2', None], 
         ...         }
         ...    }
-        >>> trainer.train(df, kwargs=kwargs, uuid_='test', minimun=10)
-        >>> pathname = trainer.save_model()
-        >>> Path(trainer.pathname).unlink()
+        >>> trainer.train(df, kwargs=kwargs, uuid_='test', minimum=10)
+        >>> pathname = trainer.save_model(pathname='/tmp/test.pkl')
+        >>> Path('/tmp/test.pkl').unlink()
         '''
         y_train = make_sure_dataframe(self.y_train)
         if len(y_train)>0:

@@ -55,12 +55,16 @@ def read(device_id, fault_type, value, index=None, start_time=None):
         df = TDFC.query(sql, remote=True)
         df['device_id'] = device_id
         df['val'] = df['val'].astype(bool).astype(str).str.lower()
-    if fault_type=='msg':
-        df = PGFacade.read_data_msg(device_id=device_id, val=value, start_time=start_time)
-    if fault_type=='alarm':
-        df = PGFacade.read_data_alarm(device_id=device_id, val=value, start_time=start_time)
-    if fault_type=='fault':
-        df = PGFacade.read_data_fault(device_id=device_id, val=value, start_time=start_time)
+    else:
+        value = value.split(',')
+        if fault_type=='msg':
+            df = PGFacade.read_data_msg(device_id=device_id, val=value, start_time=start_time)
+        elif fault_type=='alarm':
+            df = PGFacade.read_data_alarm(device_id=device_id, val=value, start_time=start_time)
+        elif fault_type=='fault':
+            df = PGFacade.read_data_fault(device_id=device_id, val=value, start_time=start_time)
+        else:
+            raise ValueError(f'不支持的故障类型{fault_type}')
     df['begin_tm'] = pd.to_datetime(df['begin_tm'])
     df['end_tm'] = pd.to_datetime(df['end_tm'])
     df['fault_type'] = fault_type
@@ -71,9 +75,12 @@ def do_statistic(set_id, device_id):
     '''
     >>> do_statistic('20835', 's10003')
     '''
+    tsdb_columns = TDFC.get_filed(set_id=set_id, remote=False)
     dct = latest_record(device_id=device_id)
     df = []
     for _,row in FAULT_TYPE_DF.iterrows():
+        if row['type']=='flag' and not row['index'] in tsdb_columns:
+            continue
         temp = read(
             device_id=device_id, 
             fault_type=row['type'], 
@@ -81,8 +88,12 @@ def do_statistic(set_id, device_id):
             index=row['index'],
             start_time=dct.get(row['type'], None)
             )
+        if len(temp)<1:
+            continue
         temp.insert(0, 'fault_id', row['id'])
         df.append(temp)
+    if len(df)<1:
+        return
     df = pd.concat(df, ignore_index=True)
     df['set_id'] = set_id
     df['create_time'] = pd.Timestamp.now()
@@ -99,6 +110,7 @@ def udpate_statistic_fault(*args, **kwargs):
     for _,row in device_df.iterrows():
         set_id = row['set_id']
         device_id=row['device_id']
+        _LOGGER.info(f'task_id={task_id} udpate_statistic_fault: {set_id}, {device_id}')
         try:
             do_statistic(set_id=set_id, device_id=device_id)
         except Exception as e:
@@ -109,6 +121,6 @@ def udpate_statistic_fault(*args, **kwargs):
     
     
 if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
-    # udpate_statistic_fault()
+    # import doctest
+    # doctest.testmod()
+    udpate_statistic_fault()

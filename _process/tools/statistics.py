@@ -16,7 +16,7 @@ from functools import wraps
 from typing import List, Callable
 from itertools import product
 
-from wtbonline._process.tools.common import EPS, make_sure_series
+from wtbonline._common.utils import EPS, make_sure_series
 
 # =============================================================================
 # fucntion
@@ -232,7 +232,6 @@ def numeric_statistics():
     return [mean, rms, iqr, std, skew, kurt, wf, crest, zc, cv, imp]
 
 def category_statistics():
-    ''' 数值类型变量常用统计量 '''
     return [mode, unique, nunique]
 
 if __name__ == "__main__":

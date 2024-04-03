@@ -62,8 +62,8 @@ def get_trainers():
     <class 'dict'>
     '''
     trainer_dct={}
-
-    xcols = ['var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean']
+    # 风轮转速, 瞬时风速, 发电机转矩, 1#叶片实际角度
+    xcols = ['var_94_mean', 'winspd_mean', 'var_226_mean', 'var_101_mean']
     ycols = None
     clf = LocalOutlierFactor(
         novelty=True,
@@ -81,6 +81,7 @@ def get_trainers():
     kwargs = {}
     trainer_dct.update({'lof_ctrl':(trainer, kwargs)})
     
+    # 机舱X方向振动, 机舱y方向振动
     xcols = ['var_382_mean', 'var_383_mean']
     ycols = None
     clf = LocalOutlierFactor(
@@ -99,8 +100,10 @@ def get_trainers():
     kwargs = {}
     trainer_dct.update({'lof_vibr':(trainer, kwargs)})
     
-    xcols = ['var_226','var_101', 'var_102', 'var_103', 'var_94', 'var_2709', 'evntemp']
-    ycols= ['var_355_mean']
+    # 发电机转矩 1#叶片实际角度 2#叶片实际角度 3#叶片实际角度 风轮转速 瞬时风向 环境温度
+    xcols = ['var_226','var_101', 'var_102', 'var_103', 'var_94', 'var_363', 'evntemp']
+    # 瞬时风速
+    ycols= ['winspd_mean']
     trainer = SimpleTrainer(
         estimator=RandomForestRegressor(),
         data_filter=filter_for_modeling, 

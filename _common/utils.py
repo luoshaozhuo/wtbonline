@@ -3,6 +3,8 @@ from collections.abc import Iterable
 from typing import Union, Optional
 import numpy as np
 
+EPS = np.finfo(np.float32).eps
+
 def make_sure_dict(x)->dict:
     '''
     >>> make_sure_dict(1)

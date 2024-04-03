@@ -61,6 +61,7 @@ class TDEngine_FACADE():
         ts                datetime64[ns, Asia/Shanghai]
         dtype: object
         '''
+        df = df.copy()
         if df.shape[0]==0:
             return df
         # null数据会导致类型转换报错
@@ -405,17 +406,13 @@ class TDEngine_FACADE():
         df = make_sure_dataframe(df.copy())
         if len(df)<1:
             return
-        # 获取字段名称
-        fields = self.get_filed(set_id=set_id, remote=False)
-        # fieles = fields[fields!='device']
-        # df = df[fieles] # 貌似必须字段按顺序写入，且必须包含全部字段
+        # 时间类型转换
         df['ts'] = df['ts'].dt.tz_localize(None)
         if 'device' in df.columns:
             df.drop(columns='device', inplace=True)
         columns = df.select_dtypes(['datetimetz', 'datetime', 'datetime64']).columns
         for col in columns:
             df[col] = "'" + df[col].dt.strftime('%Y-%m-%d %H:%M:%S') + "'"
-
         # 数据类型转换
         # bool转换为int，否则报错
         # 对于tdengine而言，1为true，0为false
@@ -425,12 +422,16 @@ class TDEngine_FACADE():
             cols = df.columns[df.columns.isin(cols)]
             for col in cols:
                 df[col] = df[col].astype(type_)
-     
+        df.fillna('NULL')
+        # 临时csv文件名
         kwargs = get_td_local_connector()
         if dbname != None:
             kwargs['database'] = dbname
         pathname = Path(get_temp_dir())/f'tmp_{uuid.uuid4().hex}.csv'
-        df.to_csv(pathname, index=False)
+        # 貌似必须字段按顺序写入，且必须包含全部字段
+        fields = self.get_filed(set_id=set_id, remote=False)
+        fields = fields[fields!='device']
+        df[fields].to_csv(pathname, index=False, header=False)
         sql = f"insert into {kwargs['database']}.d_{device_id} file '{pathname.as_posix()}';"
         _ = self.query(sql, driver_kwargs=kwargs)
         pathname.unlink()
