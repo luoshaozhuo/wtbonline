@@ -62,7 +62,10 @@ def make_sure_dataframe(x)->pd.DataFrame:
     elif isinstance(x, pd.DataFrame):
         rev = x
     elif isinstance(x, dict):
-        rev = pd.DataFrame(x, index=[1])
+        try:
+            rev = pd.DataFrame(x, index=[1])
+        except:
+            rev = pd.DataFrame(x)
     elif isinstance(x, (list, tuple)):
         rev = pd.DataFrame(x, index=np.arange(len(x)))
     elif isinstance(x, pd.Series):

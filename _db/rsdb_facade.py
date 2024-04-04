@@ -209,7 +209,7 @@ class RSDBFacade():
             set_id:Optional[Union[list, int, str]]=None,
             device_id:Optional[Union[list, int, str]]=None,
             uuid:Optional[Union[list, int, str]]=None,
-            name:Optional[Union[list, int, str]]=None,
+            type_:Optional[Union[list, int, str]]=None,
             create_time:Optional[Union[str, List[str]]]=None,
             columns:Optional[Union[List[str], str]]=None,
             limit:Optional[int]=None,
@@ -229,8 +229,8 @@ class RSDBFacade():
         create_time = make_sure_list(pd.to_datetime(create_time))
         eq_clause, in_clause = cls.get_in_or_eq_clause(
             id=id_, set_id=set_id, device_id=device_id, 
-            uuid=uuid, name=name, create_time=create_time)
-        return RSDB.query(tbname, columns=columns, eq_clause=eq_clause, in_clause=in_clause, limit=limit)  
+            uuid=uuid, type=type_, create_time=create_time)
+        return RSDB.query(tbname, columns=columns, eq_clause=eq_clause, in_clause=in_clause, limit=limit, orderby='create_time')  
 
     @classmethod
     def read_windfarm_configuration(

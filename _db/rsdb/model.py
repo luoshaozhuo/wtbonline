@@ -44,18 +44,16 @@ class ApschedulerJob(db.Model):
 class Model(db.Model):
     __tablename__ = 'model'
     __table_args__ = (
-        db.Index('compoud', 'set_id', 'device_id', 'name', 'create_time'),
+        db.Index('compoud', 'set_id', 'device_id', 'create_time'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    farm_name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='风电场名')
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='与tdengine里的set_id对应')
     device_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, info='与tdengine里的device对应')
+    type = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='模型类型，如anomaly')
     uuid = db.Column(db.String(50, 'utf8mb4_general_ci'), nullable=False, unique=True, info='模型唯一码')
-    name = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, info='模型类型')
     start_time = db.Column(db.DateTime, nullable=False, info='建模数据起始时间')
     end_time = db.Column(db.DateTime, nullable=False, info='建模数据结束时间')
-    is_local = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='1=利用本地数据训练得到的模型')
     create_time = db.Column(db.DateTime, nullable=False, info='本记录生成时间')
 
 
