@@ -177,7 +177,7 @@ def callback_on_icon_refresh_administrate(n):
     )
 def callback_on_icon_save_administrate(n, username, password, privilege):    
     df, note = dcmpt.dash_dbquery(RSDBFacade.read_user)
-    if note!=no_update:
+    if note is not None:
         return note, no_update, ''
     privilege = PRIVILEGE.set_index('str_').loc[privilege, 'int_']
     hashed_password = generate_password_hash(password) if password is not None else None
@@ -208,9 +208,9 @@ def callback_on_icon_save_administrate(n, username, password, privilege):
             df=df,
             tbname='user',
             )        
-    if note==no_update:
+    if note is None:
         data, note = func_read_user_table()
-    if note==no_update:
+    if note is None:
         note = notification(
             title='操作成功',
             msg=f'用户{username}信息已更新' if is_updating else f'已添加用户{username}',

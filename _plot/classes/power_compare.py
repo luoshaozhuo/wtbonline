@@ -10,17 +10,19 @@ from plotly.subplots import make_subplots
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
+from wtbonline._process.tools.filter import normal_production
 
 #%% constants
 COL_AUG = [
     'device_id', 'totalfaultbool_mode','totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
-    'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique'
+    'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'pv_c'
     ]
+
 #%% class
 class PowerCompare(Base):
     '''
     >>> pc = PowerCompare()
-    >>> fig = pc.plot(set_id='20835', device_ids='s10003', start_time='2023-05-01 00:00:00', end_time='2023-10-01 00:00:00')
+    >>> fig = pc.plot(set_id='20625', device_ids='d10003', start_time='2023-10-01 00:00:00', end_time='2024-04-01 00:00:00')
     >>> fig.show(renderer='png')
     '''  
     def init(self, var_names=[]):
@@ -39,16 +41,7 @@ class PowerCompare(Base):
             )
         assert len(device_ids)==len(df['device_id'].unique()), f'部分机组查无数据，实际：{df["device_id"].unique().tolist()}，需求：{device_ids}'
         # 正常发电数据
-        df = df[
-            (df['totalfaultbool_mode']=='False') &
-            (df['totalfaultbool_nunique']==1) &
-            (df['ongrid_mode']=='True') &
-            (df['ongrid_nunique']==1) &
-            (df['limitpowbool_mode']=='False') &
-            (df['limitpowbool_nunique']==1) &
-            (df['workmode_mode']=='32') &
-            (df['workmode_nunique']==1)
-            ]
+        df = normal_production(df, reset_index=True)        
         df.rename(columns={'var_246_mean':'mean_power'}, inplace=True)
         df['mean_pitch_angle'] = df[['var_101_mean', 'var_102_mean', 'var_103_mean']].mean(axis=1)
         gearbox_ratio = RSDBFacade.read_windfarm_configuration(set_id=set_id)['gearbox_ratio'].iloc[0]

@@ -88,12 +88,12 @@ def callback_on_btn_submit_pasword(n, oldPassword, newPassword):
     error_oldPassword = error_newPassword = ''
     for _ in range(1):
         # 无法获取用户名
-        if note!=no_update:
+        if note is not None:
             break
         # 缺输入
-        if None in (oldPassword, newPassword):
-            error_oldPassword = '输入旧密码' if oldPassword is None else ''
-            error_newPassword = '输入新密码' if oldPassword is None else ''
+        if None in (oldPassword, newPassword) or '' in (oldPassword, newPassword):
+            error_oldPassword = '输入旧密码' if oldPassword in (None, '') else ''
+            error_newPassword = '输入新密码' if oldPassword in (None, '') else ''
             break
         # 旧密码错误
         this_user = RSDBFacade.read_user(username=username).squeeze()
@@ -108,7 +108,7 @@ def callback_on_btn_submit_pasword(n, oldPassword, newPassword):
                 new_values={'password':newPassword}, 
                 eq_clause={'username':this_user.username}
             )
-        if note==no_update:
+        if note is None:
             note = notification(
                 title='密码已修改',
                 msg=f'{this_user.username}密码修改成功',

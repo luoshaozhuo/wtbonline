@@ -12,22 +12,23 @@ from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.postgres_facade import PGFacade
+from wtbonline._process.tools.filter import normal_production
 
 #%% constant
-COL_AUG = ['device_id', 'totalfaultbool_mode', 'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 
+COL_AUG = ['device_id', 'totalfaultbool_mode', 'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'pv_c',
            'workmode_mode', 'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean', 'bin']
 
 #%% class
 class PowerCurve(Base):
     '''
     >>> pc = PowerCurve()
-    >>> fig = pc.plot(set_id='20835', device_ids=['s10003'], start_time='2023-05-01 00:00:00', end_time='2023-10-01 00:00:00')
+    >>> fig = pc.plot(set_id='20625', device_ids=['d10003'], start_time='2023-05-01 00:00:00', end_time='2024-10-01 00:00:00')
     >>> fig.show(renderer='png')
     '''  
     def init(self, var_names=[]):
         ''' 定制的初始化过程 '''
         self.height = 600
-        self.var_names = ['var_355_mean', 'var_246_mean']
+        self.var_names = ['winspd_mean', 'var_246_mean']
     
     def get_ytitles(self, set_id):
         return []
@@ -47,17 +48,8 @@ class PowerCurve(Base):
         if len(device_ids)!=len(df['device_id'].unique()):
             raise ValueError(f'部分机组查无数据，实际：{df["device_id"].unique().tolist()}，需求：{device_ids}')
         # 正常发电数据
-        df = df[
-            (df['totalfaultbool_mode']=='False') &
-            (df['totalfaultbool_nunique']==1) &
-            (df['ongrid_mode']=='True') &
-            (df['ongrid_nunique']==1) &
-            (df['limitpowbool_mode']=='False') &
-            (df['limitpowbool_nunique']==1) &
-            (df['workmode_mode']=='32') &
-            (df['workmode_nunique']==1)
-            ]
-        df = df.rename(columns={'var_355_mean':'mean_wind_speed', 'var_246_mean':'mean_power'})
+        df = normal_production(df)
+        df = df.rename(columns={'winspd_mean':'mean_wind_speed', 'var_246_mean':'mean_power'})
         # 15°空气密度
         df['mean_wind_speed'] = df['mean_wind_speed']*np.power((273.15+df['evntemp_mean'])/288.15,1/3.0)
         wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)

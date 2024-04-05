@@ -55,8 +55,8 @@ class Base():
         ''' 读取数据，默认从远程tsdb读取
         row : set_id, device_id, start_time, end_time
         '''
-        var_names = make_sure_list(var_names)
-        device_ids = make_sure_list(device_ids)
+        var_names = list(set(make_sure_list(var_names)))
+        device_ids = list(set(make_sure_list(device_ids)))
         df = []
         for device_id in device_ids:
             temp = TDFC.read(
@@ -78,7 +78,7 @@ class Base():
         return df
     
     def get_ytitles(self, set_id):
-        df = TDFC._get_variable_info(set_id, self.var_names)
+        df = TDFC._get_variable_info(set_id, self.var_names).drop_duplicates()
         return df.set_index('column')['name']
     
     def get_title(self, set_id, device_ids, ytitles):
@@ -120,7 +120,7 @@ class Base():
 
     def tight_layout(self, fig, title):
         fig.update_layout(
-            title=dict(text=title, font=dict(size=15), xanchor='center', yanchor='top', x=0.5, y=0.99),
+            title=dict(text=title, font=dict(size=15), x=0.1, y=0.98, xanchor='left', yanchor='top', automargin=True),
             height=self.height,
             width=self.width,
             legend=dict(

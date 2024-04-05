@@ -1,7 +1,6 @@
 import pandas as pd
 import dash_mantine_components as dmc
 
-import wtbonline._plot as plt
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb_facade import RSDBFacade
 
@@ -77,8 +76,8 @@ SCHEDULER_JOB_PARAMETER = pd.DataFrame(
         ['拉取PLC数据', 'wtbonline._process.preprocess.load_ibox_files:update_ibox_files', False, False, False, False],
         ['统计10分钟样本', 'wtbonline._process.statistics.sample:update_statistic_sample', False, False, False, False],
         ['故障统计', 'wtbonline._process.statistics.fault:udpate_statistic_fault', False, False, False, False],
-        ['训练离群值识别模型', 'wtbonline._process.model.anormlay.train:train_all', True, True, True, False],
-        ['离群值识别', 'wtbonline._process.model.anormlay.predict:predict_all',  True, True, False, True],
+        ['训练离群值识别模型', 'wtbonline._process.model.function:train_all', True, True, True, False],
+        ['离群值识别', 'wtbonline._process.model.function:predict_all',  True, True, False, True],
         ['数据统计报告', 'wtbonline._report.brief_report:build_brief_report_all',  True, True, False, False],
         ],
     columns=['name', 'func', 'end_date', 'delta', 'minimun_sample', 'num_output']

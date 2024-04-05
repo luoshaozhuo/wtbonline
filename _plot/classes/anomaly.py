@@ -9,7 +9,7 @@ import pandas as pd
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.rsdb_facade import RSDBFacade
-from wtbonline._process.tools.filter import filter_for_modeling
+from wtbonline._process.tools.filter import normal_production
 
 #%% constant
 ANOMALY_MATRIX_PLOT_COLOR = {
@@ -67,7 +67,7 @@ class Anomaly(Base):
             random=True,
             columns = col_all
             )
-        sample_df = filter_for_modeling(sample_df).loc[:, col_sel]
+        sample_df = normal_production(sample_df).loc[:, col_sel]
         if len(sample_df)==0:
             raise ValueError('无数据')
         # 合异常数据

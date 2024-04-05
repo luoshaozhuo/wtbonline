@@ -42,7 +42,7 @@ def no_fault(df):
 def on_grid(df):
     return(df['ongrid_mode']=='True') & (df['ongrid_nunique']==1)  
 
-def filter_for_modeling(df, reset_index=False, return_cond=False):
+def normal_production(df, reset_index=False, return_cond=False):
     cond_df = pd.DataFrame()
     cond_df.insert(0, 'is_stationary', stationary(df))
     cond_df.insert(0, 'not_limit_power', not_limit_power(df))

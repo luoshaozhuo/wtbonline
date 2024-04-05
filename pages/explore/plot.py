@@ -101,7 +101,7 @@ dash.register_page(
 
 layout = [
     html.Div(id=get_component_id('notification')),
-    dmc.Container(children=[creat_content()], size=cfg.CONTAINER_SIZE, pt=cfg.HEADER_HEIGHT),
+    dmc.Container(children=[dmc.Space(h='20px'), creat_content()], size=cfg.CONTAINER_SIZE, pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
         smallerThan=cfg.TOOLBAR_HIDE_SMALLER_THAN,
         styles={"display": "none"},

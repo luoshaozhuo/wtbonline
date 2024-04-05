@@ -47,21 +47,34 @@ class Base():
         df = df[cond]   
         if len(df)<0:
             raise ValueError('df is empty after translation.')
+        return df
+    
+    def _seperate(self, df):
         X = df[self.features]
-        y = df[self.target] if len(self.target)>0 and pd.Series(self.target).isin(df.columns).all() else None
+        y = df[self.target] if len(self.target)>0 and pd.Series(self.target).isin(df.columns).all() else None    
         return X, y
             
     def fit(self, df:pd.DataFrame, **kwargs):
-        X, y = self._filter(df)
+        df = self._filter(df)
+        X, y = self._seperate(df)
         if self.scalar is not None:
             X = self.scalar.fit_transform(X)
         self.estimator = self.trainer.fit(estimator=self.estimator, X=X, y=y, **kwargs)
     
     def predict(self, df:pd.DataFrame):
-        X, _ = self._filter(df)
+        df = self._filter(df)
+        X, _ = self._seperate(df)
         if self.scalar is not None:
             X = self.scalar.transform(X)
         return self.estimator.predict(X)
+
+    def score_samples(self, df:pd.DataFrame, **kwargs):
+        if not hasattr(self.estimator, 'score_samples'):
+            raise AttributeError(f'estimator {self.estimator} do not have member function "score_samples"')
+        X, _ = self._seperate(df)
+        if self.scalar is not None:
+            X = self.scalar.transform(X)
+        return self.estimator.score_samples(X)
 
 Classifier = Base
 

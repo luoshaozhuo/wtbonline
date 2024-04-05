@@ -47,8 +47,7 @@ from wtbonline._common.utils import make_sure_dataframe, make_sure_list, make_su
 from wtbonline._logging import get_logger, log_it
 from wtbonline._plot import graph_factory
 import wtbonline._plot as plt
-from wtbonline._process.tools.filter import filter_for_modeling
-from wtbonline._process.model.anormlay.predict import load_model
+from wtbonline._process.tools.filter import normal_production
 
 #%% constant
 pdfmetrics.registerFont(TTFont('Simsun', 'simsun.ttc'))

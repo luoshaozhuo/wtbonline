@@ -37,7 +37,7 @@ get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 def load_figure(sample_id, var_names):
     df, note = dcmpt.dash_dbquery(
-    func=RSDBFacade.read_statistics_fault,
+        func=RSDBFacade.read_statistics_fault,
         id_=sample_id
         )
     if note is not None:
@@ -51,7 +51,7 @@ def load_figure(sample_id, var_names):
     delta = pd.Timedelta(f"{max(int(fault_type_sr['time_span']), 1)}m")
     fig, note = dcmpt.dash_try(
         note_title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA, 
-        func = graph_factory.get(grapp_name)().plot,
+        func = graph_obj.plot,
         set_id=sample_sr['set_id'],
         device_ids=sample_sr['device_id'],
         start_time=sample_sr['start_time']-delta, 
@@ -141,7 +141,7 @@ dash.register_page(
 
 layout = [
     html.Div(id=get_component_id('notification')),
-    dmc.Container(children=[creat_content()], size=cfg.CONTAINER_SIZE,pt=cfg.HEADER_HEIGHT),
+    dmc.Container(children=[dmc.Space(h='20px'), creat_content()], size=cfg.CONTAINER_SIZE,pt=cfg.HEADER_HEIGHT),
     dmc.MediaQuery(
         smallerThan=cfg.TOOLBAR_HIDE_SMALLER_THAN,
         styles={"display": "none"},

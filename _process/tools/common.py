@@ -5,7 +5,6 @@ from typing import List, Union
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
-from wtbonline._process.model.anormlay import OUTPATH
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb.dao import RSDB

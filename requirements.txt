@@ -27,4 +27,3 @@ matplotlib
 ipykernel
 dash_iconify
 psycopg2-binary
-autosklearn
