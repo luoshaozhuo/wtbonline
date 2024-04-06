@@ -10,6 +10,7 @@ from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._process.tools.filter import normal_production
+from wtbonline._db.postgres_facade import PGFacade
 
 #%% constant
 ANOMALY_MATRIX_PLOT_COLOR = {
@@ -20,16 +21,18 @@ ANOMALY_MATRIX_PLOT_COLOR = {
     }
 
 COLUMNS_AUG = [
-    'set_id', 'device_id', 'pv_c', 'validation', 'limitpowbool_mode', 'limitpowbool_nunique', 'workmode_mode', 
+    'set_id', 'device_id', 'pv_c', 'limitpowbool_mode', 'limitpowbool_nunique', 'workmode_mode', 
     'workmode_nunique', 'ongrid_mode', 'ongrid_nunique', 'totalfaultbool_mode', 'totalfaultbool_nunique', 'id', 'bin'
     ]
+
+DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
 
 #%% class
 class Anomaly(Base):
     '''
     >>> cls = Anomaly()
-    >>> cls.init(var_names=['var_94','var_355', 'var_226'])
-    >>> fig = cls.plot(set_id='20835', device_ids='s10003', start_time='2023-05-01 00:00:00', end_time='2023-10-01 00:30:00')
+    >>> cls.init(var_names=['var_94','winspd', 'var_226'])
+    >>> fig = cls.plot(set_id='20625', device_ids='d10003', start_time='2023-10-01 00:00:00', end_time='2024-10-01 00:30:00')
     >>> fig.show(renderer='png')
     '''    
     def init(self, var_names:Optional[Union[List[str], str]]=[]):
@@ -41,7 +44,7 @@ class Anomaly(Base):
             if var.split('_')[-1] != 'mean':
                 var_names[i] = var_names[i]+'_mean'
         columns = [
-            'var_94_mean', 'var_355_mean', 'var_226_mean', 'var_101_mean',
+            'var_94_mean', 'winspd_mean', 'var_226_mean', 'var_101_mean',
             'var_382_mean', 'var_383_mean'
             ]
         self.var_names = columns if len(var_names)<1 else var_names
@@ -50,6 +53,9 @@ class Anomaly(Base):
         self.height = 800
         self.width = 800
         self.showlegend = False
+    
+    def get_title(self, set_id, device_ids, ytitles):
+        return DEVICE_DF.loc[device_ids[0], 'device_name']
     
     def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]]):
         # 仅绘制单台机组

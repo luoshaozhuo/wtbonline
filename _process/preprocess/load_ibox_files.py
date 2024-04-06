@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from wtbonline._common.utils import make_sure_list, make_sure_series
 from _db.rsdb_facade import RSDBFacade
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._logging import get_logger, log_it
+from wtbonline._logging import get_logger
 from wtbonline._process.preprocess import _LOGGER
 
 #%% constant
@@ -125,7 +125,6 @@ def _update_ibox_files(args):
         rev = 1
     return rev
     
-@log_it(_LOGGER, True)
 def update_ibox_files(*args, **kwargs):
     executor = kwargs.get('executor', 'thread')
     max_worker = kwargs.get('max_worker', 1)

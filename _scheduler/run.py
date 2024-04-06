@@ -62,7 +62,6 @@ JOB_STATUS = {
     EVENT_JOB_MAX_INSTANCES : 'JOB_MAX_INSTANCES',
     }
 
-
 SELECTED_EVENT = (
     EVENT_SCHEDULER_RESUMED,
     EVENT_JOB_REMOVED,
@@ -75,34 +74,27 @@ SELECTED_EVENT = (
     EVENT_JOB_MODIFIED
     )
 
+FINISH_EVENT = [EVENT_JOB_REMOVED, EVENT_JOB_EXECUTED, EVENT_JOB_ERROR]
+FINISH_STATUS = [JOB_STATUS[i] for i in FINISH_EVENT]
+
 MASK = 0
 for i in JOB_STATUS:
     MASK |= i
-
-import time
-
-RECORD = {}
 
 def listen(event):
     status = JOB_STATUS[event.code]
     job_id = getattr(event, 'job_id', 'NA')
     logger.info(f'event job_id={job_id} event={status}')
-    if event.code in SELECTED_EVENT:
-        try:
-            # event并不是按照严格的时间发生先后到达
-            # 譬如，提交一个过期的date型任务时
-            # 有时是miss->remove->submit
-            # 有时是remove->miss->submit
-            # 但是，期望的是remove->submit->miss
-            last = RECORD.get(job_id, None)
-            now = time.time()
-            if last is not None and (now - last[1])<1 and last[0]=='MISSED':
-                return
-            RECORD.update({job_id:[status, now]})
-            RSDBFacade.update('timed_task', {'status':status, 'update_time':pd.Timestamp.now()}, eq_clause={'task_id':job_id})
-        except Exception as e:
-            logger.error(f'{MYSQL_QUERY_FAILED} job_id={job_id} status={status}, msg={e}')
-
+    if job_id == 'NA':
+        return
+    try:
+        now = pd.Timestamp.now()
+        record = {'task_id':job_id, 'status':status, 'update_time':now}
+        RSDBFacade.insert(record, 'timed_task_log')        
+        if status in FINISH_STATUS:
+            RSDBFacade.update('timed_task', {'status':status, 'update_time':now}, eq_clause={'task_id':job_id})
+    except Exception as e:
+        logger.error(f'{MYSQL_QUERY_FAILED} job_id={job_id} status={status}, msg={e}')
 
 scheduler.add_listener(listen, MASK)
 scheduler.init_app(app)

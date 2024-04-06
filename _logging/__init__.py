@@ -1,8 +1,6 @@
 import logging
 import logging.handlers
 from pathlib import Path
-import os
-import pandas as pd
     
 from wtbonline._db.rsdb_facade import RSDBFacade
 
@@ -61,50 +59,6 @@ def get_logger(name:str):
     rev.addHandler(get_error_handler(_dir,name))
     rev.addHandler(get_stream_handler())
     return rev
-
-def log_it(logger, is_timed_task=False):
-    '''
-    >>> logger = get_logger('test')
-    >>> @log_it(logger)
-    ... def test():
-    ...     pass
-    >>> test()
-    '''
-    def inner(func):
-        def wrapper(*args, **kwargs):
-            p_args = ', '.join([str(i) for i in args])
-            p_kwargs = ', '.join([f'{i}={str(kwargs[i])}' for i in kwargs])
-            params = f'{p_args},{p_kwargs}'.strip(',')
-            logger.info(f'{func.__name__}({params}) start')
-            rev = None
-            if is_timed_task==True:
-                start_time = pd.Timestamp.now()
-            try:
-                rev = func(*args, **kwargs)
-            except Exception as e:
-                result = 'FAILED'
-                logger.error(f'{func.__name__}({params}) error \n {str(e)}', exc_info=True)
-                raise
-            else:
-                result = 'SUCCESS'
-                logger.info(f'{func.__name__}({params}) finihed')
-            finally:
-                if is_timed_task==True:
-                    pid = os.getppid()
-                    end_time = pd.Timestamp.now()
-                    RSDBFacade.insert(
-                        dict(
-                            task_id=kwargs.get('task_id', 'test'),
-                            pid=pid,
-                            start_time=start_time,
-                            end_time=end_time,
-                            result=result
-                            ), 
-                        'timed_task_log')
-                    logger.info(f'{func.__name__}({params}) recorded')
-            return rev
-        return wrapper
-    return inner 
 
 if __name__ == "__main__":
     import doctest

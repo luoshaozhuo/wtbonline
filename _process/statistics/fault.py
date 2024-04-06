@@ -8,7 +8,6 @@ from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._common.utils import make_sure_datetime, make_sure_list
-from wtbonline._logging import log_it
 from wtbonline._process.statistics import _LOGGER
 from wtbonline._db.config import get_td_remote_restapi
 
@@ -101,7 +100,6 @@ def do_statistic(set_id, device_id):
     if df.shape[0]>0:
         RSDBFacade.insert(df, tbname='statistics_fault')
 
-@log_it(_LOGGER, True)
 def udpate_statistic_fault(*args, **kwargs):
     task_id = kwargs.get('task_id', 'NA')
     set_id = kwargs.get('set_id', None)    

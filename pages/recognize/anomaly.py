@@ -259,7 +259,7 @@ def callback_on_slect_type_plot(set_id):
     if set_id in ['', None]:
         return [], []
     x_data, x_value, y_data, y_values, maxSelectedValues = dcmpt.get_general_plot_selections(set_id, 'Base')
-    return y_data, ['powact', 'var_355', 'var_94', 'var_101']
+    return y_data, ['powact', 'winspd', 'var_94', 'var_101']
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
@@ -310,7 +310,7 @@ def callback_on_select_mapid_anomaly(device_id, set_id):
 def callback_on_select_data_anomaly(selectedData, fig, ycols):
     if pd.Series([selectedData, fig, ycols]).isin([[], None, '']).any():
         return None, *(['-']*6), {}
-    columns=['var_94_mean', 'var_355_mean', 'var_246_mean', 'var_101_mean', 'bin', 'set_id', 'device_id']
+    columns=['var_94_mean', 'winspd_mean', 'var_246_mean', 'var_101_mean', 'bin', 'set_id', 'device_id']
     note = None
     id_ = ts = wspd = rspd = power = pitchAngle = '-'
     selected_points = fig['data'][0].get('selectedpoints', [])
@@ -344,7 +344,7 @@ def callback_on_select_data_anomaly(selectedData, fig, ycols):
     # 更新样本信息
     id_ = sample_id    
     ts = sr['bin']
-    wspd = f'{sr["var_355_mean"]} m/s'
+    wspd = f'{sr["winspd_mean"]} m/s'
     rspd = f'{sr["var_94_mean"]} rpm'
     power = f'{sr["var_246_mean"]} kWh'
     pitchAngle = f'{sr["var_101_mean"]} °'

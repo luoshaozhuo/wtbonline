@@ -57,7 +57,8 @@ def func_read_task_table():
     apschduler_df, note = dcmpt.dash_dbquery(func=RSDBFacade.read_apscheduler_jobs, not_empty=False)
     if note is not None:
         return no_update, note
-    apschduler_df['next_run_time'] = pd.to_datetime(apschduler_df['next_run_time'].astype(int), unit='s') + pd.Timedelta('8h')
+    next_run_time  = apschduler_df['next_run_time'].fillna('0').astype(int).replace(0, np.nan)
+    apschduler_df['next_run_time'] = pd.to_datetime(next_run_time, unit='s') + pd.Timedelta('8h')
     timed_task_df, note = dcmpt.dash_dbquery(func=RSDBFacade.read_timed_task, not_empty=False)
     if note is not None:
         return no_update, note   
@@ -255,9 +256,9 @@ def callback_disable_actionicons_job(rows, data):
         status = row['状态']
         if status=='JOB_ADDED':
             rev = [True, False, False]
-        elif row['类型']=='定时任务' and status in ('JOB_EXECUTED', 'JOB_ERROR', 'JOB_MISSED'):
+        elif row['类型']=='定时任务' and status in ('JOB_EXECUTED', 'JOB_ERROR', 'JOB_EXECUTED', 'STARTED'):
             rev = [True, False, False]
-        elif status=='JOB_STOP':
+        elif status=='JOB_PAUSE':
             rev = [False, True, False]
         elif status=='CREATED':
             rev = [False, True, True]
@@ -413,10 +414,13 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
     url = cfg.SCHEDULER_URL
     timeout = cfg.SCHEDULER_TIMEOUT
     data = no_update
+    now = pd.Timestamp.now()
+    status = row['状态']
     for _ in range(3):
         try:
             if _id==get_component_id('acticon_start'):
-                if row['状态'] == 'CREATED':
+                RSDBFacade.update('timed_task', {'status':'STARTED', 'update_time':now}, eq_clause={'task_id':row['任务id']})
+                if status == 'CREATED':
                     task_parameter = eval(row['参数'])
                     funtion_parameter = eval(row['目标函数参数'])
                     funtion_parameter.update({"task_id":row['任务id']})
@@ -433,9 +437,11 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
                 else:
                     response = requests.post(url+f"/{row['任务id']}/resume", timeout=timeout)
             elif _id==get_component_id('acticon_pause'):
+                RSDBFacade.update('timed_task', {'status':'JOB_PAUSE', 'update_time':now}, eq_clause={'task_id':row['任务id']})
                 response = requests.post(url+f"/{row['任务id']}/pause", timeout=timeout)
             elif _id==get_component_id('acticon_delete'):
-                response = requests.delete(url+f"/{row['任务id']}", timeout=timeout)
+                RSDBFacade.update('timed_task', {'status':'DELETE', 'update_time':now}, eq_clause={'task_id':row['任务id']})
+                response = requests.delete(url+f"/{row['任务id']}", timeout=timeout)        
         except Exception as e:
             note = dcmpt.notification(
                 title=cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL, 
@@ -456,6 +462,7 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
         time.sleep(1)
     else:
         # 尝试三次失败后输出错误提示
+        RSDBFacade.update('timed_task', {'status':status, 'update_time':now}, eq_clause={'task_id':row['任务id']})
         note = dcmpt.notification(
             title=cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL, 
             msg=f'{row["任务id"]} {row["目标函数"]} 提交超时 {response.text}', 

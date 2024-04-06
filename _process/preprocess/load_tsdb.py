@@ -8,7 +8,6 @@ from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.time import resample
-from wtbonline._logging import log_it
 from wtbonline._process.preprocess import _LOGGER
 from wtbonline._process.tools.common import get_dates_tsdb
 
@@ -80,7 +79,6 @@ def load_tsdb(set_id:str, device_id:str, dt:Union[str, date]):
     df = extract(set_id=set_id, device_id=device_id, dt=dt)
     TDFC.write(df, set_id=set_id, device_id=device_id)
 
-@log_it(_LOGGER, True)
 def update_tsdb(*args, **kwargs):
     ''' 本地TSDB查缺 '''
     task_id = kwargs.get('task_id', 'NA')

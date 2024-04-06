@@ -9,7 +9,6 @@ import pickle
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._common.utils import make_sure_datetime, make_sure_list
-from wtbonline._logging import log_it
 from wtbonline._process.model import _LOGGER, model_factory
 from wtbonline._db.postgres_facade import PGFacade
 
@@ -31,7 +30,6 @@ def record_train(set_id, device_id, uuid, type_, start_time, end_time):
         )
     RSDB.insert(dct, 'model')
 
-@log_it(_LOGGER,True)
 def train_all(end_time, delta:int, type_:str='anomaly', **kwargs):
     minimum=kwargs.get('minimum', 5000)
     test_size=kwargs.get('test_size', 0)
@@ -83,8 +81,7 @@ def record_predict(df, set_id, device_id, uuid):
     df['set_id'] = set_id
     df['device_id'] = device_id
     RSDB.insert(df[columns], 'model_anomaly')
-
-@log_it(_LOGGER,True)
+    
 def predict_all(end_time, delta:int, type_:str='anomaly', **kwargs):
     nsample = kwargs.get('nsample', 30)
     end_time = make_sure_datetime(end_time)

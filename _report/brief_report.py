@@ -44,7 +44,7 @@ from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._common.utils import make_sure_dataframe, make_sure_list, make_sure_datetime
-from wtbonline._logging import get_logger, log_it
+from wtbonline._logging import get_logger
 from wtbonline._plot import graph_factory
 import wtbonline._plot as plt
 from wtbonline._process.tools.filter import normal_production
@@ -481,7 +481,8 @@ def chapter_2(set_id:str, min_date:Union[str, date], max_date:Union[str, date], 
         start_time=min_date, 
         end_time=max_date,
         groupby='device', 
-        columns={'totalenergy':['first', 'last']})
+        columns={'totalenergy':['first', 'last']},
+        remote=True)
 
     df['发电量（kWh）'] = df['totalenergy_last'] - df['totalenergy_first']
     df = df.sort_values('发电量（kWh）', ascending=False)
@@ -783,7 +784,6 @@ def build_brief_report(
             ])
 
 # main
-@log_it(_LOGGER, True)
 def build_brief_report_all(*args, **kwargs):
     '''
     end_time : 截至时间
@@ -811,4 +811,4 @@ def build_brief_report_all(*args, **kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    build_brief_report_all(end_time='2023-03-14', delta=190)
+    build_brief_report_all(end_time='2024-03-14', delta=190)

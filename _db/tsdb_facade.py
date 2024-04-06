@@ -41,8 +41,12 @@ class TDEngine_FACADE():
         1  var_101_max  var_101  20835   1#叶片实际角度        F    °  1#叶片实际角度_°
         '''
         columns = make_sure_list(columns)
-        col_df = pd.DataFrame(columns, columns=['column'])
-        col_df['var_name'] = pd.Series(['_'.join(i[:2]) for i in pd.Series(columns).str.split('_')])
+        col_df = pd.DataFrame(columns, columns=['column'])   
+        def func(x):
+            splt = x.split('_')
+            n = 2 if x.startswith('var') else 1
+            return '_'.join(splt[0:n])
+        col_df['var_name'] = col_df['column'].apply(func)        
         point_df = PGFacade.read_model_point(set_id=set_id, var_name=col_df['var_name'])
         rev = pd.merge(col_df, point_df, on='var_name', how='inner')
         return rev

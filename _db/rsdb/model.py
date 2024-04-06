@@ -405,10 +405,8 @@ class TimedTaskLog(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, info='timed_task的记录id')
-    result = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='运行结果')
-    start_time = db.Column(db.DateTime, nullable=False, info='运行开始时间')
-    end_time = db.Column(db.DateTime, nullable=False, info='运行结束时间')
-    pid = db.Column(db.Integer, nullable=False, info='执行任务的process id')
+    status = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='运行结果')
+    update_time = db.Column(db.DateTime, nullable=False, info='运行开始时间')
 
 
 

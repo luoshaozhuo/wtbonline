@@ -20,7 +20,6 @@ from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._process.tools.time import bin
 from wtbonline._process.tools.statistics import numeric_statistics, category_statistics, stationarity, agg
 from wtbonline._process.tools.common import get_dates_tsdb
-from wtbonline._logging import log_it
 from wtbonline._process.statistics import _LOGGER
 from wtbonline._db.postgres_facade import PGFacade
 
@@ -82,7 +81,6 @@ def dates_in_statistic_sample(set_id, device_id):
         '''
     return RSDB.read_sql(sql)['dt'] 
 
-@log_it(_LOGGER, True)
 def update_statistic_sample(*args, **kwargs):
     ''' 本地sample查缺  '''
     task_id = kwargs.get('task_id', 'NA')
