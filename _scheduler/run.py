@@ -54,7 +54,7 @@ JOB_STATUS = {
     EVENT_ALL_JOBS_REMOVED : 'ALL_JOBS_REMOVED',
     EVENT_JOB_ADDED : 'JOB_ADDED',
     EVENT_JOB_REMOVED : 'JOB_REMOVED',
-    EVENT_JOB_MODIFIED : 'JOB_STOP',    # 没有stop的事件，修改与停止共用modified，实际上不使用修改，所以这里把event名取为stop
+    EVENT_JOB_MODIFIED : 'JOB_MODIFIED',    # 没有stop的事件，修改与停止共用modified
     EVENT_JOB_EXECUTED : 'JOB_EXECUTED',
     EVENT_JOB_ERROR : 'JOB_ERROR',
     EVENT_JOB_MISSED : 'JOB_MISSED',
@@ -74,7 +74,7 @@ SELECTED_EVENT = (
     EVENT_JOB_MODIFIED
     )
 
-FINISH_EVENT = [EVENT_JOB_REMOVED, EVENT_JOB_EXECUTED, EVENT_JOB_ERROR]
+FINISH_EVENT = [EVENT_JOB_MISSED, EVENT_JOB_EXECUTED, EVENT_JOB_ERROR]
 FINISH_STATUS = [JOB_STATUS[i] for i in FINISH_EVENT]
 
 MASK = 0
@@ -90,7 +90,7 @@ def listen(event):
     try:
         now = pd.Timestamp.now()
         record = {'task_id':job_id, 'status':status, 'update_time':now}
-        RSDBFacade.insert(record, 'timed_task_log')        
+        RSDBFacade.insert(record, 'timed_task_log')
         if status in FINISH_STATUS:
             RSDBFacade.update('timed_task', {'status':status, 'update_time':now}, eq_clause={'task_id':job_id})
     except Exception as e:

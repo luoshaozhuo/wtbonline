@@ -405,7 +405,7 @@ class TimedTaskLog(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True, info='timed_task的记录id')
-    status = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='运行结果')
+    status = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='事件')
     update_time = db.Column(db.DateTime, nullable=False, info='运行开始时间')
 
 
@@ -414,13 +414,13 @@ class TurbineFaultType(db.Model):
     __tablename__ = 'turbine_fault_type'
 
     id = db.Column(db.Integer, primary_key=True)
-    set_id = db.Column(db.Integer, nullable=False)
+    is_offshore = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='1=海上风机，0=陆上')
     name = db.Column(db.String(50, 'utf8mb4_general_ci'), nullable=False, info='故障名')
     cause = db.Column(db.String(50, 'utf8mb4_general_ci'), nullable=False, info='故障原因')
-    type = db.Column(db.String(10, 'utf8mb4_general_ci'), info='flag/fault/msg/alarm')
-    index = db.Column(db.String(255, 'utf8mb4_general_ci'), info="'code' 或具体var_name")
     value = db.Column(db.String(255, 'utf8mb4_general_ci'), info='取值')
+    type = db.Column(db.String(10, 'utf8mb4_general_ci'), info='flag/fault/msg/alarm')
     var_names = db.Column(db.String(collation='utf8mb4_general_ci'), info='相关变量名')
+    index = db.Column(db.String(255, 'utf8mb4_general_ci'), info="'code' 或具体var_name")
     time_span = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='绘图时故障开始时间前后时长，单位分钟')
     graph = db.Column(db.String(255, 'utf8mb4_0900_ai_ci'), nullable=False, server_default=db.FetchedValue(), info='绘图类')
 
@@ -473,3 +473,4 @@ class WindfarmConfiguration(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     set_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False, index=True)
     gearbox_ratio = db.Column(db.Float, nullable=False)
+    is_offshore = db.Column(db.Integer, nullable=False, server_default=db.FetchedValue(), info='1=海上风机，0=陆上风机')

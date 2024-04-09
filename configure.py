@@ -57,6 +57,7 @@ WINDFARM_INFORMATION =  PGFacade.read_model_factory()
 WINDFARM_FAULT_TYPE = RSDBFacade.read_turbine_fault_type().set_index('id', drop=False)
 WINDFARM_MODEL_DEVICE = PGFacade.read_model_device().set_index('device_name', drop=False)
 WINDFARM_VAR_NAME = PGFacade.read_model_point()
+WINDFARM_CONF = RSDBFacade.read_windfarm_configuration().set_index('set_id', drop=False)
 
 NOTIFICATION = {
     'error':{'color':'red', 'icon':'mdi:close-circle-outline'},

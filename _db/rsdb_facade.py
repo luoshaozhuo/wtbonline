@@ -57,6 +57,7 @@ class RSDBFacade():
     def read_turbine_fault_type(
             cls, 
             *, 
+            is_offshore:Optional[int]=1,
             columns:Optional[Union[List[str], str]]=None,
             cause:Optional[str]=None,
             name:Optional[str]=None,
@@ -64,10 +65,10 @@ class RSDBFacade():
             )->pd.DataFrame:
         '''
         >>> RSDBFacade.read_turbine_fault_type().columns.tolist()
-        ['id', 'set_id', 'name', 'cause', 'type', 'index', 'value', 'var_names', 'time_span', 'graph']
+        ['id', 'is_offshore', 'name', 'cause', 'value', 'type', 'var_names', 'index', 'time_span', 'graph']
         '''
         tbname = model.TurbineFaultType.__tablename__
-        eq_clause, in_clause = cls.get_in_or_eq_clause(cause=cause, name=name)
+        eq_clause, in_clause = cls.get_in_or_eq_clause(cause=cause, name=name, is_offshore=is_offshore)
         df = RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, columns=columns) 
         df['index'] = df['index'].str.lower()
         df['var_names'] = df['var_names'].str.lower()
@@ -134,17 +135,14 @@ class RSDBFacade():
             cls, 
             *, 
             task_id:Optional[Union[str, List[str]]]=None,
-            result:Optional[Union[str, List[str]]]=None,
             limit=None,
             )->pd.DataFrame:
         '''
-        >>> RSDBFacade.read_timed_task_log(
-        ... task_id='abcd',
-        ... result='a12').columns.tolist()
-        ['id', 'task_id', 'result', 'start_time', 'end_time', 'pid']
+        >>> RSDBFacade.read_timed_task_log(task_id='abcd').columns.tolist()
+        ['id', 'task_id', 'status', 'update_time']
         '''
         tbname = model.TimedTaskLog.__tablename__
-        eq_clause, in_clause = cls.get_in_or_eq_clause(task_id=task_id, result=result)
+        eq_clause, in_clause = cls.get_in_or_eq_clause(task_id=task_id)
         return RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit) 
 
     @classmethod
@@ -220,10 +218,9 @@ class RSDBFacade():
         ... set_id='abc',
         ... device_id='abc',
         ... uuid='abc',
-        ... name='abc',
         ... create_time='2023-01-01',
         ... ).columns.tolist()
-        ['id', 'farm_name', 'set_id', 'device_id', 'uuid', 'name', 'start_time', 'end_time', 'is_local', 'create_time']
+        ['id', 'set_id', 'device_id', 'type', 'uuid', 'start_time', 'end_time', 'create_time']
         '''
         tbname = model.Model.__tablename__
         create_time = make_sure_list(pd.to_datetime(create_time))
@@ -242,7 +239,7 @@ class RSDBFacade():
         >>> RSDBFacade.read_windfarm_configuration(
         ... set_id='abc',
         ... ).columns.tolist()
-        ['id', 'set_id', 'gearbox_ratio']
+        ['id', 'set_id', 'gearbox_ratio', 'is_offshore']
         '''
         tbname = model.WindfarmConfiguration.__tablename__
         eq_clause, in_clause = cls.get_in_or_eq_clause(set_id=set_id)
@@ -253,28 +250,19 @@ class RSDBFacade():
     def read_turbine_model_point(
         cls, 
         *, 
-        stat_sample:Optional[int]=None,
-        stat_operation:Optional[int]=None,
-        stat_accumulation:Optional[int]=None,
         point_name:Optional[Union[List[str], str]]=None,
         var_name:Optional[Union[List[str], str]]=None,    
         columns:Optional[Union[List[str], str]]=None,
         )->pd.DataFrame:
         '''
         >>> RSDBFacade.read_turbine_model_point(
-        ... stat_sample=1,
-        ... stat_operation=1,
-        ... stat_accumulation=1,
         ... point_name='abc',
         ... var_name='abc',
         ... ).columns.tolist()
-        ['id', 'stat_operation', 'stat_sample', 'stat_accumulation', 'point_name', 'var_name']
+        ['id', 'point_name', 'var_name', 'datatype']
         '''
         tbname = model.TurbineModelPoint.__tablename__
-        eq_clause, in_clause = cls.get_in_or_eq_clause(
-            stat_sample=stat_sample, stat_operation=stat_operation,
-            point_name=point_name, var_name=var_name, stat_accumulation=stat_accumulation
-            )
+        eq_clause, in_clause = cls.get_in_or_eq_clause(point_name=point_name, var_name=var_name)
         rev = RSDB.query(tbname, columns=columns, eq_clause=eq_clause, in_clause=in_clause)
         if 'var_name' in rev.columns:
             rev['var_name'] = rev['var_name'].str.lower()
@@ -306,7 +294,7 @@ class RSDBFacade():
         ... columns={'var_101_mean':['max', 'sum']},
         ... groupby='set_id',
         ... ).columns.tolist()
-        ['var_101_mean_max', 'var_101_mean_sum']
+        ['var_101_mean_max', 'var_101_mean_sum', 'set_id']
         '''
         tbname = model.StatisticsSample.__tablename__
         eq_clause, in_clause = cls.get_in_or_eq_clause(id=id_, set_id=set_id, device_id=device_id)

@@ -129,7 +129,9 @@ def make_sure_list(x)->list:
     >>> make_sure_list(pd.DataFrame([[1,2],[3,4]]))
     [[1, 3], [2, 4]]
     '''
-    if isinstance(x, (tuple, list, set)):
+    if isinstance(x, list):
+        rev = x
+    if isinstance(x, (tuple, set)):
         rev = list(x)
     elif x is None:
         rev = []
@@ -145,7 +147,7 @@ def make_sure_list(x)->list:
     elif isinstance(x, Iterable):
         rev = [i for i in x]
     else:
-        raise ValueError(f'不支持的数据类型{type(x)}')
+        rev = [x]
     return rev
 
 def make_sure_datetime(

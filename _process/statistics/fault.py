@@ -11,8 +11,11 @@ from wtbonline._common.utils import make_sure_datetime, make_sure_list
 from wtbonline._process.statistics import _LOGGER
 from wtbonline._db.config import get_td_remote_restapi
 
+from pages.analysis import fault
+
 #%% constant
 FAULT_TYPE_DF = RSDBFacade.read_turbine_fault_type().dropna(subset=['type','value'], how='any')
+WINDFARM_CONF = RSDBFacade.read_windfarm_configuration().set_index('set_id', drop=False)
 TD_DATABASE = get_td_remote_restapi()['database']
 
 #%% fcuntion
@@ -76,8 +79,10 @@ def do_statistic(set_id, device_id):
     '''
     tsdb_columns = TDFC.get_filed(set_id=set_id, remote=False)
     dct = latest_record(device_id=device_id)
+    is_offshore = WINDFARM_CONF.loc[set_id, 'is_offshore']
+    fault_type_subdf = FAULT_TYPE_DF[FAULT_TYPE_DF['is_offshore']==is_offshore]
     df = []
-    for _,row in FAULT_TYPE_DF.iterrows():
+    for _,row in fault_type_subdf.iterrows():
         if row['type']=='flag' and not row['index'] in tsdb_columns:
             continue
         temp = read(
