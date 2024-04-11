@@ -280,13 +280,14 @@ def callback_on_refresh_job(n):
     Output(get_component_id('input_start_time'), 'value'),
     Output(get_component_id('input_interval'), 'withAsterisk'),
     Output(get_component_id('select_interval_unit'), 'withAsterisk'),
+    Output(get_component_id('datepicker_end_date'), 'minDate'),
     Input(get_component_id('select_type'), 'value'),
     )
 def callback_on_select_type_job(type_):
     disabled = False if type_=='定时任务' else True
     withAsterisk = not disabled
     start_time = '2022-02-02T00:00:00' if type_=='定时任务' else pd.Timestamp.now()
-    return disabled, disabled, start_time, withAsterisk, withAsterisk
+    return disabled, disabled, start_time, withAsterisk, withAsterisk, pd.Timestamp.now().date()
 
 @callback(
     Output(get_component_id('btn_add'), 'disabled'),
