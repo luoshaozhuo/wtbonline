@@ -32,6 +32,8 @@ TABLE_HEIGHT = '200PX'
 
 FAULT_TYPE = cfg.WINDFARM_FAULT_TYPE.dropna(subset=['var_names', 'index', 'value'])
 
+MAX_VALUES = 10 # 最大可选择的变量数
+
 #%% function
 get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
@@ -45,7 +47,7 @@ def load_figure(sample_id, var_names):
     sample_sr = df.iloc[0]
     fault_type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sample_sr['fault_id']]
     grapp_name = fault_type_sr['graph']
-    graph_obj = graph_factory.get(grapp_name)()
+    graph_obj = graph_factory.get(grapp_name)(row_height=200)
     if grapp_name=='ordinary':
         graph_obj.init(var_names=var_names)
     delta = pd.Timedelta(f"{max(int(fault_type_sr['time_span']), 1)}m")
@@ -56,7 +58,7 @@ def load_figure(sample_id, var_names):
         device_ids=sample_sr['device_id'],
         start_time=sample_sr['start_time']-delta, 
         end_time=sample_sr['end_time']+delta,
-        title=fault_type_sr['name']
+        title=fault_type_sr['name']+'_'+fault_type_sr['cause'],
         )
     fig = {} if fig is None else fig
     return fig, note
@@ -72,7 +74,7 @@ def create_toolbar_content():
             dcmpt.select(id=get_component_id('select_device_id'), data=[], value=None, label='风机编号', description='只显示有故障记录的机组'),
             dcmpt.select(id=get_component_id('select_fault_name'), data=[], value=None, label='故障类型', description='只显示存在故障记录的类型'),
             dcmpt.select(id=get_component_id('select_item'), data=[], value=None, label='故障发生时间', description='只显示最新15个'),
-            dcmpt.multiselecdt_var_name(id=get_component_id('select_var_name')),
+            dcmpt.multiselecdt_var_name(id=get_component_id('select_var_name'), maxSelectedValues=MAX_VALUES),
             dmc.Space(h='20px'),
             dmc.LoadingOverlay(
                 children=[
@@ -249,7 +251,7 @@ def callback_update_select_var_name_fault(id_, set_id):
             df = cfg.WINDFARM_VAR_NAME[cfg.WINDFARM_VAR_NAME['set_id']==set_id]
             data = [{'label':row['point_name'], 'value':row['var_name']} for _,row in df.iterrows()]
             value = pd.Series(type_sr['var_names'].split(','))
-            value = value[value.isin(df['var_name'])].tolist()
+            value = value[value.isin(df['var_name'])].head(MAX_VALUES).tolist()
             disabled = False
         else:
             data = []

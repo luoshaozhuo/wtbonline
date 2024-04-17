@@ -14,7 +14,9 @@ import numpy as np
 from pathlib import Path
 import pickle
 from sklearn.neighbors import LocalOutlierFactor
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.ensemble import IsolationForest
+from sklearn.svm import OneClassSVM
+from sklearn.preprocessing import MinMaxScaler, Normalizer, MaxAbsScaler
 
 from wtbonline._process.model.base import Classifier
 from wtbonline._process.tools.filter import stationary,not_limit_power,in_power_generating_mode,no_fault,on_grid
@@ -39,41 +41,53 @@ class Anomaly():
     def __init__(self, contamination=0.01, minimum=0, test_size=0.3):
         self.filter = [stationary, not_limit_power, in_power_generating_mode, no_fault, on_grid]
         
-        estimator = LocalOutlierFactor(
+        vars_ctrl = ['var_94_mean', 'winspd_mean', 'var_226_mean', 'var_101_mean']
+        estimator = IsolationForest(
             contamination=contamination, 
-            n_neighbors=200,
-            novelty=True,
+            n_estimators=200,
+            max_samples=1.0
             )
         self.lof_ctrl = Classifier(
             estimator=estimator, 
             filter=self.filter, 
-            scalar=MinMaxScaler(), 
+            scaler=MinMaxScaler(), 
             minimum=minimum, 
             test_size=test_size, 
             trainer='simple'
             )
-        self.lof_ctrl.set_features(features=['var_94_mean', 'winspd_mean', 'var_226_mean', 'var_101_mean'])
+        self.lof_ctrl.set_features(features=vars_ctrl)
         
+        vars_vibr = ['var_382_mean', 'var_383_mean']
         estimator = LocalOutlierFactor(
             contamination=contamination, 
-            n_neighbors=200,
+            n_neighbors=20,
             novelty=True,
             )
         self.lof_vibr = Classifier(
             estimator=estimator, 
             filter=self.filter, 
-            scalar=MinMaxScaler(),
+            scaler=MinMaxScaler(),
             minimum=minimum, 
             test_size=test_size,
             trainer='simple'
             )
-        self.lof_vibr.set_features(features=['var_382_mean', 'var_383_mean'])
+        self.lof_vibr.set_features(features=vars_vibr)
         
         self.uuid = None
-        self.features = ['var_94_mean', 'winspd_mean', 'var_226_mean', 'var_101_mean', 'var_382_mean', 'var_383_mean']
+        self.features = vars_ctrl + vars_vibr
         self.target = []
-        cols_aug = ['pv_c', 'limitpowbool_mode', 'limitpowbool_nunique', 'workmode_mode', 'workmode_nunique', 'totalfaultbool_mode', 'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique']
-        self.columns = self.features + cols_aug
+        cols_aug = [
+            'pv_c', 
+            'limitpowbool_mode', 
+            'limitpowbool_nunique', 
+            'workmode_mode', 
+            'workmode_nunique', 
+            'totalfaultbool_mode', 
+            'totalfaultbool_nunique', 
+            'ongrid_mode', 
+            'ongrid_nunique'
+            ]
+        self.columns = self.features + cols_aug # 本模型需要用到的所有字段
         
     def fit(self, df:pd.DataFrame):
         self.lof_ctrl.fit(df)
@@ -86,19 +100,12 @@ class Anomaly():
         return y1 | y2
     
     def _filter(self, df:pd.DataFrame):
-        df = make_sure_dataframe(df)
-        cond = pd.Series([True]*len(df))
-        for func in self.filter:
-            cond = cond & func(df)
-        df = df[cond]   
-        if len(df)<0:
-            raise ValueError('df is empty after translation.')
-        return df
+        return self.lof_vibr._filter(df) # 两个模型的filter及scaler的_filter一致
     
     def score_samples(self, df:pd.DataFrame):
         y1 = self.lof_ctrl.score_samples(df)
         y2 = self.lof_vibr.score_samples(df)
-        return y1+y2
+        return y1 + 1.5*y2
     
     def save_model(self, outpath=None):
         pathname = f'{outpath}/{self.uuid}.pkl'

@@ -11,8 +11,6 @@ from wtbonline._common.utils import make_sure_datetime, make_sure_list
 from wtbonline._process.statistics import _LOGGER
 from wtbonline._db.config import get_td_remote_restapi
 
-from pages.analysis import fault
-
 #%% constant
 FAULT_TYPE_DF = RSDBFacade.read_turbine_fault_type().dropna(subset=['type','value'], how='any')
 WINDFARM_CONF = RSDBFacade.read_windfarm_configuration().set_index('set_id', drop=False)
@@ -102,6 +100,8 @@ def do_statistic(set_id, device_id):
     df['set_id'] = set_id
     df['create_time'] = pd.Timestamp.now()
     df.rename(columns={'begin_tm':'start_time', 'end_tm':'end_time', 'val':'value'}, inplace=True)
+    df['end_time'] = df['end_time'].where(~df['end_time'].isna(), df['start_time'])
+    df.dropna(how='any', inplace=True)
     if df.shape[0]>0:
         RSDBFacade.insert(df, tbname='statistics_fault')
 

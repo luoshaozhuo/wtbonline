@@ -100,15 +100,15 @@ def predict_all(end_time, delta:int, type_:str='anomaly', **kwargs):
             columns=columns,
             )
         clf = load_latest_model(row['set_id'], row['device_id'], type_)
-        if len(df)<1 or clf is None:
+        if clf is None:
             continue
         df = clf._filter(df)
-        if len(df)<1:
-            continue
-        df['score'] = clf.score_samples(df)
-        df = df.sort_values('score', ascending=True).head(nsample)
+        # 选出异常点，再按scores选出规定个数的样本
+        sub_df = df[clf.predict(df)==-1].reset_index(drop=True)
+        sub_df['score'] = clf.score_samples(sub_df)
+        sub_df = sub_df.sort_values('score', ascending=True).head(nsample)
         try:
-            record_predict(df, row['set_id'], row['device_id'], clf.uuid)
+            record_predict(sub_df, row['set_id'], row['device_id'], clf.uuid)
         except Exception as e:
             err_msg.append(f"predict {type_} {row['set_id']} {row['device_id']} {e}")
     if len(err_msg):
@@ -118,5 +118,5 @@ def predict_all(end_time, delta:int, type_:str='anomaly', **kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    # train_all(end_time='2024-03-01', delta=120, minimum=200)
-    predict_all(end_time='2024-04-01', delta=30, nsample=30)
+    # train_all(end_time='2024-01-01', delta=300, minimum=200)
+    predict_all(end_time='2024-04-01', delta=120, nsample=30)

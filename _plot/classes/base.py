@@ -37,7 +37,7 @@ class Base():
     def init(self, var_names=['totalfaultbool', 'workmode', 'limitpowbool']):
         ''' 定制的初始化过程 '''
         self.var_names = make_sure_list(var_names)
-        self.height = self.row_height*len(var_names)
+        self.height = max(self.row_height*len(var_names), self.row_height*1.5)
         self.mode='lines+markers'
     
     def plot(self, set_id:str, device_ids:Union[str, List[str]], start_time:str, end_time:str, title=None, **kwargs):
@@ -86,8 +86,8 @@ class Base():
 
     def build(self, data, ytitles):
         df = data
-        nrow = len(ytitles)
-        fig = make_subplots(rows=nrow, cols=1, shared_xaxes=True, vertical_spacing=0.05)
+        nrow = len(ytitles) 
+        fig = make_subplots(rows=nrow, cols=1, shared_xaxes=True, vertical_spacing=10/self.height)
         colors = px.colors.qualitative.Dark2
         for i in range(len(self.var_names)):
             var_name = self.var_names[i]
@@ -120,7 +120,7 @@ class Base():
 
     def tight_layout(self, fig, title):
         fig.update_layout(
-            title=dict(text=title, font=dict(size=15), x=0.1, y=0.98, xanchor='left', yanchor='top', automargin=True),
+            title=dict(text=title, font=dict(size=15), x=0.1, y=1-5/self.height, xanchor='left', yanchor='top', automargin=True),
             height=self.height,
             width=self.width,
             legend=dict(
@@ -130,7 +130,7 @@ class Base():
                         color="black"
                     ),
                 yanchor="bottom",
-                y=1.02,
+                y=1+10/self.height,
                 xanchor="right",
                 x=1),
             showlegend=self.showlegend,

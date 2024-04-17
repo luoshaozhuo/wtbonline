@@ -281,13 +281,21 @@ def callback_on_select_mapid_anomaly(device_id, set_id):
     '''
     if device_id in [None, '']:
         return no_update, {},  *(['-']*6), True
+    df, note = dcmpt.dash_dbquery(
+        RSDBFacade.read_model,
+        device_id=device_id, 
+        type_='anomaly',
+        )
+    if note is not None:
+        return note, {},  *(['-']*6), True
     end_time = pd.Timestamp.now()
+    start_time = end_time - pd.Timedelta('365d')
     figure, note = dcmpt.dash_try(
         note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,
         func = graph_factory.get('Anomaly')().plot,
         set_id=set_id,
         device_ids=device_id,
-        start_time=end_time-pd.Timedelta('365d'),
+        start_time=start_time,
         end_time=end_time
         )
     figure = {} if figure is None else figure

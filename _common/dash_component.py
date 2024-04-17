@@ -65,8 +65,8 @@ def multiselect(id, label:str, description:str=None, maxSelectedValues:int=5, di
 def multiselect_device_id(id):
     return multiselect(id=id, label='风机编号', description='最多选择5台设备', maxSelectedValues=5)
 
-def multiselecdt_var_name(id, disabled=False):
-    return multiselect(id=id, label='选择变量名', description='最多选择10个变量', maxSelectedValues=10, disabled=disabled)
+def multiselecdt_var_name(id, disabled=False, maxSelectedValues=10):
+    return multiselect(id=id, label='选择变量名', description='最多选择10个变量', maxSelectedValues=maxSelectedValues, disabled=disabled)
 
 def select_job_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
     type_ = list(cfg.SCHEDULER_JOB_TYPE.keys())
@@ -180,7 +180,7 @@ def get_general_plot_selections(set_id, type_):
         sub_df = df[(df['point_name'].str.find('角')>-1) & (df['unit']=='°')]
         x_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in sub_df.iterrows()]
         x_value = None
-        y_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in sub_df.iterrows()] 
+        y_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in df.iterrows()] 
     elif type_=='Spectrum':
         sub_df = df[df['datatype']=='F']
         x_data = [{'label':'频率', 'value':'ts'}]

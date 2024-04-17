@@ -280,7 +280,7 @@ def callback_on_refresh_job(n):
     Output(get_component_id('input_start_time'), 'value'),
     Output(get_component_id('input_interval'), 'withAsterisk'),
     Output(get_component_id('select_interval_unit'), 'withAsterisk'),
-    Output(get_component_id('datepicker_end_date'), 'minDate'),
+    Output(get_component_id('datepicker_end_date'), 'maxDate'),
     Input(get_component_id('select_type'), 'value'),
     )
 def callback_on_select_type_job(type_):
@@ -365,8 +365,8 @@ def callback_on_btn_add_job(
         end_time = end_time,
         delta = delta,
         minimum = minimum_sample,
-        size = num_output,
-        task_id = task_id
+        nsample = num_output,
+        task_id = task_id,
         )
     dct = dict(
         task_id=task_id,

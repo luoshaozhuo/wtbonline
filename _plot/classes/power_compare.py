@@ -62,8 +62,8 @@ class PowerCompare(Base):
         for device_id, plot_df in df.groupby('device_id'):
             fig.add_trace(
                 go.Scatter(
-                    x=plot_df['mean_power'],
-                    y=plot_df['mean_pitch_angle'],
+                    x=plot_df['mean_pitch_angle'],
+                    y=plot_df['mean_power'],
                     mode='markers',
                     name=device_id,
                     marker=dict(opacity=0.5, color=colors[i], size=3),
@@ -74,8 +74,8 @@ class PowerCompare(Base):
                 ) 
             fig.add_trace(
                 go.Scatter(
-                    x=plot_df['mean_power'],
-                    y=plot_df['rotor_speed'],
+                    x=plot_df['rotor_speed'],
+                    y=plot_df['mean_power'],
                     mode='markers',
                     marker=dict(opacity=0.5, color=colors[i], size=3),
                     showlegend=False,

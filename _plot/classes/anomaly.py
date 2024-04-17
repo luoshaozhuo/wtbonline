@@ -124,7 +124,7 @@ class Anomaly(Base):
         rev.loc[idx_suspetor_without_label, 'color'] = ANOMALY_MATRIX_PLOT_COLOR['离群，未标注']
         rev.loc[idx_anormaly, 'color'] = ANOMALY_MATRIX_PLOT_COLOR['异常']
         rev.loc[idx_not_anormaly, 'color'] = ANOMALY_MATRIX_PLOT_COLOR['正常']
-        rev.loc[idx_not_susptor, 'opacity'] = 0.2
+        rev.loc[idx_not_susptor, 'opacity'] = 0.1
         rev.loc[idx_suspetor_without_label, 'opacity'] = 1
         rev.loc[idx_anormaly, 'opacity'] = 1
         rev.loc[idx_not_anormaly, 'opacity'] = 1 

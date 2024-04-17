@@ -30,6 +30,8 @@ ITEM='图形'
 ITEM_ORDER = 1
 PREFIX =  'explore_plot'
 
+MAX_VALUES = 10 # 最多可以选择的变量数
+
 #%% function
 get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
@@ -47,7 +49,7 @@ def create_toolbar_content():
             dmc.Space(h='10px'),
             dcmpt.select_general_graph_type(id=get_component_id('select_type')),
             dcmpt.select(id=get_component_id('select_xaxis'), data=[], value=None, label='x坐标（θ坐标）', description='需要先选择类型以及机型编号', ),
-            dcmpt.multiselect(id=get_component_id('multiselect_yaxis'), label='y坐标（r坐标）', description='需要先选择类型以及机型编号', clearable=True),
+            dcmpt.multiselect(id=get_component_id('multiselect_yaxis'), label='y坐标（r坐标）', description='需要先选择类型以及机型编号', clearable=True, maxSelectedValues=MAX_VALUES),
             dmc.Space(h='20px'),
             dmc.LoadingOverlay(
                 dmc.Button(
@@ -201,7 +203,7 @@ def callback_on_btn_resresh_plot(n, device_id, xcol, ycols, set_id, date_start, 
     var_names = pd.Series([xcol] + ycols).replace('ts', None).dropna()
     start_time = pd.to_datetime(date_start+time_start[-9:])
     end_time = start_time  + pd.Timedelta(f'{time_span}m')
-    obj = graph_factory.get(plot_type)()
+    obj = graph_factory.get(plot_type)(row_height=200)
     obj.init(var_names=var_names)
     fig,note = dcmpt.dash_try(
         note_title=cfg.NOTIFICATION_TITLE_GRAPH_FAIL,
