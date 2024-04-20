@@ -118,5 +118,5 @@ def predict_all(end_time, delta:int, type_:str='anomaly', **kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    # train_all(end_time='2024-01-01', delta=300, minimum=200)
+    train_all(end_time='2024-01-01', delta=300, minimum=200)
     predict_all(end_time='2024-04-01', delta=120, nsample=30)

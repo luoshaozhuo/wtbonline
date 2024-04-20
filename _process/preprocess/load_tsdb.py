@@ -82,6 +82,13 @@ def load_tsdb(set_id:str, device_id:str, dt:Union[str, date]):
 def update_tsdb(*args, **kwargs):
     ''' 本地TSDB查缺 '''
     task_id = kwargs.get('task_id', 'NA')
+    end_dt = kwargs.get('end_dt', None)
+    delta = kwargs.get('delta', 14)
+    if end_dt is not None:
+        dts = pd.date_range(pd.to_datetime(end_dt)-pd.Timedelta(delta, unit='d'), end_dt)
+        dts = pd.Series(dts).dt.date
+    else:
+        dts = None
     for i in range(10):
         try:
             df = PGFacade.read_model_device()[['set_id', 'device_id']]
@@ -94,13 +101,14 @@ def update_tsdb(*args, **kwargs):
         raise ValueError('update_tsdb: windfarm_configuration 查询失败')
     for _, (set_id, device_id) in df.iterrows():
         _LOGGER.info(f'update_tsdb: {set_id}, {device_id}')
-        try:
-            dtrm = get_dates_tsdb(device_id, remote=True) 
-            dtlc = get_dates_tsdb(device_id, remote=False)
-        except  Exception as e:
-            _LOGGER.error(f'failed to update_tsdb: {set_id}, {device_id}. \n Error msg: {e}')
-            continue
-        dts = dtrm[~dtrm.isin(dtlc)]
+        if dts is None:
+            try:
+                dtrm = get_dates_tsdb(device_id, remote=True) 
+                dtlc = get_dates_tsdb(device_id, remote=False)
+            except  Exception as e:
+                _LOGGER.error(f'failed to update_tsdb: {set_id}, {device_id}. \n Error msg: {e}')
+                continue
+            dts = dtrm[~dtrm.isin(dtlc)]
         for date in dts:
             # 不更新当天数据
             if date>=pd.Timestamp.now().date():
@@ -117,4 +125,4 @@ def update_tsdb(*args, **kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    update_tsdb()
+    update_tsdb(end_dt=pd.Timestamp.now().date())

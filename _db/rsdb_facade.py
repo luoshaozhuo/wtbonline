@@ -15,6 +15,7 @@ from typing import List, Optional, Union, Mapping, Any
 from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._common.utils import make_sure_list, make_sure_datetime
 from wtbonline._db.rsdb import model
+from wtbonline._db.postgres_facade import PGFacade
 
 #%% class
 class RSDBFacade():
@@ -57,7 +58,7 @@ class RSDBFacade():
     def read_turbine_fault_type(
             cls, 
             *, 
-            is_offshore:Optional[int]=1,
+            is_offshore:Optional[int]=None,
             columns:Optional[Union[List[str], str]]=None,
             cause:Optional[str]=None,
             name:Optional[str]=None,
@@ -67,6 +68,9 @@ class RSDBFacade():
         >>> RSDBFacade.read_turbine_fault_type().columns.tolist()
         ['id', 'is_offshore', 'name', 'cause', 'value', 'type', 'var_names', 'index', 'time_span', 'graph']
         '''
+        if is_offshore is None:
+            set_id = PGFacade.read_model_device()['set_id'].iloc[0]
+            is_offshore = cls.read_windfarm_configuration(set_id=set_id)['is_offshore'].iloc[0]            
         tbname = model.TurbineFaultType.__tablename__
         eq_clause, in_clause = cls.get_in_or_eq_clause(cause=cause, name=name, is_offshore=is_offshore)
         df = RSDB.query(tbname, eq_clause=eq_clause, in_clause=in_clause, limit=limit, columns=columns) 

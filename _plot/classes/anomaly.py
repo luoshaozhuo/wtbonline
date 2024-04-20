@@ -63,6 +63,7 @@ class Anomaly(Base):
         var_names = make_sure_list(var_names)
         col_all = make_sure_list(set(COLUMNS_AUG+var_names))
         col_sel = make_sure_list(set(var_names+['bin', 'id']))
+        # 总体样本中抽样
         # filter会筛除大部分数据，所以用4倍sample_cnt来采样
         sample_df = RSDBFacade.read_statistics_sample(
             set_id=set_id,
@@ -76,7 +77,7 @@ class Anomaly(Base):
         sample_df = normal_production(sample_df).loc[:, col_sel]
         if len(sample_df)==0:
             raise ValueError('无数据')
-        # 合异常数据
+        # 合并离群数据
         idx = RSDBFacade.read_model_anormaly(
             set_id=set_id, 
             device_id=device_id,
@@ -105,10 +106,10 @@ class Anomaly(Base):
             rev['is_anomaly'] = rev['is_anomaly'].fillna(0)
         else:     
             rev['is_anomaly'] = 0
-        # 抽样，保留全部异常数据
-        sub_anormal = rev[rev['is_anomaly']==1]
+        # 抽样，保留全部异常及离群数据
+        sub_anormal = rev[(rev['is_anomaly']==1) & (rev['is_suspector']==1)]
         count = self.nsamples - len(sub_anormal)
-        sub_normal = rev[rev['is_anomaly']==0]
+        sub_normal = rev[~rev.index.isin(sub_anormal.index)]
         sub_normal = sub_normal.sample(count) if sub_normal.shape[0]>count else sub_normal
         rev = pd.concat([sub_normal, sub_anormal], ignore_index=True)
         # 加入绘图所需中文标签

@@ -270,7 +270,6 @@ def callback_on_slect_type_plot(set_id):
     Output(get_component_id('listItem_rspd'), 'children'),
     Output(get_component_id('listItem_power'), 'children'),
     Output(get_component_id('listItem_pitchAngle'), 'children'),
-    Output(get_component_id('btn_next'), 'disabled'),
     Input(get_component_id('select_device_id'), 'value'),
     State(get_component_id('select_setid'), 'value'),
     prevent_initial_call=True
@@ -280,14 +279,7 @@ def callback_on_select_mapid_anomaly(device_id, set_id):
     map_id改变时，切换散点图，清空辅助图及样本信息
     '''
     if device_id in [None, '']:
-        return no_update, {},  *(['-']*6), True
-    df, note = dcmpt.dash_dbquery(
-        RSDBFacade.read_model,
-        device_id=device_id, 
-        type_='anomaly',
-        )
-    if note is not None:
-        return note, {},  *(['-']*6), True
+        return no_update, {},  *(['-']*6)
     end_time = pd.Timestamp.now()
     start_time = end_time - pd.Timedelta('365d')
     figure, note = dcmpt.dash_try(
@@ -299,7 +291,18 @@ def callback_on_select_mapid_anomaly(device_id, set_id):
         end_time=end_time
         )
     figure = {} if figure is None else figure
-    return note, figure,  *(['-']*6), True
+    return note, figure,  *(['-']*6)
+
+@callback(
+    Output(get_component_id('btn_next'), 'disabled'),
+    Input(get_component_id('graph_scatter'), 'figure'),
+    prevent_initial_call=True
+    )
+def on_update_graph_scater(fig):
+    if fig in [None, {}]:
+        return True
+    disabled = not (pd.Series(fig['data'][0]['text'])=='离群，未标注').any()
+    return disabled
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
@@ -316,7 +319,7 @@ def callback_on_select_mapid_anomaly(device_id, set_id):
     prevent_initial_call=True
     )
 def callback_on_select_data_anomaly(selectedData, fig, ycols):
-    if pd.Series([selectedData, fig, ycols]).isin([[], None, '']).any():
+    if pd.Series([fig, ycols]).isin([[], None, '', {}]).any():
         return None, *(['-']*6), {}
     columns=['var_94_mean', 'winspd_mean', 'var_246_mean', 'var_101_mean', 'bin', 'set_id', 'device_id']
     note = None
@@ -391,14 +394,14 @@ def callback_disable_btn_update_anomaly(ts, label):
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('graph_scatter'), 'figure', allow_duplicate=True),
     Input(get_component_id('btn_update'), 'n_clicks'),
-    State(get_component_id('graph_scatter'), 'selectedData'),
+    State(get_component_id('graph_scatter'), 'figure'),
     State(get_component_id('select_setid'), 'value'),
     State(get_component_id('select_device_id'), 'value'),
     State(get_component_id('select_label'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_btn_update_anomaly(n, selectedData, set_id, device_id, label):
-    if selectedData is None or len(selectedData)==0 or label is None:
+def callback_on_btn_update_anomaly(n, figure, set_id, device_id, label):
+    if figure in [None, {}] or label is None:
         return None, no_update
     _ = Patch()
     patched_fig = Patch()
@@ -408,7 +411,12 @@ def callback_on_btn_update_anomaly(n, selectedData, set_id, device_id, label):
         return note, no_update
     # 构造新记录
     create_time = pd.Timestamp.now()
-    sample_id = selectedData['points'][0]['customdata']
+    
+    selected_points = figure['data'][0].get('selectedpoints', [])
+    if len(selected_points)<1:
+        return None, no_update
+    idx = selected_points[0]
+    sample_id = figure['data'][0]['customdata'][idx]
     new_record = dict(
         username=username, 
         set_id=set_id, 
@@ -424,11 +432,54 @@ def callback_on_btn_update_anomaly(n, selectedData, set_id, device_id, label):
         )
     if note is not None:
         return note, no_update
-    idx = selectedData['points'][0]['pointNumber']
     patched_fig['data'][0]['text'][idx] = label
     patched_fig['data'][0]['marker']['color'][idx] = ANOMALY_MATRIX_PLOT_COLOR[label]
     patched_fig['data'][0]['marker']['opacity'][idx] = 1
     return no_update, patched_fig
+
+
+# @callback(
+#     Output(get_component_id('notification'), 'children', allow_duplicate=True),
+#     Output(get_component_id('graph_scatter'), 'figure', allow_duplicate=True),
+#     Input(get_component_id('btn_update'), 'n_clicks'),
+#     State(get_component_id('graph_scatter'), 'selectedData'),
+#     State(get_component_id('select_setid'), 'value'),
+#     State(get_component_id('select_device_id'), 'value'),
+#     State(get_component_id('select_label'), 'value'),
+#     prevent_initial_call=True
+#     )
+# def callback_on_btn_update_anomaly(n, selectedData, set_id, device_id, label):
+#     if selectedData is None or len(selectedData)==0 or label is None:
+#         return None, no_update
+#     _ = Patch()
+#     patched_fig = Patch()
+#     # 获取当前用户名
+#     username, note = dcmpt.dash_get_username(current_user, __name__ == '__main__')
+#     if note is not None:
+#         return note, no_update
+#     # 构造新记录
+#     create_time = pd.Timestamp.now()
+#     sample_id = selectedData['points'][0]['customdata']
+#     new_record = dict(
+#         username=username, 
+#         set_id=set_id, 
+#         device_id=device_id,
+#         sample_id=sample_id, 
+#         create_time=create_time,
+#         is_anomaly=1 if label=='异常' else -1             
+#         )
+#     _, note = dcmpt.dash_dbquery(
+#         RSDBFacade.insert,
+#         df = new_record,
+#         tbname = 'model_label'
+#         )
+#     if note is not None:
+#         return note, no_update
+#     idx = selectedData['points'][0]['pointNumber']
+#     patched_fig['data'][0]['text'][idx] = label
+#     patched_fig['data'][0]['marker']['color'][idx] = ANOMALY_MATRIX_PLOT_COLOR[label]
+#     patched_fig['data'][0]['marker']['opacity'][idx] = 1
+#     return no_update, patched_fig
 
 @callback(
     Output(get_component_id('select_xaxis_tools'), 'data'),
