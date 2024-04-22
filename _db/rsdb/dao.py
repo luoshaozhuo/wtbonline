@@ -43,7 +43,7 @@ class RSDBDAO():
     def __init__(self, engine=None):
         self.factory = ORMFactory()
         self.engine = create_engine_() if engine is None else engine
-        self.Session = sessionmaker(self.engine, expire_on_commit=True)
+        # self.Session = sessionmaker(self.engine, expire_on_commit=True)
 
     def get_session(self):
         '''
@@ -137,7 +137,7 @@ class RSDBDAO():
         True
         >>> dao.query(tbname, columns=func_dct).columns.tolist()
         ['id_max', 'id_min', 'device_id_count']
-        >>> dao.query(tbname, columns=[func_dct, 'set_id'], groupby='set_id', orderby='set_id').columns.tolist()
+        >>> dao.query(tbname, columns=func_dct, groupby='set_id', orderby='set_id').columns.tolist()
         ['id_max', 'id_min', 'device_id_count', 'set_id']
         >>> dao.query(tbname, random=True, limit=100)['id'].max()>100
         True
@@ -159,15 +159,23 @@ class RSDBDAO():
         stmt = stmt if limit is None else stmt.limit(limit)
         return self.read_sql(stmt, timeout)
     
+    def execute(self, stmt, timeout=SESSION_TIMEOUT):
+        with self.get_session()() as session:
+            with query_timeout(session, timeout=timeout):
+                session.execute(text(stmt))
+                session.commit()
+    
     def truncate(self, tbname, timeout=SESSION_TIMEOUT):
         '''
         # >>> dao = RSDBDAO()
         # >>> dao.truncate('windfarm_configuration')
         '''
-        with self.engine.connect() as conn:
-            with query_timeout(conn, timeout):
-                conn.execute(text(f'truncate {tbname}')) 
-                conn.commit() 
+        stmt = f'truncate {tbname}'
+        self.execute(stmt, timeout=timeout)        
+        # with self.engine.connect() as conn:
+        #     with query_timeout(conn, timeout):
+        #         conn.execute(text(f'truncate {tbname}')) 
+        #         conn.commit() 
     
     def insert(self, df:Union[dict, pd.DataFrame], tbname:str, timeout=30000):
         '''
@@ -178,13 +186,12 @@ class RSDBDAO():
         >>> start_time = ['2023-01-01']*10
         >>> end_time = start_time
         >>> val=['111']*10
-        >>> fault_id = ['a12']*10
+        >>> fault_id = ['12']*10
         >>> fault_type = ['a12']*10
         >>> timestamp = ['2023-02-02 11:11:11']*10
         >>> create_time = timestamp
-        >>> dct = dict(set_id=set_id, device_id=device_id, fault_id=fault_id, val=val, fault_type=fault_type, start_time=start_time, end_time=end_time, create_time=create_time)
-        >>> df = pd.DataFrame(dct)
-        >>> dao.insert(df, 'statistics_fault')
+        >>> dct = dict(set_id=set_id, device_id=device_id, fault_id=fault_id, value=val, fault_type=fault_type, start_time=start_time, end_time=end_time, create_time=create_time)
+        >>> dao.insert(dct, 'statistics_fault')
         >>> dao.query('statistics_fault', columns={'id':'count'})['id_count'].squeeze()>=2
         True
         >>> dao.truncate('statistics_fault')
@@ -200,10 +207,11 @@ class RSDBDAO():
         Model = ORMFactory().get(tbname)
         assert Model is not None, f'table {tbname} not defined in model.py'
         stmt = insert(Model).values(df.to_dict('records'))
-        with self.Session() as session:
-            with query_timeout(session, timeout=timeout):
-                session.execute(stmt)
-                session.commit()   
+        self.execute(stmt, timeout=timeout)          
+        # with self.get_session()() as session:
+        #     with query_timeout(session, timeout=timeout):
+        #         session.execute(stmt)
+        #         session.commit()   
         
     def update(self, 
                tbname:str,
@@ -228,10 +236,11 @@ class RSDBDAO():
         stmt = update(model_)
         stmt = Where()(model_=model_, params={'eq':eq_clause,'lge':lge_clause,'lt':lt_clause,'in':in_clause}, stmt=stmt)         
         stmt = stmt.values({getattr(model_, key_):new_values[key_] for key_ in new_values})
-        with self.Session() as session:
-            with query_timeout(session, timeout=timeout):
-                session.execute(stmt)
-                session.commit()
+        # with self.get_session()() as session:
+        #     with query_timeout(session, timeout=timeout):
+        #         session.execute(stmt)
+        #         session.commit()'
+        self.execute(stmt, timeout=timeout)  
 
     def delete(self, 
                tbname:str,
@@ -256,10 +265,11 @@ class RSDBDAO():
         model_ = self.factory.get(tbname)
         stmt = delete(model_)
         stmt = Where()(model_=model_, params={'eq':eq_clause,'lge':lge_clause,'lt':lt_clause,'in':in_clause}, stmt=stmt) 
-        with self.Session() as session:
-            with query_timeout(session, timeout=timeout):
-                session.execute(stmt)
-                session.commit()
+        self.execute(stmt, timeout=timeout)
+        # with self.get_session()() as session:
+        #     with query_timeout(session, timeout=timeout):
+        #         session.execute(stmt)
+        #         session.commit()
 
 RSDB = RSDBDAO()
 

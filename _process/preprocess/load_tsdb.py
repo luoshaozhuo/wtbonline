@@ -106,7 +106,7 @@ def update_tsdb(*args, **kwargs):
                 dtrm = get_dates_tsdb(device_id, remote=True) 
                 dtlc = get_dates_tsdb(device_id, remote=False)
             except  Exception as e:
-                _LOGGER.error(f'failed to update_tsdb: {set_id}, {device_id}. \n Error msg: {e}')
+                _LOGGER.warn(f'failed to update_tsdb: {set_id}, {device_id}. \nmsg: {e}')
                 continue
             dts = dtrm[~dtrm.isin(dtlc)]
         for date in dts:

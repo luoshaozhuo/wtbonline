@@ -19,6 +19,7 @@ from apscheduler.events import (
     EVENT_JOBSTORE_ADDED ,  EVENT_JOBSTORE_REMOVED ,  EVENT_ALL_JOBS_REMOVED , 
     EVENT_JOB_ADDED ,  EVENT_JOB_REMOVED ,  EVENT_JOB_MODIFIED ,  EVENT_JOB_EXECUTED , 
     EVENT_JOB_ERROR ,  EVENT_JOB_MISSED ,  EVENT_JOB_SUBMITTED ,  EVENT_JOB_MAX_INSTANCES)
+import logging
 
 from wtbonline._db.rsdb.dao import create_engine_
 from wtbonline._logging import get_logger
@@ -31,7 +32,7 @@ from wtbonline._report.brief_report import build_brief_report_all
 class Config():
     SCHEDULER_JOBSTORES = {"default": SQLAlchemyJobStore(engine=create_engine_(), engine_options={'pool_pre_ping':True})}
     SCHEDULER_EXECUTORS = {"default": {"type": "processpool", "max_workers": 5}}
-    SCHEDULER_JOB_DEFAULTS = {"coalesce": True, "max_instances": 1}
+    SCHEDULER_JOB_DEFAULTS = {"coalesce": False, "max_instances": 1}
     SCHEDULER_API_ENABLED = True
     SCHEDULER_TIMEZONE = 'Asia/Shanghai'
 
@@ -39,6 +40,7 @@ app = Flask(__name__)
 app.config.from_object(Config())
 
 logger = get_logger('apscheduler')
+logger.setLevel(logging.DEBUG)
 scheduler = APScheduler(BackgroundScheduler(timezone='Asia/Shanghai'))
 
 JOB_STATUS = {
