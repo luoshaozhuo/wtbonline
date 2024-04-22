@@ -22,16 +22,16 @@ from wtbonline._db.tsdb_facade import TDFC
 #%% constant
 SECTION = '分析'
 SECTION_ORDER = 1
-ITEM='故障'
+ITEM='降容'
 ITEM_ORDER = 2
-PREFIX = 'analysis_fault'
+PREFIX = 'analysis_dg'
 
 TABLE_COLUMNS = ['图例号', 'map_id', 'start_time', 'end_time', 'set_id']
 TABLE_FONT_SIZE = '2px'
 TABLE_HEIGHT = '200PX'
 
 FAULT_TYPE = cfg.WINDFARM_FAULT_TYPE.dropna(subset=['var_names', 'index', 'value'])
-FAULT_TYPE = FAULT_TYPE[FAULT_TYPE['name']!='机组降容']
+FAULT_TYPE = FAULT_TYPE[FAULT_TYPE['name']=='机组降容']
 
 MAX_VALUES = 10 # 最大可选择的变量数
 
@@ -81,9 +81,9 @@ def create_toolbar_content():
                 description="日期范围是闭区间"
                 ),
             dcmpt.number_input(id=get_component_id('input_span'), label='时长', value=30, min=1, description='单位，天'),
-            dcmpt.select(id=get_component_id('select_device_id'), data=[], value=None, label='风机编号', description='只显示有故障记录的机组'),
-            dcmpt.select(id=get_component_id('select_fault_name'), data=[], value=None, label='故障类型', description='只显示存在故障记录的类型'),
-            dcmpt.select(id=get_component_id('select_itemid'), data=[], value=None, label='故障记录', description='按开始时间降序排列'),
+            dcmpt.select(id=get_component_id('select_device_id'), data=[], value=None, label='风机编号', description='只显示有记录的机组'),
+            dcmpt.select(id=get_component_id('select_fault_cause'), data=[], value=None, label='降容原因', description='只显示存在记录的类型'),
+            dcmpt.select(id=get_component_id('select_itemid'), data=[], value=None, label='降容记录', description='按开始时间降序排列'),
             dcmpt.multiselecdt_var_name(id=get_component_id('select_var_name'), label='选择绘图变量', maxSelectedValues=MAX_VALUES),
             dmc.Space(h='20px'),
             dmc.LoadingOverlay(
@@ -180,7 +180,7 @@ layout = [
     Input(get_component_id('datepicker_end'), 'value'),
     Input(get_component_id('input_span'), 'value'),
     )
-def callback_update_select_device_id_fault(set_id, end_date, delta):
+def callback_update_select_device_id_dg(set_id, end_date, delta):
     if pd.Series([set_id, end_date, delta]).isin([None, '']).any():
         return None, [], None
     end_time = pd.to_datetime(end_date)
@@ -203,14 +203,14 @@ def callback_update_select_device_id_fault(set_id, end_date, delta):
 
 @callback(
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-    Output(get_component_id('select_fault_name'), 'data'),
-    Output(get_component_id('select_fault_name'), 'value'),
+    Output(get_component_id('select_fault_cause'), 'data'),
+    Output(get_component_id('select_fault_cause'), 'value'),
     Input(get_component_id('select_device_id'), 'value'),
     State(get_component_id('datepicker_end'), 'value'),
     State(get_component_id('input_span'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_select_id_fault(device_id, end_date, delta):
+def callback_on_select_id_dg(device_id, end_date, delta):
     if device_id in (None, ''):
         return no_update, [], None
     end_time = pd.to_datetime(end_date)
@@ -226,7 +226,7 @@ def callback_on_select_id_fault(device_id, end_date, delta):
         )
     if note is None:
         sr = df['fault_id'].unique()
-        fault_types = FAULT_TYPE[FAULT_TYPE['id'].isin(sr)]['name'].unique()
+        fault_types = FAULT_TYPE[FAULT_TYPE['id'].isin(sr)]['cause'].unique()
         data = [{'label':i, 'value':i} for i in fault_types]
     else:
         data = []
@@ -236,16 +236,16 @@ def callback_on_select_id_fault(device_id, end_date, delta):
     Output(get_component_id('notification'), 'children', allow_duplicate=True),
     Output(get_component_id('select_itemid'), 'data'),
     Output(get_component_id('select_itemid'), 'value'),
-    Input(get_component_id('select_fault_name'), 'value'),
+    Input(get_component_id('select_fault_cause'), 'value'),
     State(get_component_id('datepicker_end'), 'value'),
     State(get_component_id('input_span'), 'value'),
     State(get_component_id('select_device_id'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_select_fault_name_fault(fault_name, end_date, delta, device_id):
+def callback_on_select_fault_cause_dg(fault_name, end_date, delta, device_id):
     if fault_name in (None, ''):
         return no_update, [], None
-    fault_ids = FAULT_TYPE[FAULT_TYPE['name']==fault_name]['id'].astype(str)
+    fault_ids = FAULT_TYPE[FAULT_TYPE['cause']==fault_name]['id'].astype(str)
     end_time = pd.to_datetime(end_date)
     start_time = end_time - pd.Timedelta(f'{delta}d')
     sql = (
@@ -273,7 +273,7 @@ def callback_on_select_fault_name_fault(fault_name, end_date, delta, device_id):
     State(get_component_id('select_setid'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_select_itemid_fault(id_, set_id):
+def callback_on_select_itemid_dg(id_, set_id):
     note = no_update
     disabled = True
     data = []
@@ -306,7 +306,7 @@ def callback_on_select_itemid_fault(id_, set_id):
     Input(get_component_id('select_itemid'), 'value'), 
     prevent_initial_call=True
     )
-def callback_disable_btns_fault(value):
+def callback_disable_btns_dg(value):
     disabled = value in [None, '']
     return [disabled]*3
 
@@ -318,7 +318,7 @@ def callback_disable_btns_fault(value):
     State(get_component_id('select_var_name'), 'value'), 
     prevent_initial_call=True
     )
-def callback_on_btn_refresh_fault(n, sample_id, var_names):
+def callback_on_btn_refresh_dg(n, sample_id, var_names):
     if sample_id in (None, ''):
         return None, {}
     figure, note = load_figure(sample_id, var_names)
@@ -333,7 +333,7 @@ def callback_on_btn_refresh_fault(n, sample_id, var_names):
     State(get_component_id('select_itemid'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_btn_download_tdengine_fault(n, set_id, device_id, sample_id):
+def callback_on_btn_download_tdengine_dg(n, set_id, device_id, sample_id):
     df, note = dcmpt.dash_dbquery(
         func=RSDBFacade.read_statistics_fault,
         id_=sample_id
@@ -368,7 +368,7 @@ def callback_on_btn_download_tdengine_fault(n, set_id, device_id, sample_id):
     State(get_component_id('select_itemid'), 'value'),
     prevent_initial_call=True
     )
-def callback_on_btn_download_plc_fault(n, set_id, device_id, sample_id):
+def callback_on_btn_download_plc_dg(n, set_id, device_id, sample_id):
     pass
 
 

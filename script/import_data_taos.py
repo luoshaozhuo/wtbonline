@@ -9,11 +9,11 @@ from pathlib import Path
 import pandas as pd
 
 #%% constant
-SRC_PATH = Path('/mnt/d/ll/data/lz') # csv文件路径
-OUT_PATH = Path('/mnt/d/ll/data/lz') # insert_data.sql文件输出路径
-SQL_PATH = Path('/home/d/ll/data/lz') # sql 语句里的csv路径
+SRC_PATH = Path('/mnt/d/BaiduNetdiskDownload/深能苏尼特左旗/taos') # csv文件路径
+OUT_PATH = Path('/mnt/d/BaiduNetdiskDownload/深能苏尼特左旗/taos') # insert_data.sql文件输出路径
+SQL_PATH = Path('/home/d/BaiduNetdiskDownload/深能苏尼特左旗/taos') # sql 语句里的csv路径
 DBNAME = 'scada'
-TB_PREFIX = 'd_s'
+TB_PREFIX = 'd_'
 
 #%% fcuntion
 def remove_header(pathname):
