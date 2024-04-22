@@ -65,8 +65,8 @@ def multiselect(id, label:str, description:str=None, maxSelectedValues:int=5, di
 def multiselect_device_id(id):
     return multiselect(id=id, label='风机编号', description='最多选择5台设备', maxSelectedValues=5)
 
-def multiselecdt_var_name(id, disabled=False, maxSelectedValues=10):
-    return multiselect(id=id, label='选择变量名', description='最多选择10个变量', maxSelectedValues=maxSelectedValues, disabled=disabled)
+def multiselecdt_var_name(id, label='选择变量名', disabled=False, maxSelectedValues=10):
+    return multiselect(id=id, label=label, description='最多选择10个变量', maxSelectedValues=maxSelectedValues, disabled=disabled)
 
 def select_job_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
     type_ = list(cfg.SCHEDULER_JOB_TYPE.keys())
@@ -75,7 +75,7 @@ def select_job_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPO
 def select_general_graph_type(id, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):
     return select(id=id, data=GENERAL_GRAPH, value=None, label='绘图类型', size=size, width=width, withAsterisk=withAsterisk)
 
-def date_picker(id, label, description, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False, disabled=True):
+def date_picker(id, label, description, size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False, disabled=True, **kwargs):
     disabledDates = [cfg.DATE] 
     return dmc.DatePicker(
         id=id,
@@ -88,7 +88,8 @@ def date_picker(id, label, description, size=cfg.TOOLBAR_COMPONENT_SIZE, width=c
         style={"width": width},
         openDropdownOnClear =True,
         disabled=disabled,
-        withAsterisk=withAsterisk
+        withAsterisk=withAsterisk,
+        **kwargs
         )
     
 def time_input(id, label, value, description='', size=cfg.TOOLBAR_COMPONENT_SIZE, width=cfg.TOOLBAR_COMPONENT_WIDTH, withAsterisk=False):

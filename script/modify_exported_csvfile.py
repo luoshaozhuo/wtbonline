@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 #%% constant
-SRC_PATH = Path('/mnt/d/ll/data/lz/10034') # csv文件路径
+SRC_PATH = Path('/mnt/d/BaiduNetdiskDownload/深能苏尼特左旗/taos') # csv文件路径
 
 #%% fcuntion
 def remove_header(pathname):
