@@ -15,6 +15,7 @@ from functools import partial
 from flask_login import current_user
 import requests
 import time
+from zlib import crc32
 
 from wtbonline._db.rsdb_facade import RSDBFacade
 import wtbonline.configure as cfg
@@ -71,6 +72,12 @@ def func_render_table():
         data.columns = TABLE_HEADERS
         data = data.to_dict('records')
     return data, note
+
+def make_task_id(func, kwargs):
+    data = f'{func}{kwargs}'
+    id_ = crc32(data.encode(encoding='UTF-8'))
+    return str(id_)
+
 
 #%% component
 def create_toolbar_content():
@@ -348,13 +355,12 @@ def callback_on_btn_add_job(
     esisted_job, note = dcmpt.dash_dbquery(RSDBFacade.read_timed_task)
     if esisted_job is None:
         return note, no_update, ''
-    if func=='统计10分钟样本' and func in esisted_job['func']:
-       return dcmpt(title='重复任务', msg='请先删除重复任务', _type='error'), no_update, ''
+    # if func=='统计10分钟样本' and func in esisted_job['func']:
+    #    return dcmpt(title='重复任务', msg='请先删除重复任务', _type='error'), no_update, ''
    # 获取任务发布者
     username, note = dcmpt.dash_get_username(current_user, __name__=='__main__')
     if note is not None:
         return note, no_update, ''
-    task_id = str(pd.Timestamp.now().date()) + '-' + str(np.random.randint(0, 10**6))
     job_start_time = ' '.join([start_date, start_time.split('T')[1]])
     task_parameter = {'misfire_grace_time':cfg.MISFIRE_GRACE_TIME}
     if type_=='定时任务':
@@ -366,8 +372,16 @@ def callback_on_btn_add_job(
         delta = delta,
         minimum = minimum_sample,
         nsample = num_output,
-        task_id = task_id,
         )
+    task_id = make_task_id(func, function_parameter)
+    function_parameter.update({'task_id':task_id})
+    # 检查是否有重复任务
+    df, note = dcmpt.dash_dbquery(func=RSDBFacade.read_apscheduler_jobs, not_empty=False)
+    if note is not None:
+        return note, no_update, ''
+    if (df['id']==task_id).any():
+       return dcmpt(title='重复任务', msg=f'请先删除重复任务, task_id={task_id}', _type='error'), no_update, ''
+    # 构造timed_job记录
     dct = dict(
         task_id=task_id,
         status='CREATED',

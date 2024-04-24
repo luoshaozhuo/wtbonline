@@ -83,7 +83,7 @@ class Spectrum(Base):
                         x=fft_df['freq'], 
                         y=fft_df['amp'], 
                         mode='lines+markers',
-                        name=device_id,
+                        name=DEVICE_DF.loc[device_id, 'device_name'],
                         marker=dict(size=3,opacity=0.5,color=colors[i]), 
                         line=dict(color=colors[i]), 
                         showlegend=False

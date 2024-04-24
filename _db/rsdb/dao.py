@@ -162,7 +162,7 @@ class RSDBDAO():
     def execute(self, stmt, timeout=SESSION_TIMEOUT):
         with self.get_session()() as session:
             with query_timeout(session, timeout=timeout):
-                session.execute(text(stmt))
+                session.execute(stmt)
                 session.commit()
     
     def truncate(self, tbname, timeout=SESSION_TIMEOUT):
@@ -171,7 +171,7 @@ class RSDBDAO():
         # >>> dao.truncate('windfarm_configuration')
         '''
         stmt = f'truncate {tbname}'
-        self.execute(stmt, timeout=timeout)        
+        self.execute(text(f'truncate {stmt}'), timeout=timeout)        
         # with self.engine.connect() as conn:
         #     with query_timeout(conn, timeout):
         #         conn.execute(text(f'truncate {tbname}')) 

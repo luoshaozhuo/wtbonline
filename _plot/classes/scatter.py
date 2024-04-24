@@ -12,8 +12,10 @@ import pandas as pd
 from wtbonline._process.tools.frequency import power_spectrum, amplitude_spectrum
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
+from wtbonline._db.postgres_facade import PGFacade
 
 #%% constants
+DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
 
 #%% class
 class Scatter(Base):
@@ -45,7 +47,7 @@ class Scatter(Base):
                     y=plot_df[self.var_names[1]],
                     mode='markers',           
                     marker={'opacity':0.5, 'size':4, 'color':colors[i%len(colors)]},
-                    name=device_id,
+                    name=DEVICE_DF.loc[device_id, 'device_name'],
                     showlegend=True
                     )
                 )

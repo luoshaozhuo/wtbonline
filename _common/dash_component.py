@@ -181,7 +181,8 @@ def get_general_plot_selections(set_id, type_):
         sub_df = df[(df['point_name'].str.find('角')>-1) & (df['unit']=='°')]
         x_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in sub_df.iterrows()]
         x_value = None
-        y_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in df.iterrows()] 
+        sub_df = df[df['datatype'].isin(['F', 'I'])]
+        y_data = [{'label':row['point_name'],'value':row['var_name']} for _,row in sub_df.iterrows()] 
     elif type_=='Spectrum':
         sub_df = df[df['datatype']=='F']
         x_data = [{'label':'频率', 'value':'ts'}]
