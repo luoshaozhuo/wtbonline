@@ -28,4 +28,4 @@ server.permanent_session_lifetime = datetime.timedelta(days=SESSION_LIFETIME)
 login_manager.init_app(server)
 
 if __name__ == "__main__":
-    app.run_server(debug=False, host='0.0.0.0', port=40006)
+    app.run_server(debug=False, host='0.0.0.0', port=40016)
