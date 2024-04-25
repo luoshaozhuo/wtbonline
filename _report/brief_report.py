@@ -516,15 +516,16 @@ def build_brief_report_all(*args, **kwargs):
     delta : 单位天
     >>> build_brief_report_all(end_time='', delta=180)
     '''
-    assert pd.Series(['end_time', 'delta']).isin(kwargs).all()
-    if kwargs['end_time'] is not None and kwargs['end_time']!='':
+    delta = kwargs.get('delta', 30)
+    end_time = kwargs.get('end_time', None)
+    if end_time not in (None, ''):
         end_time = pd.to_datetime(kwargs['end_time']).date()
     else:
         end_time = pd.Timestamp.now().date()
-    start_time = end_time - pd.Timedelta(f"{kwargs['delta']}d")
+    start_time = end_time - pd.Timedelta(f"{delta}d")
     df = PGFacade.read_model_device()
     for set_id in df['set_id'].unique():
-        filename = f"brief_report_{set_id}_{end_time}_{kwargs['delta']}d.pdf"
+        filename = f"brief_report_{set_id}_{end_time}_{delta}d.pdf"
         pathname = REPORT_OUT_DIR/filename
         build_brief_report(
             pathname=pathname.as_posix(), 
@@ -537,4 +538,4 @@ def build_brief_report_all(*args, **kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    build_brief_report_all(end_time='2024-04-01', delta=120)
+    build_brief_report_all(delta=120)

@@ -297,6 +297,14 @@ def callback_on_select_type_job(type_):
     return disabled, disabled, start_time, withAsterisk, withAsterisk, pd.Timestamp.now().date()
 
 @callback(
+    Output(get_component_id('datepicker_end_date'), 'value'),
+    Input(get_component_id('select_func'), 'value'),
+    Input(get_component_id('select_type'), 'value'),
+    )
+def callback_update_datepicker_end_date_job(func, type_):
+    return None
+
+@callback(
     Output(get_component_id('btn_add'), 'disabled'),
     Output(get_component_id('datepicker_end_date'), 'disabled'),
     Output(get_component_id('input_delta'), 'disabled'),
@@ -311,14 +319,17 @@ def callback_on_select_type_job(type_):
     Input(get_component_id('input_delta'), 'value'),
     Input(get_component_id('input_minimun_sample'), 'value'),
     Input(get_component_id('input_num_output'), 'value'),
+    Input(get_component_id('select_type'), 'value'),
     )
-def callback_update_input_component_job(name, v_end_date, v_delta, v_minimun_sample, v_num_output):
-    if name is None:
+def callback_check_input_components_job(func, v_end_date, v_delta, v_minimun_sample, v_num_output, type_):
+    if func in (None, ''):
         return True, *[True]*4, *[False]*4
-    end_date = JOB_DF.loc[name, 'end_date']
-    delta = JOB_DF.loc[name, 'delta']
-    minimun_sample = JOB_DF.loc[name, 'minimun_sample']
-    num_output = JOB_DF.loc[name, 'num_output']
+    end_date = JOB_DF.loc[func, 'end_date']
+    if type_=='定时任务' and func=='数据统计报告': 
+        end_date = False
+    delta = JOB_DF.loc[func, 'delta']
+    minimun_sample = JOB_DF.loc[func, 'minimun_sample']
+    num_output = JOB_DF.loc[func, 'num_output']
     withAsterisk = [end_date, delta, minimun_sample, num_output]
     disabled = [not i for i in withAsterisk]
     # 必须字段不可以为空
@@ -355,8 +366,6 @@ def callback_on_btn_add_job(
     esisted_job, note = dcmpt.dash_dbquery(RSDBFacade.read_timed_task)
     if esisted_job is None:
         return note, no_update, ''
-    # if func=='统计10分钟样本' and func in esisted_job['func']:
-    #    return dcmpt(title='重复任务', msg='请先删除重复任务', _type='error'), no_update, ''
    # 获取任务发布者
     username, note = dcmpt.dash_get_username(current_user, __name__=='__main__')
     if note is not None:
@@ -490,4 +499,4 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
 if __name__ == '__main__':     
     layout =  dmc.NotificationsProvider(children=layout)
     app.layout = layout
-    app.run_server(debug=True)
+    app.run_server(debug=False)

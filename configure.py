@@ -84,7 +84,7 @@ SCHEDULER_JOB_PARAMETER = pd.DataFrame(
     columns=['name', 'func', 'end_date', 'delta', 'minimun_sample', 'num_output']
     )
 MISFIRE_GRACE_TIME = 600 # 600s
-SCHEDULER_JOB_INTER_UNIT = ['weeks', 'days', 'hours', 'miniues', 'seconds']
+SCHEDULER_JOB_INTER_UNIT = ['weeks', 'days', 'hours', 'minutes', 'seconds']
 SCHEDULER_URL='http://scheduler:40000/scheduler/jobs'
 SCHEDULER_TIMEOUT = 10
 
