@@ -2,6 +2,11 @@ import pandas as pd
 from collections.abc import Iterable
 from typing import Union, Optional
 import numpy as np
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+import smtplib
+from email.mime.text import MIMEText
+import pathlib
 
 EPS = np.finfo(np.float32).eps
 
@@ -172,6 +177,34 @@ def make_sure_datetime(
         except:
             raise ValueError(f'not support type {type(x)}')
     return rev
+
+def send_email(recv:str, title:str, content:str, user_name:str='hzfdtest@126.com', password:str='YHWERYTJAMTBCLBE', host='smtp.126.com', port=25, pathname:str=None, ):
+    '''
+    >>> send_email('luoshaozhuo@163.com', '测试', '测试', pathname='/mnt/d/ll/report/系统架构.pptx')
+    '''
+    if pathname:
+        msg = MIMEMultipart()
+        # 构建正文
+        part_text = MIMEText(content)
+        msg.attach(part_text)  # 把正文加到邮件体里面去
+
+        # 构建邮件附件
+        part_attach1 = MIMEApplication(open(pathname, 'rb').read())  # 打开附件
+        part_attach1.add_header('Content-Disposition', 'attachment', filename =pathlib.Path(pathname).name)  # 为附件命名
+        msg.attach(part_attach1)  # 添加附件
+    else:
+        msg = MIMEText(content)  # 邮件内容
+    msg['Subject'] = title  # 邮件主题
+    msg['From'] = user_name # 发送者账号
+    msg['To'] = recv  # 接收者账号列表
+    try:
+        smtp = smtplib.SMTP(host, port)
+        smtp.login(user_name, password)  # 登录
+        smtp.sendmail(user_name, recv, msg.as_string())
+        smtp.quit()
+    except smtplib.SMTPAuthenticationError as e:
+        print(e.smtp_code, e.smtp_error.decode('gbk'))
+        raise
 
 if __name__ == "__main__":
     import doctest

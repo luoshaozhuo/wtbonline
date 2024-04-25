@@ -44,11 +44,12 @@ from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._common.utils import make_sure_dataframe, make_sure_list, make_sure_datetime
+from wtbonline._common.utils import make_sure_dataframe, make_sure_list, make_sure_datetime, send_email
 from wtbonline._logging import get_logger
 from wtbonline._plot import graph_factory
 import wtbonline._plot as plt
 from wtbonline._process.tools.filter import normal_production
+from wtbonline._common.utils import send_email
 
 #%% constant
 pdfmetrics.registerFont(TTFont('Simsun', 'simsun.ttc'))
@@ -508,6 +509,15 @@ def build_brief_report(
             *chapter_4(set_id, min_date, max_date, temp_dir),
             PageBreak(),
             ])
+    
+    is_send = RSDBFacade.read_app_configuration(key_='send_email')['value'].iloc[0]
+    if is_send!='0':
+        recv = RSDBFacade.read_app_configuration(key_='email_address')['value'].iloc[0]
+        account = RSDBFacade.read_app_configuration(key_='email_account')['value'].iloc[0]
+        user_name, password, host, port = account.split('_')
+        if recv not in [None, '']:
+            send_email(recv, f'数据分析报告{start_time}至{end_time}', '请查阅附件。本邮件自动发送。', 
+                       user_name, password, host, port, pathname=pathname)
 
 # main
 def build_brief_report_all(*args, **kwargs):

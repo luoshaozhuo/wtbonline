@@ -75,7 +75,7 @@ def do_statistic(set_id, device_id):
     '''
     >>> do_statistic('20835', 's10003')
     '''
-    tsdb_columns = TDFC.get_filed(set_id=set_id, remote=False)
+    tsdb_columns = TDFC.get_filed(set_id=set_id, remote=True)
     dct = latest_record(device_id=device_id)
     is_offshore = WINDFARM_CONF.loc[set_id, 'is_offshore']
     fault_type_subdf = FAULT_TYPE_DF[FAULT_TYPE_DF['is_offshore']==is_offshore]
