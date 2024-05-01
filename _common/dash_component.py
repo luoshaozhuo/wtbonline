@@ -63,7 +63,7 @@ def multiselect(id, label:str, description:str=None, maxSelectedValues:int=5, di
         )
 
 def multiselect_device_id(id):
-    return multiselect(id=id, label='风机编号', description='最多选择5台设备', maxSelectedValues=5)
+    return multiselect(id=id, label='风机编号', description='最多选择5台设备，部分功能只支持1台机组，自动忽略多余选项', maxSelectedValues=5)
 
 def multiselecdt_var_name(id, label='选择变量名', disabled=False, maxSelectedValues=10):
     return multiselect(id=id, label=label, description='最多选择10个变量', maxSelectedValues=maxSelectedValues, disabled=disabled)

@@ -36,7 +36,8 @@ get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 TYPE_  = [
     {'label':'功率曲线', 'value':'PowerCurve'},
-    {'label':'功率对比', 'value':'PowerCompare'}
+    {'label':'功率对比', 'value':'PowerCompare'},
+    {'label':'偏航误差', 'value':'YawError'}
     ]
 
 #%% component

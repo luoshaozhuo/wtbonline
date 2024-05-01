@@ -31,7 +31,7 @@ _dbname = 'online'
 _user = 'root'
 _passwordd = quote_plus("Root666@mysql")
 
-SESSION_TIMEOUT = 30000 # miliseconds
+SESSION_TIMEOUT = 10000 # miliseconds
 
 def get_rsdb_uri():
     return f'mysql+pymysql://{_user}:{_passwordd}@{_host}:{_port}/{_dbname}'

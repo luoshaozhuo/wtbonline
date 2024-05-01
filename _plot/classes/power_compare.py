@@ -22,7 +22,7 @@ COL_AUG = [
 class PowerCompare(Base):
     '''
     >>> pc = PowerCompare()
-    >>> fig = pc.plot(set_id='20625', device_ids='d10003', start_time='2023-10-01 00:00:00', end_time='2024-04-01 00:00:00')
+    >>> fig = pc.plot(set_id='20080', device_ids='s10005', start_time='2023-10-01 00:00:00', end_time='2024-04-01 00:00:00')
     >>> fig.show(renderer='png')
     '''  
     def init(self, var_names=[]):
@@ -62,8 +62,8 @@ class PowerCompare(Base):
         for device_id, plot_df in df.groupby('device_id'):
             fig.add_trace(
                 go.Scatter(
-                    x=plot_df['mean_pitch_angle'],
-                    y=plot_df['mean_power'],
+                    x=plot_df['mean_power'],
+                    y=plot_df['mean_pitch_angle'],
                     mode='markers',
                     name=device_id,
                     marker=dict(opacity=0.5, color=colors[i], size=3),
@@ -74,8 +74,8 @@ class PowerCompare(Base):
                 ) 
             fig.add_trace(
                 go.Scatter(
-                    x=plot_df['rotor_speed'],
-                    y=plot_df['mean_power'],
+                    x=plot_df['mean_power'],
+                    y=plot_df['rotor_speed'],
                     mode='markers',
                     marker=dict(opacity=0.5, color=colors[i], size=3),
                     showlegend=False,
