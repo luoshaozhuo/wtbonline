@@ -12,10 +12,13 @@ import datetime
 import pandas as pd
 from typing import List, Optional, Union, Mapping, Any
 
-from wtbonline._db.rsdb.dao import RSDB
+from wtbonline._db.rsdb.dao import RSDBDAO
 from wtbonline._common.utils import make_sure_list, make_sure_datetime
 from wtbonline._db.rsdb import model
 from wtbonline._db.postgres_facade import PGFacade
+
+#%% constant
+RSDB = RSDBDAO()
 
 #%% class
 class RSDBFacade():

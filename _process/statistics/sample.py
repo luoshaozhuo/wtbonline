@@ -16,14 +16,17 @@ import numpy as np
 from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._db.rsdb.dao import RSDB
+from wtbonline._db.rsdb.dao import RSDBDAO
 from wtbonline._process.tools.time import bin
 from wtbonline._process.tools.statistics import numeric_statistics, category_statistics, stationarity, agg
 from wtbonline._process.tools.common import get_dates_tsdb
 from wtbonline._process.statistics import _LOGGER
 from wtbonline._db.postgres_facade import PGFacade
+from wtbonline._logging import log_it
 
 # constants
+RSDB = RSDB = RSDBDAO()
+
 POINT_DF = RSDBFacade.read_turbine_model_point()
 ALL_COLS = POINT_DF['var_name'].to_list()
 F_COLS = POINT_DF[POINT_DF['datatype']=='F']['var_name'].to_list()
@@ -81,6 +84,7 @@ def dates_in_statistic_sample(set_id, device_id):
         '''
     return RSDB.read_sql(sql)['dt'] 
 
+@log_it(_LOGGER)
 def update_statistic_sample(*args, **kwargs):
     ''' 本地sample查缺  '''
     task_id = kwargs.get('task_id', 'NA')

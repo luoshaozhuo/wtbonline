@@ -10,6 +10,7 @@ from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._process.tools.time import resample
 from wtbonline._process.preprocess import _LOGGER
 from wtbonline._process.tools.common import get_dates_tsdb
+from wtbonline._logging import log_it
 
 #%% function
 def extract(set_id:str, device_id:str, dt:Union[str, pd.Timestamp, date], 
@@ -79,6 +80,7 @@ def load_tsdb(set_id:str, device_id:str, dt:Union[str, date]):
     df = extract(set_id=set_id, device_id=device_id, dt=dt)
     TDFC.write(df, set_id=set_id, device_id=device_id)
 
+@log_it(_LOGGER)
 def update_tsdb(*args, **kwargs):
     ''' 本地TSDB查缺 '''
     task_id = kwargs.get('task_id', 'NA')
@@ -113,13 +115,8 @@ def update_tsdb(*args, **kwargs):
             # 不更新当天数据
             if date>=pd.Timestamp.now().date():
                 continue
-            print(set_id, device_id, date)
-            try:
-                _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {device_id}, {date}')
-                load_tsdb(set_id, device_id, date)
-            except:
-                _LOGGER.error(f'failed to update_tsdb: {set_id}, {device_id}, {date}')
-                raise 
+            _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {device_id}, {date}')
+            load_tsdb(set_id, device_id, date)
             
 #%%
 if __name__ == "__main__":

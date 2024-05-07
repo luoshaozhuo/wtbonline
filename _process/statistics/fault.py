@@ -6,12 +6,15 @@ import pandas as pd
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._db.rsdb.dao import RSDB
+from wtbonline._db.rsdb.dao import RSDBDAO
 from wtbonline._common.utils import make_sure_datetime, make_sure_list
 from wtbonline._process.statistics import _LOGGER
 from wtbonline._db.config import get_td_remote_restapi
+from wtbonline._logging import log_it
 
 #%% constant
+RSDB = RSDBDAO()
+
 FAULT_TYPE_DF = RSDBFacade.read_turbine_fault_type().dropna(subset=['type','value'], how='any')
 WINDFARM_CONF = RSDBFacade.read_windfarm_configuration().set_index('set_id', drop=False)
 TD_DATABASE = get_td_remote_restapi()['database']
@@ -105,6 +108,7 @@ def do_statistic(set_id, device_id):
     if df.shape[0]>0:
         RSDBFacade.insert(df, tbname='statistics_fault')
 
+@log_it(_LOGGER)
 def udpate_statistic_fault(*args, **kwargs):
     task_id = kwargs.get('task_id', 'NA')
     set_id = kwargs.get('set_id', None)    

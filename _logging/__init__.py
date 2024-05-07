@@ -1,6 +1,8 @@
 import logging
 import logging.handlers
-from pathlib import Path
+from pathlib import Path    
+import os
+import pandas as pd
     
 from wtbonline._db.rsdb_facade import RSDBFacade
 
@@ -59,6 +61,34 @@ def get_logger(name:str):
     rev.addHandler(get_error_handler(_dir,name))
     rev.addHandler(get_stream_handler())
     return rev
+
+def log_it(logger):
+    '''
+    >>> logger = get_logger('test')
+    >>> @log_it(logger)
+    ... def test():
+    ...     pass
+    >>> test() 
+    '''
+    def inner(func):
+        def wrapper(*args, **kwargs):
+            p_args = ', '.join([str(i) for i in args])
+            p_kwargs = ', '.join([f'{i}={str(kwargs[i])}' for i in kwargs])
+            params = f'{p_args},{p_kwargs}'.strip(',')
+            pid = os.getppid()
+            logger.info(f'pid={pid}, function={func.__name__}({params}) start')
+            rev = None
+            try:
+                rev = func(*args, **kwargs)
+            except Exception as e:
+                logger.error(f'pid={pid}, function={func.__name__}({params})  error \n {str(e)}', exc_info=True)
+                raise
+            else:
+                logger.info(f'pid={pid}, function={func.__name__}({params}) finihed')
+            return rev
+        return wrapper
+    return inner 
+
 
 if __name__ == "__main__":
     import doctest

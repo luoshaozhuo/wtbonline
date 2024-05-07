@@ -43,14 +43,14 @@ class RSDBDAO():
     def __init__(self, engine=None):
         self.factory = ORMFactory()
         self.engine = create_engine_() if engine is None else engine
-        # self.Session = sessionmaker(self.engine, expire_on_commit=True)
+        self.session = sessionmaker(self.engine, expire_on_commit=True)
 
-    def get_session(self):
-        '''
-        返回类sessionmaker对象的调用
-        用sessionmaker而不是Session，是为了省去每一次都绑定engine
-        '''
-        return sessionmaker(self.engine, expire_on_commit=True)
+    # def get_session(self):
+    #     '''
+    #     返回类sessionmaker对象的调用
+    #     用sessionmaker而不是Session，是为了省去每一次都绑定engine
+    #     '''
+    #     return sessionmaker(self.engine, expire_on_commit=True)
 
     def init_database(self, uri=RSDB_URI, timeout=SESSION_TIMEOUT):
         '''
@@ -83,7 +83,7 @@ class RSDBDAO():
         >>> len(dao.read_sql(stmt)) > 0
         True
         '''
-        with self.engine.connect() as conn:
+        with create_engine_().connect() as conn:
             with query_timeout(conn, timeout):
                 for i in range(2):
                     try:
@@ -160,7 +160,7 @@ class RSDBDAO():
         return self.read_sql(stmt, timeout)
     
     def execute(self, stmt, timeout=SESSION_TIMEOUT):
-        with self.get_session()() as session:
+        with self.session() as session:
             with query_timeout(session, timeout=timeout):
                 session.execute(stmt)
                 session.commit()
@@ -172,10 +172,6 @@ class RSDBDAO():
         '''
         stmt = f'truncate {tbname}'
         self.execute(text(f'truncate {stmt}'), timeout=timeout)        
-        # with self.engine.connect() as conn:
-        #     with query_timeout(conn, timeout):
-        #         conn.execute(text(f'truncate {tbname}')) 
-        #         conn.commit() 
     
     def insert(self, df:Union[dict, pd.DataFrame], tbname:str, timeout=30000):
         '''
@@ -208,10 +204,6 @@ class RSDBDAO():
         assert Model is not None, f'table {tbname} not defined in model.py'
         stmt = insert(Model).values(df.to_dict('records'))
         self.execute(stmt, timeout=timeout)          
-        # with self.get_session()() as session:
-        #     with query_timeout(session, timeout=timeout):
-        #         session.execute(stmt)
-        #         session.commit()   
         
     def update(self, 
                tbname:str,
@@ -236,10 +228,6 @@ class RSDBDAO():
         stmt = update(model_)
         stmt = Where()(model_=model_, params={'eq':eq_clause,'lge':lge_clause,'lt':lt_clause,'in':in_clause}, stmt=stmt)         
         stmt = stmt.values({getattr(model_, key_):new_values[key_] for key_ in new_values})
-        # with self.get_session()() as session:
-        #     with query_timeout(session, timeout=timeout):
-        #         session.execute(stmt)
-        #         session.commit()'
         self.execute(stmt, timeout=timeout)  
 
     def delete(self, 
@@ -266,10 +254,7 @@ class RSDBDAO():
         stmt = delete(model_)
         stmt = Where()(model_=model_, params={'eq':eq_clause,'lge':lge_clause,'lt':lt_clause,'in':in_clause}, stmt=stmt) 
         self.execute(stmt, timeout=timeout)
-        # with self.get_session()() as session:
-        #     with query_timeout(session, timeout=timeout):
-        #         session.execute(stmt)
-        #         session.commit()
+
 
 RSDB = RSDBDAO()
 

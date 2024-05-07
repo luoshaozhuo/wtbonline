@@ -10,6 +10,7 @@ from _db.rsdb_facade import RSDBFacade
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._logging import get_logger
 from wtbonline._process.preprocess import _LOGGER
+from wtbonline._logging import log_it
 
 #%% constant
 # _LOGGER = get_logger('preprocess')
@@ -125,6 +126,7 @@ def _update_ibox_files(args):
         rev = 1
     return rev
     
+@log_it(_LOGGER)
 def update_ibox_files(*args, **kwargs):
     executor = kwargs.get('executor', 'thread')
     max_worker = kwargs.get('max_worker', 1)

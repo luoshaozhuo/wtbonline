@@ -23,8 +23,8 @@ DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
 #%% class
 class YawError(Base):
     '''
-    >>> pc = YawError()
-    >>> fig = pc.plot(set_id='20080', device_ids=['s10005'], start_time='2023-04-01 00:00:00', end_time='2024-04-01 00:00:00')
+    >>> ye = YawError()
+    >>> fig = ye.plot(set_id='20080', device_ids=['s10005'], start_time='2023-04-01 00:00:00', end_time='2024-04-01 00:00:00')
     >>> fig.show(renderer='png')
     '''  
     def init(self, var_names=[]):
@@ -49,6 +49,8 @@ class YawError(Base):
             )
         # 正常发电数据
         df = normal_production(df)
+        if len(device_ids)!=len(df['device_id'].unique()):
+            raise ValueError(f'部分机组查无数据，实际：{df["device_id"].unique().tolist()}，需求：{device_ids}')
         # 15°空气密度
         df['winspd_mean'] = df['winspd_mean']*np.power((273.15+df['evntemp_mean'])/288.15,1/3.0)
         # 无变桨
