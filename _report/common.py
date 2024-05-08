@@ -36,6 +36,8 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 from zmq import device
 
+from wtbonline.configure import WINDFARM_CONF
+
 plt.rcParams['font.family']='sans-serif'        
 plt.rcParams['font.sans-serif']=['SimHei']
 plt.rcParams['axes.unicode_minus']=False 
@@ -105,7 +107,7 @@ TEMP_DIR.mkdir(exist_ok=True)
 REPORT_OUT_DIR = Path(RSDBFacade.read_app_configuration(key_='report_outpath')['value'].squeeze())
 REPORT_OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-_LOGGER = get_logger('brief_report')
+LOGGER = get_logger('brief_report')
 
 DBNAME = RSDBFacade.read_app_server(name='tdengine', remote=1)['database'].iloc[0]
 
@@ -271,6 +273,15 @@ def plot_sample_ts(df):
             )
         graphs.append(fig)
     return graphs
+
+def mail_report(pathname):
+    farm = PGFacade.read_model_factory()['factory_name'].iloc[0]
+    recv = RSDBFacade.read_app_configuration(key_='email_address')['value'].iloc[0]
+    account = RSDBFacade.read_app_configuration(key_='email_account')['value'].iloc[0]
+    user_name, password, host, port = account.split('_')
+    if recv not in [None, '']:
+        send_email(recv, f'{farm} 数据分析报告{Path(pathname).name}', '请查阅附件。本邮件自动发送。', 
+                    user_name, password, host, port, pathname=pathname)
 
 
 # def build_tables(record_df, temp_dir, title):

@@ -17,7 +17,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
 
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, _LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph
+from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph
 from wtbonline._common.utils import make_sure_datetime
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.postgres_facade import PGFacade
@@ -47,7 +47,7 @@ class PowerCurve(Base):
         conclusion = ''
         tbl_df = None
         graphs = {}
-        _LOGGER.info(heading)
+        LOGGER.info(heading)
         
         df = RSDBFacade.read_statistics_sample(set_id=set_id, columns={'bin':['count']}, start_time=start_date, end_time=end_date, groupby='device_id')
         df = df[df['bin_count']>100]

@@ -18,7 +18,7 @@ import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import plotly.express as px
 
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, _LOGGER, PS_BODY, PS_HEADINGS, standard
+from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard
 from wtbonline._report.common import build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables, plot_stat, plot_sample_ts
 from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe, make_sure_list
 from wtbonline._db.rsdb_facade import RSDBFacade
@@ -49,7 +49,7 @@ class Degrading(Base):
         conclusion = ''
         tbl_df = None
         graphs = {}
-        _LOGGER.info(heading)
+        LOGGER.info(heading)
         
         is_offshore = FARMCONF_DF['is_offshore'].loc[set_id]
         sub_df = FAULT_TYPE_DF[(FAULT_TYPE_DF['is_offshore']==is_offshore) & (FAULT_TYPE_DF['name']=='机组降容')]

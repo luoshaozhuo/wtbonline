@@ -18,7 +18,7 @@ import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import plotly.express as px
 
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, _LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables
+from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables
 from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe, make_sure_list
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.postgres_facade import PGFacade
@@ -48,7 +48,7 @@ class YawErrorAnalysis(Base):
         conclusion = ''
         tbl_df = None
         graphs = {}
-        _LOGGER.info(heading)
+        LOGGER.info(heading)
         
         ye = YawError()
         i = 0

@@ -14,7 +14,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import pandas as pd
 
-from wtbonline._report.common import BRDocTemplate, add_page_templates, TEMP_DIR, _LOGGER, PageBreak, Spacer, FRAME_WIDTH_LATER
+from wtbonline._report.common import BRDocTemplate, add_page_templates, TEMP_DIR, LOGGER, PageBreak, Spacer, FRAME_WIDTH_LATER
 from wtbonline._report.common import Paragraph, PS_HEADINGS, PS_BODY, build_tables, build_graph, PS_HEADING_1
 from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe, make_sure_list
 from wtbonline._db.rsdb_facade import RSDBFacade
@@ -71,7 +71,7 @@ class Base():
             rev += self.successors[i].build(set_id, start_date, end_date, temp_dir, index=idx)
         return rev
     
-    @log_it(_LOGGER)    
+    @log_it(LOGGER)    
     def build_report(self, set_id:str, start_date:Union[str, date], end_date:Union[str, date], outpath:str):
         start_date = make_sure_datetime(start_date).date()
         end_date = make_sure_datetime(end_date).date()
@@ -82,7 +82,7 @@ class Base():
             doc.build(self.build(set_id, start_date, end_date, temp_dir)+[PageBreak()])
         return pathname
     
-    @log_it(_LOGGER)
+    @log_it(LOGGER)
     def email_report(self, pathname):    
         recv = RSDBFacade.read_app_configuration(key_='email_address')['value'].iloc[0]
         account = RSDBFacade.read_app_configuration(key_='email_account')['value'].iloc[0]

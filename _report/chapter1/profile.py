@@ -14,7 +14,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import pandas as pd
 
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, _LOGGER, PS_BODY, PS_HEADINGS
+from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS
 from wtbonline._common.utils import make_sure_datetime
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.postgres_facade import PGFacade
@@ -40,7 +40,7 @@ class Profile(Base):
         conclusion = ''
         tbl_df = None
         graphs = {}
-        _LOGGER.info(heading)
+        LOGGER.info(heading)
         
         df = TDFC.read(
             set_id=set_id, 
