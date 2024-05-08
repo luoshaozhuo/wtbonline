@@ -58,9 +58,12 @@ class Base():
     
     def _build(self, set_id, start_date, end_date, temp_dir, index=''):
         if self.title not in (None, ''):
+            title = '偏航误差分析'
+            heading = f'{index} {title}'
+            LOGGER.info(heading)
             rev = []
             rev.append(Spacer(FRAME_WIDTH_LATER, 1))
-            rev.append(Paragraph(f'{index} {self.title}', PS_HEADING_1))
+            rev.append(Paragraph(heading, PS_HEADING_1))
             return rev
         return []
     
