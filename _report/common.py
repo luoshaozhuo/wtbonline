@@ -68,9 +68,6 @@ FRAME_HEIGHT_FIRST = 19.2*cm
 FRAME_WIDTH_LATER = FRAME_WIDTH_FIRST
 FRAME_HEIGHT_LATER = PAGE_HEIGHT-MARGIN_TOP-MARGIN_BOTTOM
 
-TITLE = '重点工作快报'
-DEPARTMENT = '研究院'
-
 PS_HEADING_1 = ParagraphStyle('heading_1', 
                                 fontSize=18, 
                                 fontName='Simhei',
@@ -93,7 +90,7 @@ PS_TITLE = ParagraphStyle('table',
                           fontName='Simhei',
                           spaceBefore=8,
                           spaceAfter=8,
-                          leading=8)
+                          leading=18)
 PS_TABLE = ParagraphStyle('table', 
                           fontSize=6, 
                           fontName='Simhei',
@@ -118,6 +115,10 @@ DEVICE_DF.index.name = ''
 FAULT_TYPE_DF = RSDBFacade.read_turbine_fault_type()
 FARMCONF_DF = RSDBFacade.read_windfarm_configuration().set_index('set_id', drop=False)
 FARMCONF_DF.index.name = ''
+FARM_NAME = PGFacade.read_model_factory()['factory_name'].iloc[0]
+
+TITLE = f'{FARM_NAME}<br />风电机组运行报告'
+DEPARTMENT = '研究院'
 
 #%% class
 class BRDocTemplate(BaseDocTemplate):
@@ -139,21 +140,22 @@ class LaterPageTemplate(PageTemplate):
 
 # helper function
 def draw_header(canv, title:str, dt:Union[str, date], department:str):
-    style = ParagraphStyle('title')
+    style = ParagraphStyle('a')
     style.fontName = 'Simfang'
-    style.fontSize = 48
+    style.fontSize = 38
     style.alignment = TA_CENTER
     style.textColor = colors.red
+    style.leading = 48
     p = Paragraph(title, style)
     p.wrapOn(canv, FRAME_WIDTH_LATER, FRAME_HEIGHT_LATER)
-    p.drawOn(canv, MARGIN_LEFT, PAGE_HEIGHT-MARGIN_TOP-12)
+    p.drawOn(canv, MARGIN_LEFT, PAGE_HEIGHT-MARGIN_TOP-60)
 
-    style = ParagraphStyle('title', fontName='Simfang', fontSize=15)
+    style = ParagraphStyle('b', fontName='Simfang', fontSize=15)
     p = Paragraph(f'{dt}', style)
     p.wrapOn(canv, FRAME_WIDTH_LATER, FRAME_HEIGHT_LATER)
     p.drawOn(canv, MARGIN_LEFT, FRAME_HEIGHT_FIRST+MARGIN_BOTTOM+10)
     
-    style = ParagraphStyle('title', fontName='Simfang', fontSize=15)
+    style = ParagraphStyle('c', fontName='Simfang', fontSize=15)
     style.alignment =TA_RIGHT
     p = Paragraph(department, style)
     p.wrapOn(canv, FRAME_WIDTH_LATER, FRAME_HEIGHT_LATER)

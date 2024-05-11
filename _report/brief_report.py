@@ -26,11 +26,13 @@ def build_brief_report(
         start_date:Union[str, date], 
         end_date:Union[str, date]
         ):
-    
-    pathname = Base(successors=[CHAPTER1, CHAPTER2, CHAPTER3]).build_report(set_id, start_date, end_date, outpath)
+    obj = Base(successors=[CHAPTER1, CHAPTER2, CHAPTER3])
+    pathname = obj.build_report(set_id, start_date, end_date, outpath)
+    encrypted_pathname = obj.encrypt(pathname)
+    pathname.unlink()
     is_send = RSDBFacade.read_app_configuration(key_='send_email')['value'].iloc[0]
     if is_send!='0':
-        mail_report(pathname)
+        mail_report(encrypted_pathname)
 
 @log_it(LOGGER)
 def build_brief_report_all(*args, **kwargs):

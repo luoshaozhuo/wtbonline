@@ -36,8 +36,9 @@ class PowerCurve(Base):
     def get_title(self, set_id, device_ids, ytitles):
         return '功率曲线'
     
-    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]]):
+    def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]], width=1):
         var_names = make_sure_list(var_names)
+        device_ids = make_sure_list(device_ids)
         df = RSDBFacade.read_statistics_sample(
             set_id=set_id,
             device_id=device_ids,
@@ -52,8 +53,9 @@ class PowerCurve(Base):
         df = df.rename(columns={'winspd_mean':'mean_wind_speed', 'var_246_mean':'mean_power'})
         # 15°空气密度
         df['mean_wind_speed'] = df['mean_wind_speed']*np.power((273.15+df['evntemp_mean'])/288.15,1/3.0)
-        wspd = pd.cut(df['mean_wind_speed'],  np.arange(0,26)-0.5)
+        wspd = pd.cut(df['mean_wind_speed'],  np.arange(3-width/2.0,26,width))
         df['wspd'] = wspd.apply(lambda x:x.mid).astype(float)
+        df = df.dropna(subset=['wspd'])
         power_curve = df.groupby(['wspd', 'device_id'])['mean_power'].median().reset_index()
         sample_df = []
         for _, grp in df.groupby('device_id'):

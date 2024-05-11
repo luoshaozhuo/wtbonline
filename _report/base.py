@@ -13,6 +13,7 @@ from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import pandas as pd
+from PyPDF2 import PdfReader, PdfWriter
 
 from wtbonline._report.common import BRDocTemplate, add_page_templates, TEMP_DIR, LOGGER, PageBreak, Spacer, FRAME_WIDTH_LATER
 from wtbonline._report.common import Paragraph, PS_HEADINGS, PS_BODY, build_tables, build_graph, PS_HEADING_1
@@ -30,7 +31,8 @@ class Base():
     >>> set_id = '20080'
     >>> start_date = '2023-10-01'
     >>> end_date = '2024-04-01'
-    >>> pathanme = obj.build_report(set_id=set_id, start_date=start_date, end_date=end_date, outpath=outpath)
+    >>> pathname = obj.build_report(set_id=set_id, start_date=start_date, end_date=end_date, outpath=outpath)
+    >>> _ = obj.encrypt(pathname)
     '''
     
     def __init__(self, successors=[], title=''):
@@ -55,16 +57,21 @@ class Base():
             rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir, width=width, height=height))
         return rev
     
+    def encrypt(self, pathname):
+        pdf_reader = PdfReader(pathname)
+        pdf_writer = PdfWriter()
+
+        for page in range(len(pdf_reader.pages)):
+            pdf_writer.add_page(pdf_reader.pages[page])
+
+        pdf_writer.encrypt('hzfd@00')
+        pathname = Path(pathname)
+        out_pathname = pathname.parent/(f'encrypted_{pathname.name}')
+        with open(out_pathname, 'wb') as out:
+            pdf_writer.write(out)
+        return out_pathname
     
     def _build(self, set_id, start_date, end_date, temp_dir, index=''):
-        if self.title not in (None, ''):
-            title = '偏航误差分析'
-            heading = f'{index} {title}'
-            LOGGER.info(heading)
-            rev = []
-            rev.append(Spacer(FRAME_WIDTH_LATER, 1))
-            rev.append(Paragraph(heading, PS_HEADING_1))
-            return rev
         return []
     
     def build(self, set_id, start_date, end_date, temp_dir, index:str=''):
