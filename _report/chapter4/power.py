@@ -17,8 +17,9 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import plotly.express as px
+from pygments import highlight
 
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables
+from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables, build_table_from_sketch
 from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe, make_sure_list
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.postgres_facade import PGFacade
@@ -69,36 +70,19 @@ class Power(Base):
         df = standard(set_id, df).drop(['device_id'], axis=1)
         df = df[['device_name'] + list(df.columns[:-1])]
         df = df.rename(columns={'device_name':'机组号'})
-        df = df.astype(str)
-        df = " <br>" + df
+        df = df.reset_index(drop=True)
+        mean_ = df.iloc[:, 1:].mean()
+        iqr_ = df.iloc[:, 1:].quantile(0.75) - df.iloc[:, 1:].quantile(0.25)
+        upper_bound = mean_ + 3*iqr_
+        lower_bound = mean_ - 3*iqr_
         
         # 表格
-        odd_fillcolor = 'rgb(229, 230, 234)'
-        even_fillcolor = 'rgb(243, 244, 248)'
-        color_df = df.copy()
-        color_df.iloc[0::2,:] = odd_fillcolor
-        if len(df)>1:
-            color_df.iloc[1::2,:] = even_fillcolor
-        graphs = {}
-        count = 30
-        for i in range(int(np.ceil(df.shape[0]/count))):
-            sub_df = df.iloc[i*count:(i+1)*count, :]
-            fig = go.Figure(
-                data=[go.Table(
-                    header=dict(
-                        values=[f'<b> <br>{i}</b>' for i in sub_df.columns],
-                        line_color='white', fill_color='rgb(57, 63, 106)',
-                        align='center',font=dict(color='white', size=12),height=50
-                        ),
-                        cells=dict(
-                            values=[sub_df[i] for i in sub_df],
-                            line_color=['white'],
-                            fill_color=[color_df[i] for i in color_df],
-                            align='center', font=dict(color='black', size=11),height=50
-                        )
-                    )]
-                )
-            graphs.update({'i':fig})
+        highlight_cells = []
+        for i in range(len(df.columns)-1):
+            idxs = df[~df.iloc[:, i+1].between(lower_bound.iloc[i], upper_bound.iloc[i])].index
+            highlight_cells += [(idx, i+1) for idx in idxs]
+        rs = build_table_from_sketch(df, title='不同风速区间有功功率', highlight_cells=highlight_cells)
+        graphs.update(rs)
             
         # 总结
         conclusion = f'各风速区间功率如下表所示，其中超出3倍四分位距的值标红显示。'

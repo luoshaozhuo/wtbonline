@@ -39,9 +39,8 @@ class Base():
         self.successors = make_sure_list(successors)
         self.title = title
     
-    def _compose(self, index:str, heading:str, conclusion:str='', tbl_df:pd.DataFrame=None, graphs={}, temp_dir:str=None, width=1000, height=None):
-        tbl_df = make_sure_dataframe(tbl_df)
-        assert temp_dir is not None if (tbl_df is not None or len(graphs)>0) else True, '未指定临时目录'
+    def _compose(self, index:str, heading:str, conclusion:str='', tables={}, graphs={}, temp_dir:str=None, width=1000, height=None):
+        assert temp_dir is not None if (len(tables)>0 or len(graphs)>0) else True, '未指定临时目录'
         
         n = len(index.split('.'))-1
         rev = [] 
@@ -50,8 +49,8 @@ class Base():
         rev.append(Paragraph(heading, PS_HEADINGS[n]))
         if conclusion not in ('', None):
             rev.append(Paragraph(conclusion, PS_BODY))
-        if len(tbl_df)>0:
-            rev += build_tables(tbl_df, temp_dir=temp_dir, title=f'表 {index}.{1} 故障发生次数统计结果')
+        for key_ in tables:
+            rev += build_tables(tables[key_], temp_dir=temp_dir, title=f'{key_}') 
         rev.append(Spacer(FRAME_WIDTH_LATER, 10))
         for key_ in graphs:
             rev.append(build_graph(graphs[key_], key_, f'{key_}.jpg', temp_dir=temp_dir, width=width, height=height))

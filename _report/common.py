@@ -212,9 +212,11 @@ def build_graph(fig, title, fiename, *, width=1000, height=None, temp_dir=TEMP_D
     img = utils.ImageReader(pathname)
     img_width, img_height = img.getSize()
     aspect = img_height / float(img_width)
-    return Image(pathname, 
-                 width=FRAME_WIDTH_LATER,
-                 height=(FRAME_WIDTH_LATER * aspect))
+    return Image(
+        pathname, 
+        width=FRAME_WIDTH_LATER,
+        height=(FRAME_WIDTH_LATER * aspect)
+        )
 
 
 def standard(set_id, df):
@@ -286,18 +288,46 @@ def mail_report(pathname):
                     user_name, password, host, port, pathname=pathname)
 
 
-# def build_tables(record_df, temp_dir, title):
-#     df = record_df.groupby(['device_name', 'fault_id']).agg({'device_id':[len], 'start_time':['max']})
-#     df = df.reset_index().droplevel(level=1, axis=1).rename(columns={'fault_id':'id'})
-#     df = pd.merge(df, FAULT_TYPE_DF[['id', 'cause']], how='left').drop('id', axis=1)
-#     df = df.sort_values(['device_name', 'cause'], ascending=True).reset_index(drop=True).reset_index()
-#     df = df[['index', 'device_name', 'cause', 'device_id', 'start_time']]
-#     df.columns = ['序号', '设备名', '故障原因', '发生次数', '最近一次发生时间']
-#     rev = []
-#     count = 30
-#     for i in range(int(np.ceil(df.shape[0]/count))):
-#         sub_df = df.iloc[i*count:(i+1)*count, :]
-#         fig_tbl = ff.create_table(sub_df.iloc[0:], height_constant=50)
-#         sub_title = f'{title}_{i+1}'
-#         rev.append(build_graph(fig_tbl, sub_title, f'{sub_title}.jpg', temp_dir=temp_dir))
-#     return rev
+def build_table_from_sketch(df, title, highlight_cells=[], highlight_rows=[], highlight_lines=[]):
+    highlight_cells = make_sure_list(highlight_cells)
+    highlight_rows = make_sure_list(highlight_rows)
+    highlight_lines = make_sure_list(highlight_lines)
+    
+    odd_fillcolor = 'rgb(229, 230, 234)'
+    even_fillcolor = 'rgb(243, 244, 248)'
+    tbl_df = df.astype(str)
+    tbl_df = " <br>" + tbl_df
+    color_df = tbl_df.copy()
+    color_df.iloc[0::2,:] = odd_fillcolor
+    if len(tbl_df)>1:
+        color_df.iloc[1::2,:] = even_fillcolor
+    for i,j in highlight_cells:
+        color_df.iloc[i,j] = 'red'
+    for i in highlight_rows:
+        color_df.iloc[i,:] = 'red'
+    for i in highlight_lines:
+        color_df.iloc[:,i] = 'red'
+    
+    count = 30
+    rev = {}
+    n = int(np.ceil(tbl_df.shape[0]/count))
+    for i in range(n):
+        sub_df = tbl_df.iloc[i*count:(i+1)*count, :]
+        fig = go.Figure(
+            data=[go.Table(
+                header=dict(
+                    values=[f'<b> <br>{i}</b>' for i in sub_df.columns],
+                    line_color='white', fill_color='rgb(57, 63, 106)',
+                    align='center',font=dict(color='white', size=12),height=50
+                    ),
+                    cells=dict(
+                        values=[sub_df[i] for i in sub_df],
+                        line_color=['white'],
+                        fill_color=[color_df[i] for i in color_df],
+                        align='center', font=dict(color='black', size=11),height=50
+                    )
+                )]
+            )
+        title = f'表 {title}'
+        rev.update({f'{title}_{i+1}' if n>1 else title:fig})
+    return rev

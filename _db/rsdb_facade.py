@@ -404,6 +404,23 @@ class RSDBFacade():
             )
         return RSDB.query(tbname, columns=columns, eq_clause=eq_clause, in_clause=in_clause)  
 
+    @classmethod  
+    def read_turbine_outlier_monitor(
+        cls,
+        *,
+        id_:Union[str, List[str]]=None,
+        system_:Union[str, List[str]]=None,
+        type_:Union[str, List[str]]=None,
+        columns:Optional[Union[List[str], str]]=None,
+        ):
+        '''
+        >>> RSDBFacade.read_turbine_outlier_monitor().columns.tolist()
+        ['id', 'system', 'type', 'var_names', 'plot_varnames']
+        '''
+        tbname = model.TurbineOutlierMonitor.__tablename__
+        eq_clause, in_clause = cls.get_in_or_eq_clause(id=id_, system_=system_,type_=type_)
+        return RSDB.query(tbname, columns=columns, eq_clause=eq_clause, in_clause=in_clause)  
+
 if __name__ == "__main__":
     '''
     测试前需要提前对online库做以下处理:
