@@ -38,7 +38,7 @@ class Power(Base):
     >>> obj = Base(successors=[Power()])
     >>> outpath = '/mnt/d/'
     >>> set_id = '20080'
-    >>> start_date = '2023-10-01'
+    >>> start_date = '2024-03-01'
     >>> end_date = '2024-04-01'
     >>> pathanme = obj.build_report(set_id=set_id, start_date=start_date, end_date=end_date, outpath=outpath)
     '''
@@ -48,6 +48,7 @@ class Power(Base):
         heading = f'{index} {title}'
         conclusion = ''
         df = None
+        tbl_df = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -81,12 +82,12 @@ class Power(Base):
         for i in range(len(df.columns)-1):
             idxs = df[~df.iloc[:, i+1].between(lower_bound.iloc[i], upper_bound.iloc[i])].index
             highlight_cells += [(idx, i+1) for idx in idxs]
-        rs = build_table_from_sketch(df, title='不同风速区间有功功率', highlight_cells=highlight_cells)
+        rs = build_table_from_sketch(df, title=f'{index} 不同风速区间有功功率', highlight_cells=highlight_cells)
         graphs.update(rs)
             
         # 总结
         conclusion = f'各风速区间功率如下表所示，其中超出3倍四分位距的值标红显示。'
-        return self._compose(index, heading, conclusion, df, graphs, temp_dir, height=1000) 
+        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir) 
         
 #%% main
 if __name__ == "__main__":

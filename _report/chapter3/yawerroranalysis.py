@@ -46,7 +46,7 @@ class YawErrorAnalysis(Base):
         title = '偏航误差分析'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = None
+        tbl_df = {}
         graphs = {}
         LOGGER.info(heading)
         

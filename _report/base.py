@@ -71,6 +71,11 @@ class Base():
         return out_pathname
     
     def _build(self, set_id, start_date, end_date, temp_dir, index=''):
+        if self.title not in ['', None]:
+            n = len(index.split('.'))-1
+            heading = f'{index} {self.title}'
+            LOGGER.info(heading)
+            return [Spacer(FRAME_WIDTH_LATER, 1), Paragraph(heading, PS_HEADINGS[n])]
         return []
     
     def build(self, set_id, start_date, end_date, temp_dir, index:str=''):

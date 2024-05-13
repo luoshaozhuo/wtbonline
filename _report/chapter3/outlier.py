@@ -46,7 +46,7 @@ class Outlier(Base):
         title = '离群识别'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = None
+        tbl_df = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -78,7 +78,7 @@ class Outlier(Base):
         total = anormaly_df.shape[0]
         left = total - label_df.shape[0]
         conclusion = f'通过对转矩、转速、叶片角度、偏航误差、机组振动等进行分析，本期报告时段内共有离群数据：{total}条, 待鉴别{left}条，具体如下所示。'
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir, height=1000) 
+        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir) 
         
 #%% main
 if __name__ == "__main__":

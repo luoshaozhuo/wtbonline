@@ -16,6 +16,7 @@ from wtbonline._report.base import Base
 from wtbonline._report.chapter1 import CHAPTER1
 from wtbonline._report.chapter2 import CHAPTER2
 from wtbonline._report.chapter3 import CHAPTER3
+from wtbonline._report.chapter4 import CHAPTER4
 from wtbonline._report.common import LOGGER
 from wtbonline._logging import log_it
 
@@ -26,7 +27,7 @@ def build_brief_report(
         start_date:Union[str, date], 
         end_date:Union[str, date]
         ):
-    obj = Base(successors=[CHAPTER1, CHAPTER2, CHAPTER3])
+    obj = Base(successors=[CHAPTER1, CHAPTER2, CHAPTER3, CHAPTER4])
     pathname = obj.build_report(set_id, start_date, end_date, outpath)
     encrypted_pathname = obj.encrypt(pathname)
     pathname.unlink()
@@ -61,4 +62,4 @@ def build_brief_report_all(*args, **kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    build_brief_report_all(delta=120)
+    build_brief_report_all(end_time='2024-04-01', delta=30)

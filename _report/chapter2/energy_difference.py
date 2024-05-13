@@ -45,7 +45,7 @@ class EnergyDifference(Base):
         title = '发电量差异'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = None
+        tbl_df = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -94,7 +94,7 @@ class EnergyDifference(Base):
         conclusion = f'{len(top_10)}台机组超过90%分位数，{len(last_10)}台机组低于10%分位数，如下表所示。'  
         
         cols = ['device_name', '发电量（kWh）', '10%/90%分位数', '故障次数', '故障持续时间(小时)']
-        return self._compose(index, heading, conclusion, tbl_df[cols], graphs, temp_dir)
+        return self._compose(index, heading, conclusion, {f'表 {index}.1 发电量低于10%或高于90%机组故障统计结果':tbl_df[cols]}, graphs, temp_dir)
         
 #%% main
 if __name__ == "__main__":

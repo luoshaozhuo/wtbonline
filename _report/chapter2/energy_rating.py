@@ -29,7 +29,7 @@ from wtbonline._db.tsdb_facade import TDFC
 #%% class
 class EnergyRating(Base):
     '''
-    >>> obj = Base(successors=[Rating()])
+    >>> obj = Base(successors=[EnergyRating()])
     >>> outpath = '/mnt/d/'
     >>> set_id = '20080'
     >>> start_date = '2023-10-01'
@@ -41,7 +41,7 @@ class EnergyRating(Base):
         title = '发电量排名'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = None
+        tbl_df = {}
         graphs = {}
         LOGGER.info(heading)
         

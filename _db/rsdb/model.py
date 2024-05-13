@@ -408,8 +408,6 @@ class TurbineOutlierMonitor(db.Model):
     system = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='部件名')
     type = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='温度 or 载荷')
     var_names = db.Column(db.Text(collation='utf8mb4_general_ci'), nullable=False, info='要监控的变量名；逗号分割')
-    plot_var_names = db.Column(db.Text(collation='utf8mb4_general_ci'), info='用于绘制时序图的变量名；逗号分隔；若不设置，默认使用var_names绘图')
-
 
 
 class TurbineVariableBound(db.Model):

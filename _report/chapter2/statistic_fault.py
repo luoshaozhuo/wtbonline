@@ -44,7 +44,7 @@ class StatisticFault(Base):
         title = '故障统计'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = None
+        tbl_df = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -91,7 +91,7 @@ class StatisticFault(Base):
         stat_df = df.groupby(['name'])
         descr = '，'.join([f'{name}发生{len(grp)}次' for name,grp in df.groupby('name')])
         conclusion = f'总共发生故障{len(df)}次，其中{descr}。'
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir) 
+        return self._compose(index, heading, conclusion, {f'表 {index}.1 故障统计结果':tbl_df}, graphs, temp_dir) 
         
 #%% main
 if __name__ == "__main__":

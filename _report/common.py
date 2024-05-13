@@ -202,7 +202,7 @@ def add_page_templates(doc):
 def build_graph(fig, title, fiename, *, width=1000, height=None, temp_dir=TEMP_DIR):
     fig.layout.update({'title': title})
     fig.layout.margin.update({'l':10, 't':50 ,'r':10, 'b':20})
-    fig.layout.update({'width':1000})
+    fig.layout.update({'width':width})
     if height is not None:
         fig.layout.update({'height':height})
     pathname = Path(temp_dir)/fiename
@@ -212,10 +212,12 @@ def build_graph(fig, title, fiename, *, width=1000, height=None, temp_dir=TEMP_D
     img = utils.ImageReader(pathname)
     img_width, img_height = img.getSize()
     aspect = img_height / float(img_width)
+    height = min(FRAME_WIDTH_LATER*aspect, FRAME_HEIGHT_LATER)
+    width = height/aspect
     return Image(
         pathname, 
-        width=FRAME_WIDTH_LATER,
-        height=(FRAME_WIDTH_LATER * aspect)
+        width=width,
+        height=height
         )
 
 
@@ -267,7 +269,7 @@ def plot_sample_ts(df):
     for _,row in df.iterrows():
         var_names = row['var_names'].split(',')
         delta = pd.Timedelta(f"{max(int(row['time_span']), 1)}m")
-        obj = graph_factory.get(row['graph'])()
+        obj = graph_factory.get(row['graph'])(row_height=200)
         obj.init(var_names=var_names)
         fig = obj.plot(
             set_id=row['set_id'], 

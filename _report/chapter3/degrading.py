@@ -61,7 +61,7 @@ class Degrading(Base):
         record_df = standard(set_id, record_df)
         if len(record_df)<1:
             conclusion = '报告期内没有发生机组降容。'
-            return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir, height=1000)
+            return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir)
         ext_df = pd.merge(record_df, sub_df, left_on='fault_id', right_on='id', how='left')
         
         # 表
@@ -85,7 +85,7 @@ class Degrading(Base):
         group = ext_df.groupby('cause')
         stmt = '，'.join([f'{cause}发生{len(grp)}次' for cause,grp in group])
         conclusion = f'报告期内发生降容{len(ext_df)}次。其中{stmt}。'
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir, height=1000)
+        return self._compose(index, heading, conclusion, {f'表 {index}.1 降容原因统计结果':tbl_df}, graphs, temp_dir)
         
 #%% main
 if __name__ == "__main__":

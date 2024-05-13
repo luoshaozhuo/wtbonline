@@ -38,7 +38,7 @@ class Profile(Base):
         title = '概况'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = None
+        tbl_df = {}
         graphs = {}
         LOGGER.info(heading)
         
