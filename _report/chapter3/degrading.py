@@ -66,6 +66,7 @@ class Degrading(Base):
         
         # 表
         tbl_df = ext_df.groupby(['cause', 'device_name'])['device_id'].count().reset_index()
+        tbl_df.sort_values(['device_id'], inplace=True, ascending=False)
         tbl_df.columns = ['降容原因', '机组名', '发生次数']
         
         # 图

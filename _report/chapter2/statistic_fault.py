@@ -17,6 +17,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import plotly.express as px
+from sqlalchemy import asc
 
 from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables
 from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe, make_sure_list
@@ -66,7 +67,7 @@ class StatisticFault(Base):
         
         # 表格
         tbl_df = df.groupby(['name', 'device_name']).agg({'device_id':len}).reset_index()
-        tbl_df = tbl_df.rename(columns={'device_id':'count'})
+        tbl_df.sort_values(['device_id'], inplace=True, ascending=False)
         tbl_df.columns = ['故障名称', '设备名称', '故障次数']
         
         # 图形
