@@ -67,7 +67,7 @@ class StatisticFault(Base):
         
         # 表格
         tbl_df = df.groupby(['name', 'device_name']).agg({'device_id':len}).reset_index()
-        tbl_df.sort_values(['device_id'], inplace=True, ascending=False)
+        tbl_df.sort_values(['name', 'device_id'], inplace=True, ascending=False)
         tbl_df.columns = ['故障名称', '设备名称', '故障次数']
         
         # 图形
