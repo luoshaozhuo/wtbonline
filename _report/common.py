@@ -8,13 +8,11 @@
 # """
 #%% import
 from pathlib import Path
-from telnetlib import PRAGMA_HEARTBEAT
 import pandas as pd
 import numpy as np
 from platform import platform
-from typing import List, Union
+from typing import Union
 from datetime import date
-from tempfile import TemporaryDirectory
 import plotly.express as px
 
 from reportlab.lib import utils, colors
@@ -22,8 +20,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-from reportlab.platypus import (BaseDocTemplate, Paragraph, PageBreak, Image,
-                                Frame, PageTemplate, Spacer)
+from reportlab.platypus import BaseDocTemplate, Paragraph, Image, Frame, PageTemplate, PageBreak, Spacer
 from reportlab.platypus.doctemplate import _doNothing
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -31,29 +28,24 @@ from reportlab.pdfgen import canvas
 
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
-from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 import plotly.express as px
-from zmq import device
-
-from wtbonline.configure import WINDFARM_CONF
 
 plt.rcParams['font.family']='sans-serif'        
 plt.rcParams['font.sans-serif']=['SimHei']
 plt.rcParams['axes.unicode_minus']=False 
 
-from wtbonline._db.rsdb.dao import RSDB
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._db.postgres_facade import PGFacade
-from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._common.utils import make_sure_dataframe, make_sure_list, make_sure_datetime, send_email
+from wtbonline._common.utils import make_sure_dataframe, make_sure_list, send_email
 from wtbonline._logging import get_logger
 from wtbonline._plot import graph_factory
 import wtbonline._plot as plt
-from wtbonline._process.tools.filter import normal_production
 from wtbonline._common.utils import send_email
 
 #%% constant
+RSDBFC = RSDBFacade()
+
 pdfmetrics.registerFont(TTFont('Simsun', 'simsun.ttc'))
 pdfmetrics.registerFont(TTFont('Simfang', 'simfang.ttf'))
 pdfmetrics.registerFont(TTFont('Simhei', 'simhei.ttf'))
@@ -98,24 +90,25 @@ PS_TABLE = ParagraphStyle('table',
 
 PLOT_ENGINE = 'orca' if platform().startswith('Windows') else 'kaleido'
 
-TEMP_DIR = Path(RSDBFacade.read_app_configuration(key_='tempdir')['value'].squeeze())
+TEMP_DIR = Path(RSDBFC.read_app_configuration(key_='tempdir')['value'].squeeze())
 TEMP_DIR.mkdir(exist_ok=True)
 
-REPORT_OUT_DIR = Path(RSDBFacade.read_app_configuration(key_='report_outpath')['value'].squeeze())
+REPORT_OUT_DIR = Path(RSDBFC.read_app_configuration(key_='report_outpath')['value'].squeeze())
 REPORT_OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 LOGGER = get_logger('brief_report')
 
-DBNAME = RSDBFacade.read_app_server(name='tdengine', remote=1)['database'].iloc[0]
+DBNAME = RSDBFC.read_app_server(name='tdengine', remote=1)['database'].iloc[0]
 
-
-POINT_DF = PGFacade.read_model_point()
-DEVICE_DF = PGFacade.read_model_device().set_index('device_id', drop=False)
+_PGFC = PGFacade()
+POINT_DF = _PGFC.read_model_point()
+DEVICE_DF = _PGFC.read_model_device().set_index('device_id', drop=False)
 DEVICE_DF.index.name = ''
-FAULT_TYPE_DF = RSDBFacade.read_turbine_fault_type()
-FARMCONF_DF = RSDBFacade.read_windfarm_configuration().set_index('set_id', drop=False)
+FAULT_TYPE_DF = RSDBFC.read_turbine_fault_type()
+FARMCONF_DF = RSDBFC.read_windfarm_configuration().set_index('set_id', drop=False)
 FARMCONF_DF.index.name = ''
-FARM_NAME = PGFacade.read_model_factory()['factory_name'].iloc[0]
+FARM_NAME = _PGFC.read_model_factory()['factory_name'].iloc[0]
+del _PGFC
 
 TITLE = f'{FARM_NAME}<br />风电机组运行报告'
 DEPARTMENT = '研究院'
@@ -281,9 +274,9 @@ def plot_sample_ts(df):
     return graphs
 
 def mail_report(pathname):
-    farm = PGFacade.read_model_factory()['factory_name'].iloc[0]
-    recv = RSDBFacade.read_app_configuration(key_='email_address')['value'].iloc[0]
-    account = RSDBFacade.read_app_configuration(key_='email_account')['value'].iloc[0]
+    farm = PGFacade().read_model_factory()['factory_name'].iloc[0]
+    recv = RSDBFC.read_app_configuration(key_='email_address')['value'].iloc[0]
+    account = RSDBFC.read_app_configuration(key_='email_account')['value'].iloc[0]
     user_name, password, host, port = account.split('_')
     if recv not in [None, '']:
         send_email(recv, f'{farm} 数据分析报告{Path(pathname).name}', '请查阅附件。本邮件自动发送。', 

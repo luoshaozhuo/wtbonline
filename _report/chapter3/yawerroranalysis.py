@@ -8,26 +8,9 @@
 # """
 
 #%% import
-from typing import Union
-from datetime import date
-from pathlib import Path
-from tempfile import TemporaryDirectory
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
-import plotly.express as px
-
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables
-from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe, make_sure_list
-from wtbonline._db.rsdb_facade import RSDBFacade
-from wtbonline._db.postgres_facade import PGFacade
-from wtbonline._common.utils import send_email
-from wtbonline._logging import log_it
+from wtbonline._report.common import LOGGER, DEVICE_DF
 from wtbonline._report.base import Base
-from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._plot.classes.yawerror import YawError
-from wtbonline._plot import graph_factory
 
 #%% constant
 

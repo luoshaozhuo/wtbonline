@@ -4,6 +4,9 @@ import dash_mantine_components as dmc
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb_facade import RSDBFacade
 
+_PGFC = PGFacade()
+_RSDBFC = RSDBFacade()
+
 THEME_PRIMARY_COLOR = 'indigo'
 THEME_PRIMARY_SHADE = {'light': 5, 'dark':7}
 
@@ -19,7 +22,7 @@ HEADER_LABEL = '风电数据助理'
 HEADER_LABEL_ABBREATION =  'WDAS'
 HEADER_MENU_FONTSIZE = '10px'
 HEADER_MENU_ICON_WIDTH = 15
-WINDFARM_NAME = PGFacade.read_model_factory()['factory_name'].iloc[0]
+WINDFARM_NAME = _PGFC.read_model_factory()['factory_name'].iloc[0]
 
 _tool_bar_size = 205
 TOOLBAR_SIZE = f'{_tool_bar_size}px'
@@ -53,11 +56,11 @@ NOTIFICATION_TITLE_GRAPH_FAIL = '绘图失败'
 NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL = '后台操作失败'
 NOTIFICATION_TITLE_SCHEDULER_JOB_SUCCESS = '后台操作成功'
 
-WINDFARM_INFORMATION =  PGFacade.read_model_factory()
-WINDFARM_FAULT_TYPE = RSDBFacade.read_turbine_fault_type().set_index('id', drop=False)
-WINDFARM_MODEL_DEVICE = PGFacade.read_model_device().set_index('device_name', drop=False)
-WINDFARM_VAR_NAME = PGFacade.read_model_point()
-WINDFARM_CONF = RSDBFacade.read_windfarm_configuration().set_index('set_id', drop=False)
+WINDFARM_INFORMATION =  _PGFC.read_model_factory()
+WINDFARM_FAULT_TYPE = _RSDBFC.read_turbine_fault_type().set_index('id', drop=False)
+WINDFARM_MODEL_DEVICE = _PGFC.read_model_device().set_index('device_name', drop=False)
+WINDFARM_VAR_NAME = _PGFC.read_model_point()
+WINDFARM_CONF = _RSDBFC.read_windfarm_configuration().set_index('set_id', drop=False)
 
 NOTIFICATION = {
     'error':{'color':'red', 'icon':'mdi:close-circle-outline'},
@@ -88,5 +91,7 @@ SCHEDULER_JOB_INTER_UNIT = ['weeks', 'days', 'hours', 'minutes', 'seconds']
 SCHEDULER_URL='http://scheduler:40000/scheduler/jobs'
 SCHEDULER_TIMEOUT = 10
 
-_sess_lifttime = int(RSDBFacade.read_app_configuration(key_='session_lifetime')['value'].iloc[0])
+_sess_lifttime = int(_RSDBFC.read_app_configuration(key_='session_lifetime')['value'].iloc[0])
 SESSION_LIFETIME = max(_sess_lifttime, 1)   #最少1天
+
+del _PGFC, _RSDBFC

@@ -14,9 +14,10 @@ from wtbonline._logging import log_it
 
 #%% constant
 RSDB = RSDBDAO()
+RSDBFC = RSDBFacade()
 
-FAULT_TYPE_DF = RSDBFacade.read_turbine_fault_type().dropna(subset=['type','value'], how='any')
-WINDFARM_CONF = RSDBFacade.read_windfarm_configuration().set_index('set_id', drop=False)
+FAULT_TYPE_DF = RSDBFC.read_turbine_fault_type().dropna(subset=['type','value'], how='any')
+WINDFARM_CONF = RSDBFC.read_windfarm_configuration().set_index('set_id', drop=False)
 TD_DATABASE = get_td_remote_restapi()['database']
 
 #%% fcuntion
@@ -60,12 +61,13 @@ def read(device_id, fault_type, value, index=None, start_time=None):
         df['val'] = df['val'].astype(bool).astype(str).str.lower()
     else:
         value = value.split(',')
+        PGFC = PGFacade()
         if fault_type=='msg':
-            df = PGFacade.read_data_msg(device_id=device_id, val=value, start_time=start_time)
+            df = PGFC.read_data_msg(device_id=device_id, val=value, start_time=start_time)
         elif fault_type=='alarm':
-            df = PGFacade.read_data_alarm(device_id=device_id, val=value, start_time=start_time)
+            df = PGFC.read_data_alarm(device_id=device_id, val=value, start_time=start_time)
         elif fault_type=='fault':
-            df = PGFacade.read_data_fault(device_id=device_id, val=value, start_time=start_time)
+            df = PGFC.read_data_fault(device_id=device_id, val=value, start_time=start_time)
         else:
             raise ValueError(f'不支持的故障类型{fault_type}')
     df['begin_tm'] = pd.to_datetime(df['begin_tm'])
@@ -106,13 +108,13 @@ def do_statistic(set_id, device_id):
     df['end_time'] = df['end_time'].where(~df['end_time'].isna(), df['start_time'])
     df.dropna(how='any', inplace=True)
     if df.shape[0]>0:
-        RSDBFacade.insert(df, tbname='statistics_fault')
+        RSDBFC.insert(df, tbname='statistics_fault')
 
 @log_it(_LOGGER)
 def udpate_statistic_fault(*args, **kwargs):
     task_id = kwargs.get('task_id', 'NA')
     set_id = kwargs.get('set_id', None)    
-    device_df = PGFacade.read_model_device()
+    device_df = PGFacade().read_model_device()
     err_msg = []
     for _,row in device_df.iterrows():
         set_id = row['set_id']

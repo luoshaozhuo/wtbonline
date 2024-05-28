@@ -23,7 +23,7 @@ import logging
 
 from wtbonline._db.rsdb.dao import create_engine_
 from wtbonline._logging import get_logger
-from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._db.rsdb_facade import RSDBFC
 from wtbonline._common.code import MYSQL_QUERY_FAILED
 # 这里不导入，发布任务时会提示找不到相关函数
 from wtbonline._report.brief_report import build_brief_report_all
@@ -92,9 +92,9 @@ def listen(event):
     try:
         now = pd.Timestamp.now()
         record = {'task_id':job_id, 'status':status, 'update_time':now}
-        RSDBFacade.insert(record, 'timed_task_log')
+        RSDBFC.insert(record, 'timed_task_log')
         if status in FINISH_STATUS:
-            RSDBFacade.update('timed_task', {'status':status, 'update_time':now}, eq_clause={'task_id':job_id})
+            RSDBFC.update('timed_task', {'status':status, 'update_time':now}, eq_clause={'task_id':job_id})
     except Exception as e:
         logger.error(f'{MYSQL_QUERY_FAILED} job_id={job_id} status={status}, msg={e}')
 

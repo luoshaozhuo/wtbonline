@@ -8,38 +8,23 @@
 # """
 
 #%% import
-from typing import Union
-from datetime import date
-from pathlib import Path
-from tempfile import TemporaryDirectory
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
-import plotly.figure_factory as ff
 import plotly.express as px
 from plotly.subplots import make_subplots
-from pygments import highlight
-from functools import partial
 
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables, build_table_from_sketch, POINT_DF
-from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe, make_sure_list
-from wtbonline._db.rsdb_facade import RSDBFacade
-from wtbonline._db.postgres_facade import PGFacade
-from wtbonline._common.utils import send_email
-from wtbonline._logging import log_it
+from wtbonline._report.common import LOGGER, DEVICE_DF, build_table_from_sketch, POINT_DF
 from wtbonline._report.base import Base
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._plot.classes.powercurve import PowerCurve as PCurve
-from wtbonline._plot import graph_factory
 
 #%% constant
 
 #%% class
 class Anomaly(Base):
     '''
-    >>> obj = Base(successors=[Anomaly(om_id=2)])
+    >>> obj = Base(successors=[Anomaly(om_id=1)])
     >>> outpath = '/mnt/d/'
-    >>> set_id = '20080'
+    >>> set_id = '20835'
     >>> start_date = '2024-03-01'
     >>> end_date = '2024-04-01'
     >>> pathanme = obj.build_report(set_id=set_id, start_date=start_date, end_date=end_date, outpath=outpath)
@@ -50,7 +35,7 @@ class Anomaly(Base):
         super().__init__(successors, title)
     
     def _build(self, set_id, start_date, end_date, temp_dir, index=''):
-        sr = RSDBFacade.read_turbine_outlier_monitor(id_=self.om_id).squeeze()
+        sr = self.RSDBFC.read_turbine_outlier_monitor(id_=self.om_id).squeeze()
         system = sr["system"]
         if len(sr)==0:
             raise ValueError(f'turbine_outlier_monitor 无id={self.om_id}的记录')
@@ -64,17 +49,23 @@ class Anomaly(Base):
         
         # 分析涉及的变量
         var_names = pd.Series(pd.Series(sr.var_names.split(',')).unique())
-        var_names = var_names[var_names.isin(TDFC.get_filed(set_id, remote=True))]
-        if len(var_names)==0:
-            raise ValueError(f'tdengine里没有以下字段:{var_names}')
-
+        cols = var_names[var_names.isin(TDFC.get_filed(set_id, remote=True))]
+        if len(cols)==0:
+            raise ValueError(f'tdengine里没有以下字段中任何一个:{var_names}')
+        var_names = cols
+        
         # 原始数据
         # 使用tdengine对莱州的d_s10005机组var_15041字段进行PERCENTILE计算时会报InvalidChunkLength错误
         # 因此转而先获取分段原始数据的mean值，再用pandas对其进行quantile计算
         columns = {i:['avg', 'max', 'min'] for i in var_names}
         raw_df = []
         for device_id in DEVICE_DF['device_id']:
-            temp = TDFC.read(set_id=set_id, device_id=device_id, columns=columns, interval='30m', start_time=start_date, end_time=end_date, remote=True)
+            try:
+                temp = TDFC.read(set_id=set_id, device_id=device_id, columns=columns, interval='30m', start_time=start_date, end_time=end_date, remote=True)
+            except ValueError as e:
+                if str(e).find('"code":866')>-1:
+                    continue
+                raise
             temp.insert(0, 'device_id', device_id)
             if len(temp)>0:
                 raw_df.append(temp)
@@ -92,31 +83,6 @@ class Anomaly(Base):
         stat_df = raw_df.groupby('device_id').agg(**dct)
         stat_df.index = DEVICE_DF.loc[stat_df.index, 'device_name']     
         stat_df = stat_df.reset_index()
-        
-        # # 表格数据
-        # select_stmt = [
-        #     (
-        #         f'3*(PERCENTILE({i}, 75) - PERCENTILE({i}, 25)) as {i}_3iqr, '
-        #         f'avg({i}) as {i}_mean,'
-        #         f'max({i}) as {i}_max,'
-        #         f'min({i}) as {i}_min'
-        #         )
-        #     for i in sr.var_names.split(',')
-        #     ]
-        # df = []
-        # for device_id in DEVICE_DF['device_id']:
-        #     sql = (
-        #         f'select {",".join(select_stmt)} from scada.d_{device_id} '
-        #         f'where ts>"{pd.to_datetime(start_date)}" and ts<"{pd.to_datetime(end_date)}"'
-        #         )
-        #     temp = TDFC.query(sql, remote=True)
-        #     if len(temp)>0:
-        #         temp.insert(0, 'device_id', device_id)
-        #         df.append(temp)
-        # df = pd.concat(df, ignore_index=True)
-        # df = standard(set_id, df).drop(columns='device_id').set_index('device_name', drop=True)
-        # df.columns = pd.MultiIndex.from_product([var_names, ['3iqr', 'mean', 'max', 'min']])
-        # df = df.reset_index()
         
         # 生成表格
         point_names = POINT_DF[POINT_DF['set_id']==set_id].set_index('var_name')['point_name']
@@ -139,7 +105,8 @@ class Anomaly(Base):
         k=1
         for device_id,grp in raw_df.groupby('device_id'):
             device_name = DEVICE_DF.loc[device_id, 'device_name']
-            fig = make_subplots(int(n/3)+1, 3)
+            # 一台机组一张图，每张图由n个子图构成
+            fig = make_subplots(int(n/3)+1, min(3,n), horizontal_spacing=0.1)
             for i in range(n):
                 vars = [f'{var_names[i]}_{suffix}' for suffix in ['3iqr', 'median', 'max', 'min']]
                 point_name = '_'.join(point_sub.loc[var_names[i], ['point_name', 'unit']])

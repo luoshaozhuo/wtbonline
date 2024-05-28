@@ -13,7 +13,7 @@ from wtbonline._process.model import _LOGGER, model_factory
 from wtbonline._db.postgres_facade import PGFacade
 
 #%% constant
-PATH = Path(RSDBFacade.read_app_configuration(key_='model_path')['value'].iloc[0])
+PATH = Path(RSDBFacade().read_app_configuration(key_='model_path')['value'].iloc[0])
 PATH.mkdir(exist_ok=True)
 
 #%% function
@@ -35,7 +35,7 @@ def train_all(end_time, delta:int, type_:str='anomaly', **kwargs):
     test_size=kwargs.get('test_size', 0)
     end_time = make_sure_datetime(end_time)
     start_time = end_time - pd.Timedelta(f"{delta}d") 
-    device_df = PGFacade.read_model_device()[['set_id', 'device_id']]
+    device_df = PGFacade().read_model_device()[['set_id', 'device_id']]
     err_msg = []
     for _, row in device_df.iterrows():
         clf = model_factory(type_, minimum=minimum, test_size=test_size)  

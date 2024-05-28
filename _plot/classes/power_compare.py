@@ -9,7 +9,6 @@ from plotly.subplots import make_subplots
 import numpy as np
 
 from wtbonline._db.postgres_facade import PGFacade
-from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._process.tools.filter import normal_production
@@ -19,7 +18,7 @@ COL_AUG = [
     'device_id', 'totalfaultbool_mode','totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
     'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'pv_c'
     ]
-DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
+DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class PowerCompare(Base):
@@ -35,7 +34,7 @@ class PowerCompare(Base):
     
     def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]]):
         var_names = make_sure_list(var_names)
-        df = RSDBFacade.read_statistics_sample(
+        df = self.RSDBFC.read_statistics_sample(
             set_id=set_id,
             device_id=device_ids,
             start_time=start_time,
@@ -47,7 +46,7 @@ class PowerCompare(Base):
         df = normal_production(df, reset_index=True)        
         df.rename(columns={'var_246_mean':'mean_power'}, inplace=True)
         df['mean_pitch_angle'] = df[['var_101_mean', 'var_102_mean', 'var_103_mean']].mean(axis=1)
-        gearbox_ratio = RSDBFacade.read_windfarm_configuration(set_id=set_id)['gearbox_ratio'].iloc[0]
+        gearbox_ratio = self.RSDBFC.read_windfarm_configuration(set_id=set_id)['gearbox_ratio'].iloc[0]
         df['rotor_speed'] =  df['var_94_mean']*gearbox_ratio
         df['rotor_torque'] =  df['mean_power']/(df['rotor_speed']*2*np.pi/60)
         return df[['mean_pitch_angle', 'mean_power', 'rotor_speed', 'device_id', 'rotor_torque', 'var_363_mean']]

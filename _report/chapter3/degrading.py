@@ -8,27 +8,8 @@
 # """
 
 #%% import
-from typing import Union
-from datetime import date
-from pathlib import Path
-from tempfile import TemporaryDirectory
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
-import plotly.express as px
-
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard
-from wtbonline._report.common import build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables, plot_stat, plot_sample_ts
-from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe, make_sure_list
-from wtbonline._db.rsdb_facade import RSDBFacade
-from wtbonline._db.postgres_facade import PGFacade
-from wtbonline._common.utils import send_email
-from wtbonline._logging import log_it
+from wtbonline._report.common import FAULT_TYPE_DF, FARMCONF_DF, plot_stat, plot_sample_ts, standard, LOGGER
 from wtbonline._report.base import Base
-from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._plot.classes.yawerror import YawError
-from wtbonline._plot import graph_factory
 
 #%% constant
 
@@ -53,7 +34,7 @@ class Degrading(Base):
         
         is_offshore = FARMCONF_DF['is_offshore'].loc[set_id]
         sub_df = FAULT_TYPE_DF[(FAULT_TYPE_DF['is_offshore']==is_offshore) & (FAULT_TYPE_DF['name']=='机组降容')]
-        record_df = RSDBFacade.read_statistics_fault(
+        record_df = self.RSDBFC.read_statistics_fault(
             fault_id=sub_df['id'],
             start_time=start_date,
             end_time=end_date,

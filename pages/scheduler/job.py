@@ -17,7 +17,7 @@ import requests
 import time
 from zlib import crc32
 
-from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._db.rsdb_facade import RSDBFC
 import wtbonline.configure as cfg
 from wtbonline._common import dash_component as dcmpt
 
@@ -55,12 +55,12 @@ JOB_DF = cfg.SCHEDULER_JOB_PARAMETER.set_index('name')
 get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 def func_read_task_table():
-    apschduler_df, note = dcmpt.dash_dbquery(func=RSDBFacade.read_apscheduler_jobs, not_empty=False)
+    apschduler_df, note = dcmpt.dash_dbquery(func=RSDBFC.read_apscheduler_jobs, not_empty=False)
     if note is not None:
         return no_update, note
     next_run_time  = apschduler_df['next_run_time'].fillna('0').astype(int).replace(0, np.nan)
     apschduler_df['next_run_time'] = pd.to_datetime(next_run_time, unit='s') + pd.Timedelta('8h')
-    timed_task_df, note = dcmpt.dash_dbquery(func=RSDBFacade.read_timed_task, not_empty=False)
+    timed_task_df, note = dcmpt.dash_dbquery(func=RSDBFC.read_timed_task, not_empty=False)
     if note is not None:
         return no_update, note   
     df = pd.merge(timed_task_df, apschduler_df, how='left', left_on='task_id', right_on='id')
@@ -363,7 +363,7 @@ def callback_on_btn_add_job(
     # 检查输入
     if start_date in [None, '']:
         return no_update, no_update, '选择一个日期'     
-    esisted_job, note = dcmpt.dash_dbquery(RSDBFacade.read_timed_task)
+    esisted_job, note = dcmpt.dash_dbquery(RSDBFC.read_timed_task)
     if esisted_job is None:
         return note, no_update, ''
    # 获取任务发布者
@@ -385,7 +385,7 @@ def callback_on_btn_add_job(
     task_id = make_task_id(func, function_parameter)
     function_parameter.update({'task_id':task_id})
     # 检查是否有重复任务
-    df, note = dcmpt.dash_dbquery(func=RSDBFacade.read_apscheduler_jobs, not_empty=False)
+    df, note = dcmpt.dash_dbquery(func=RSDBFC.read_apscheduler_jobs, not_empty=False)
     if note is not None:
         return note, no_update, ''
     if (df['id']==task_id).any():
@@ -404,7 +404,7 @@ def callback_on_btn_add_job(
         )
     # 更新数据库
     _, note = dcmpt.dash_dbquery(
-        func=RSDBFacade.insert,
+        func=RSDBFC.insert,
         df=dct,
         tbname = 'timed_task'
         )
@@ -443,7 +443,7 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
     for _ in range(3):
         try:
             if _id==get_component_id('acticon_start'):
-                RSDBFacade.update('timed_task', {'status':'STARTED', 'update_time':now}, eq_clause={'task_id':row['任务id']})
+                RSDBFC.update('timed_task', {'status':'STARTED', 'update_time':now}, eq_clause={'task_id':row['任务id']})
                 if status == 'CREATED':
                     task_parameter = eval(row['参数'])
                     funtion_parameter = eval(row['目标函数参数'])
@@ -461,10 +461,10 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
                 else:
                     response = requests.post(url+f"/{row['任务id']}/resume", timeout=timeout)
             elif _id==get_component_id('acticon_pause'):
-                RSDBFacade.update('timed_task', {'status':'JOB_PAUSE', 'update_time':now}, eq_clause={'task_id':row['任务id']})
+                RSDBFC.update('timed_task', {'status':'JOB_PAUSE', 'update_time':now}, eq_clause={'task_id':row['任务id']})
                 response = requests.post(url+f"/{row['任务id']}/pause", timeout=timeout)
             elif _id==get_component_id('acticon_delete'):
-                RSDBFacade.update('timed_task', {'status':'DELETE', 'update_time':now}, eq_clause={'task_id':row['任务id']})
+                RSDBFC.update('timed_task', {'status':'DELETE', 'update_time':now}, eq_clause={'task_id':row['任务id']})
                 response = requests.delete(url+f"/{row['任务id']}", timeout=timeout)        
         except Exception as e:
             note = dcmpt.notification(
@@ -486,7 +486,7 @@ def timed_task_on_btn_start_pause_delete(n1, n2, n3, data, rows):
         time.sleep(1)
     else:
         # 尝试三次失败后输出错误提示
-        RSDBFacade.update('timed_task', {'status':status, 'update_time':now}, eq_clause={'task_id':row['任务id']})
+        RSDBFC.update('timed_task', {'status':status, 'update_time':now}, eq_clause={'task_id':row['任务id']})
         note = dcmpt.notification(
             title=cfg.NOTIFICATION_TITLE_SCHEDULER_JOB_FAIL, 
             msg=f'{row["任务id"]} {row["目标函数"]} 提交超时 {response.text}', 

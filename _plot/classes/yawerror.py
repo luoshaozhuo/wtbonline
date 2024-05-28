@@ -9,7 +9,6 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from sklearn.linear_model import LinearRegression
 
-from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.postgres_facade import PGFacade
@@ -18,7 +17,7 @@ from wtbonline._process.tools.filter import normal_production
 #%% constant
 COL_AUG = ['totalfaultbool_mode', 'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'pv_c',
            'workmode_mode', 'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean', 'bin']
-DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
+DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class YawError(Base):
@@ -40,7 +39,7 @@ class YawError(Base):
     def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]]):
         sr = pd.Series(device_ids).sort_values()
         var_names = make_sure_list(var_names)
-        df = RSDBFacade.read_statistics_sample(
+        df = self.RSDBFC.read_statistics_sample(
             set_id=set_id,
             device_id=sr[0],
             start_time=start_time,

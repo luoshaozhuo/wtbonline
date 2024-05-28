@@ -6,9 +6,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px 
-from plotly.subplots import make_subplots
 
-from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.postgres_facade import PGFacade
@@ -39,7 +37,7 @@ class PowerCurve(Base):
     def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]], width=1):
         var_names = make_sure_list(var_names)
         device_ids = make_sure_list(device_ids)
-        df = RSDBFacade.read_statistics_sample(
+        df = self.RSDBFC.read_statistics_sample(
             set_id=set_id,
             device_id=device_ids,
             start_time=start_time,

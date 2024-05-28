@@ -8,7 +8,6 @@ import pandas as pd
 
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
-from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._process.tools.filter import normal_production
 from wtbonline._db.postgres_facade import PGFacade
 
@@ -25,7 +24,7 @@ COLUMNS_AUG = [
     'workmode_nunique', 'ongrid_mode', 'ongrid_nunique', 'totalfaultbool_mode', 'totalfaultbool_nunique', 'id', 'bin'
     ]
 
-DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
+DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class Anomaly(Base):
@@ -65,7 +64,7 @@ class Anomaly(Base):
         col_sel = make_sure_list(set(var_names+['bin', 'id']))
         # 总体样本中抽样
         # filter会筛除大部分数据，所以用4倍sample_cnt来采样
-        sample_df = RSDBFacade.read_statistics_sample(
+        sample_df = self.RSDBFC.read_statistics_sample(
             set_id=set_id,
             device_id=device_id,
             start_time=start_time,
@@ -78,14 +77,14 @@ class Anomaly(Base):
         if len(sample_df)==0:
             raise ValueError('无数据')
         # 合并离群数据
-        idx = RSDBFacade.read_model_anormaly(
+        idx = self.RSDBFC.read_model_anormaly(
             set_id=set_id, 
             device_id=device_id,
             start_time=start_time,
             end_time=end_time,
             ).drop_duplicates('sample_id')['sample_id']
         if len(idx)>0:
-            df = RSDBFacade.read_statistics_sample(id_=idx, columns=col_sel)
+            df = self.RSDBFC.read_statistics_sample(id_=idx, columns=col_sel)
             rev = pd.concat([df, sample_df], ignore_index=True)
         else:
             rev = sample_df
@@ -93,7 +92,7 @@ class Anomaly(Base):
         rev.insert(0, 'is_suspector', -1)
         rev.loc[idx, 'is_suspector'] = 1
         # 增加标签字段
-        df = RSDBFacade.read_model_label(set_id=set_id, device_id=device_ids)
+        df = self.RSDBFC.read_model_label(set_id=set_id, device_id=device_ids)
         df = df.sort_values('create_time').drop_duplicates('sample_id', keep='last')
         if len(df)>0:
             rev = pd.merge(

@@ -1,8 +1,6 @@
 # author luosz
 # created on 10.23.2023
 
-import pandas as pd
-
 import plotly.graph_objects as go
 import plotly.express as px 
 from plotly.subplots import make_subplots

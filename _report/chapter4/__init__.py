@@ -11,7 +11,7 @@ from wtbonline._db.rsdb_facade import RSDBFacade
 
 from wtbonline._report.base import Base
 
-df = RSDBFacade.read_turbine_outlier_monitor()
+df = RSDBFacade().read_turbine_outlier_monitor()
 CHAPTER4 = Base(successors=[Power()] + [Anomaly(om_id=id_) for id_ in df['id']], title='关键数据分析')
 
 #%% main

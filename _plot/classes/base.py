@@ -11,9 +11,10 @@ import plotly.express as px
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._db.postgres_facade import PGFacade
+from wtbonline._db.rsdb_facade import RSDBFacade
 
 #%%
-DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
+DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class Base():
@@ -28,6 +29,7 @@ class Base():
             必须包含set_id,device_id,start_time,end_time'，
         samples -- 最大绘图点数
         '''
+        self.RSDBFC = RSDBFacade()
         self.nsamples = nsamples
         self.samplling_rate = samplling_rate
         self.row_height = row_height

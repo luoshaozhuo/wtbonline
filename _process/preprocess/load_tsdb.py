@@ -12,6 +12,7 @@ from wtbonline._process.preprocess import _LOGGER
 from wtbonline._process.tools.common import get_dates_tsdb
 from wtbonline._logging import log_it
 
+RSDBFC = RSDBFacade()
 #%% function
 def extract(set_id:str, device_id:str, dt:Union[str, pd.Timestamp, date], 
             offset:str='1min', rule:str='1s', limit:int=2)->pd.DataFrame:
@@ -37,7 +38,7 @@ def extract(set_id:str, device_id:str, dt:Union[str, pd.Timestamp, date],
     start_time = dt - pd.Timedelta(offset)
     end_time = dt + pd.Timedelta('1d') + pd.Timedelta(offset)
     df = []
-    var_name = RSDBFacade.read_turbine_model_point()['var_name']
+    var_name = RSDBFC.read_turbine_model_point()['var_name']
     df = TDFC.read(
         set_id=set_id, 
         device_id=device_id, 
@@ -68,7 +69,7 @@ def extract(set_id:str, device_id:str, dt:Union[str, pd.Timestamp, date],
 def load_tsdb(set_id:str, device_id:str, dt:Union[str, date]):
     ''' 抽取数据到本地TSDB
     >>> set_id='20625'
-    >>> device_id='d10003'
+    >>> device_id='s10003'
     >>> start_time = pd.to_datetime('2023-12-26 00:00:00')
     >>> end_time = start_time + pd.Timedelta('1d')
     >>> n = extract(set_id, device_id, start_time).shape[0]
@@ -93,7 +94,7 @@ def update_tsdb(*args, **kwargs):
         dts = None
     for i in range(10):
         try:
-            df = PGFacade.read_model_device()[['set_id', 'device_id']]
+            df = PGFacade().read_model_device()[['set_id', 'device_id']]
             if len(df)>0:
                 break
         except Exception as e:
@@ -116,10 +117,15 @@ def update_tsdb(*args, **kwargs):
             if date>=pd.Timestamp.now().date():
                 continue
             _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {device_id}, {date}')
-            load_tsdb(set_id, device_id, date)
+            try:
+                load_tsdb(set_id, device_id, date)
+            except ValueError as e:
+                if '"code":866' in str(e):
+                    continue
+                raise
             
 #%%
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    update_tsdb(end_dt=pd.Timestamp.now().date())
+    update_tsdb(end_dt='2024-03-01')

@@ -18,7 +18,7 @@ import pandas as pd
 from functools import partial
 from flask_login import current_user
 
-from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._db.rsdb_facade import RSDBFC
 import wtbonline.configure as cfg
 from wtbonline._common import dash_component as dcmpt
 from wtbonline._plot import graph_factory
@@ -426,7 +426,7 @@ def callback_on_btn_update_anomaly(n, figure, set_id, device_id, label):
         is_anomaly=1 if label=='异常' else -1             
         )
     _, note = dcmpt.dash_dbquery(
-        RSDBFacade.insert,
+        RSDBFC.insert,
         df = new_record,
         tbname = 'model_label'
         )
@@ -436,50 +436,6 @@ def callback_on_btn_update_anomaly(n, figure, set_id, device_id, label):
     patched_fig['data'][0]['marker']['color'][idx] = ANOMALY_MATRIX_PLOT_COLOR[label]
     patched_fig['data'][0]['marker']['opacity'][idx] = 1
     return no_update, patched_fig
-
-
-# @callback(
-#     Output(get_component_id('notification'), 'children', allow_duplicate=True),
-#     Output(get_component_id('graph_scatter'), 'figure', allow_duplicate=True),
-#     Input(get_component_id('btn_update'), 'n_clicks'),
-#     State(get_component_id('graph_scatter'), 'selectedData'),
-#     State(get_component_id('select_setid'), 'value'),
-#     State(get_component_id('select_device_id'), 'value'),
-#     State(get_component_id('select_label'), 'value'),
-#     prevent_initial_call=True
-#     )
-# def callback_on_btn_update_anomaly(n, selectedData, set_id, device_id, label):
-#     if selectedData is None or len(selectedData)==0 or label is None:
-#         return None, no_update
-#     _ = Patch()
-#     patched_fig = Patch()
-#     # 获取当前用户名
-#     username, note = dcmpt.dash_get_username(current_user, __name__ == '__main__')
-#     if note is not None:
-#         return note, no_update
-#     # 构造新记录
-#     create_time = pd.Timestamp.now()
-#     sample_id = selectedData['points'][0]['customdata']
-#     new_record = dict(
-#         username=username, 
-#         set_id=set_id, 
-#         device_id=device_id,
-#         sample_id=sample_id, 
-#         create_time=create_time,
-#         is_anomaly=1 if label=='异常' else -1             
-#         )
-#     _, note = dcmpt.dash_dbquery(
-#         RSDBFacade.insert,
-#         df = new_record,
-#         tbname = 'model_label'
-#         )
-#     if note is not None:
-#         return note, no_update
-#     idx = selectedData['points'][0]['pointNumber']
-#     patched_fig['data'][0]['text'][idx] = label
-#     patched_fig['data'][0]['marker']['color'][idx] = ANOMALY_MATRIX_PLOT_COLOR[label]
-#     patched_fig['data'][0]['marker']['opacity'][idx] = 1
-#     return no_update, patched_fig
 
 @callback(
     Output(get_component_id('select_xaxis_tools'), 'data'),

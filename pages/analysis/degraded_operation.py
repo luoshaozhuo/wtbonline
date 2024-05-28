@@ -12,7 +12,7 @@ from dash import Output, Input, html, dcc, State, callback, no_update
 import pandas as pd
 from functools import partial
 
-from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._db.rsdb_facade import RSDBFC
 import wtbonline.configure as cfg
 from wtbonline._common import dash_component as dcmpt
 from wtbonline._db.rsdb.dao import RSDB
@@ -40,7 +40,7 @@ get_component_id = partial(dcmpt.dash_get_component_id, prefix=PREFIX)
 
 def load_figure(sample_id, var_names):
     df, note = dcmpt.dash_dbquery(
-        func=RSDBFacade.read_statistics_fault,
+        func=RSDBFC.read_statistics_fault,
         id_=sample_id
         )
     if note is not None:

@@ -8,27 +8,16 @@
 # """
 
 #%% import
-from typing import Union
-from datetime import date
-from pathlib import Path
-from tempfile import TemporaryDirectory
 import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
 
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph, build_tables
-from wtbonline._common.utils import make_sure_datetime
-from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._report.common import LOGGER, standard
 from wtbonline._db.postgres_facade import PGFacade
-from wtbonline._common.utils import send_email
-from wtbonline._logging import log_it
 from wtbonline._report.base import Base
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._plot.classes.power_compare import PowerCompare
 
 #%% constant
-DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
+DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class EnergyDifference(Base):

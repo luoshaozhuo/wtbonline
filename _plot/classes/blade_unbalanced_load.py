@@ -1,13 +1,10 @@
 # author luosz
 # created on 10.23.2023
 
-import pandas as pd
-
 import plotly.graph_objects as go
 import plotly.express as px 
 from plotly.subplots import make_subplots
 
-from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._plot.classes.base import Base
 from wtbonline._process.tools.frequency import power_spectrum
 

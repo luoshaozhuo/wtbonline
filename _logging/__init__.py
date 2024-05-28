@@ -2,11 +2,10 @@ import logging
 import logging.handlers
 from pathlib import Path    
 import os
-import pandas as pd
-    
-from wtbonline._db.rsdb_facade import RSDBFacade
 
-_parent = RSDBFacade.read_app_configuration(key_='log_path').loc[0, 'value']
+from wtbonline._db.rsdb_facade import RSDBFC
+
+_parent = RSDBFC.read_app_configuration(key_='log_path').loc[0, 'value']
 _parent = Path(_parent)
 
 def get_stream_handler():

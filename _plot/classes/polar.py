@@ -6,16 +6,13 @@ import plotly.graph_objects as go
 from typing import List, Union, Optional
 import plotly.express as px 
 from plotly.subplots import make_subplots
-import numpy as np
-import pandas as pd
 
-from wtbonline._process.tools.frequency import power_spectrum, amplitude_spectrum
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._db.postgres_facade import PGFacade
 
 #%% constants
-DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
+DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class Polar(Base):

@@ -47,7 +47,7 @@ class TDEngine_FACADE():
             n = 2 if x.startswith('var') else 1
             return '_'.join(splt[0:n])
         col_df['var_name'] = col_df['column'].apply(func)        
-        point_df = PGFacade.read_model_point(set_id=set_id, var_name=col_df['var_name'])
+        point_df = PGFacade().read_model_point(set_id=set_id, var_name=col_df['var_name'])
         rev = pd.merge(col_df, point_df, on='var_name', how='inner')
         return rev
     
@@ -106,8 +106,8 @@ class TDEngine_FACADE():
         ''' 创建超级表语句 
         >>> _ = TDFC._statement_create_super_table('test', '20835')
         '''
-        point_sel = RSDBFacade.read_turbine_model_point()
-        point_all = PGFacade.read_model_point(set_id=set_id, var_name=point_sel['var_name'])
+        point_sel = RSDBFacade().read_turbine_model_point()
+        point_all = PGFacade().read_model_point(set_id=set_id, var_name=point_sel['var_name'])
         point_df = pd.merge(point_sel, point_all[['var_name', 'datatype']], how='inner')
         point_df['datatype'] = point_df['datatype'].replace({'F':'Float', 'I':'INT', 'B':'BOOL'})
         columns = point_df['var_name']+' '+point_df['datatype']
@@ -120,11 +120,11 @@ class TDEngine_FACADE():
 
     def _statement_create_sub_table(self, database, set_id):
         ''' 创建子表语句 
-        >>> set_id = PGFacade.read_model_device()['set_id'].unique()[0]
+        >>> set_id = PGFacade().read_model_device()['set_id'].unique()[0]
         >>> TDFC._statement_create_sub_table('test', set_id)[0]
         'CREATE TABLE IF NOT EXISTS test.d_s10001 USING test.s_20835 TAGS ("s10001");'
         '''
-        device_ids = PGFacade.read_model_device(set_id=set_id)['device_id']
+        device_ids = PGFacade().read_model_device(set_id=set_id)['device_id']
         sql_lst=[]
         for tid in device_ids.squeeze():
             temp = (f'''
@@ -165,7 +165,7 @@ class TDEngine_FACADE():
         kwargs = get_td_local_connector()
         dbname = kwargs['database'] if dbname==None else dbname
         kwargs['database'] = None
-        set_ids = ( PGFacade.read_model_device()['set_id'].unique()
+        set_ids = ( PGFacade().read_model_device()['set_id'].unique()
                    if set_id ==None 
                    else make_sure_list(set_id)) 
         
@@ -201,7 +201,7 @@ class TDEngine_FACADE():
         '''
         groupby = make_sure_list(groupby)
         assert isinstance(columns, dict) if len(groupby)>0 else True, '给定groupby后，需要指定聚合函数'
-        version = int(RSDBFacade.read_app_server(name='tdengine', remote=remote)['version'].loc[0].split('.')[0])
+        version = int(RSDBFacade().read_app_server(name='tdengine', remote=remote)['version'].loc[0].split('.')[0])
         if columns is None:
             rev = ['*']
         elif isinstance(columns, (list, tuple, str, pd.Series, set)):
@@ -302,7 +302,7 @@ class TDEngine_FACADE():
             samplling_rate=1,
             ):
         ''' 从tsdb读取数据，同时返回相应的字段说明 
-        >>> device_df = PGFacade.read_model_device()
+        >>> device_df = PGFacade().read_model_device()
         >>> set_id = device_df['set_id'].iloc[0]
         >>> device_id = 's10003'
         >>> start_time='2023-01-01'
@@ -398,7 +398,7 @@ class TDEngine_FACADE():
         ''' 将数据写入csv文件再导入数据库 
         >>> import os
         >>> set_id = '20835'
-        >>> var_name = RSDBFacade.read_turbine_model_point()['var_name']
+        >>> var_name = RSDBFacade().read_turbine_model_point()['var_name']
         >>> var_name = var_name.str.lower()
         >>> dbname, device_id = 'test', 's10003'
         >>> TDFC.init_database(dbname, set_id)
@@ -420,7 +420,7 @@ class TDEngine_FACADE():
         # 数据类型转换
         # bool转换为int，否则报错
         # 对于tdengine而言，1为true，0为false
-        point_df = PGFacade.read_model_point(set_id=set_id)
+        point_df = PGFacade().read_model_point(set_id=set_id)
         for datatype, type_ in [['B', 'int8'], ['I', 'int32']]:
             cols = point_df[point_df['datatype']==datatype]['var_name']
             cols = df.columns[df.columns.isin(cols)]
@@ -455,7 +455,7 @@ class TDEngine_FACADE():
         >>> _ = TDFC.get_deviceID(set_id='20835')
         >>> _ = TDFC.get_deviceID(set_id='20835', remote=True)
         '''
-        version = int(RSDBFacade.read_app_server(name='tdengine', remote=remote)['version'].loc[0].split('.')[0])
+        version = int(RSDBFacade().read_app_server(name='tdengine', remote=remote)['version'].loc[0].split('.')[0])
         if version>2:
             sql = f'SHOW TABLE TAGS FROM s_{set_id}'
             rev = self.query(sql, remote=remote)['device'].tolist()

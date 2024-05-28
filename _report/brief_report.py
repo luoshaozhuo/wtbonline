@@ -31,7 +31,7 @@ def build_brief_report(
     pathname = obj.build_report(set_id, start_date, end_date, outpath)
     encrypted_pathname = obj.encrypt(pathname)
     pathname.unlink()
-    is_send = RSDBFacade.read_app_configuration(key_='send_email')['value'].iloc[0]
+    is_send = RSDBFacade().read_app_configuration(key_='send_email')['value'].iloc[0]
     if is_send!='0':
         mail_report(encrypted_pathname)
 

@@ -25,9 +25,10 @@ from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._logging import log_it
 
 # constants
-RSDB = RSDB = RSDBDAO()
+RSDB = RSDBDAO()
+RSDBFC = RSDBFacade()
 
-POINT_DF = RSDBFacade.read_turbine_model_point()
+POINT_DF = RSDBFC.read_turbine_model_point()
 ALL_COLS = POINT_DF['var_name'].to_list()
 F_COLS = POINT_DF[POINT_DF['datatype']=='F']['var_name'].to_list()
 B_COLS = POINT_DF[POINT_DF['datatype']=='B']['var_name'].to_list()
@@ -88,7 +89,7 @@ def dates_in_statistic_sample(set_id, device_id):
 def update_statistic_sample(*args, **kwargs):
     ''' 本地sample查缺  '''
     task_id = kwargs.get('task_id', 'NA')
-    device_df = PGFacade.read_model_device()[['set_id', 'device_id']]
+    device_df = PGFacade().read_model_device()[['set_id', 'device_id']]
     for _, (set_id, device_id) in device_df.iterrows():
         _LOGGER.info(f'task_id={task_id} update_statistic_sample: {set_id}, {device_id}')
         tsdb_dates = get_dates_tsdb(device_id, remote=False)
@@ -108,7 +109,7 @@ def update_statistic_sample(*args, **kwargs):
             if len(stat_df)<1:
                 return
             stat_df['create_time'] = pd.Timestamp.now()
-            RSDBFacade.insert(stat_df, 'statistics_sample')
+            RSDBFC.insert(stat_df, 'statistics_sample')
             del df, stat_df
 
 if __name__ == '__main__':

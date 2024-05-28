@@ -38,6 +38,7 @@ class Base():
     def __init__(self, successors=[], title=''):
         self.successors = make_sure_list(successors)
         self.title = title
+        self.RSDBFC = RSDBFacade()
     
     def _compose(self, index:str, heading:str, conclusion:str='', tables={}, graphs={}, temp_dir:str=None, width=1000, height=None):
         assert temp_dir is not None if (len(tables)>0 or len(graphs)>0) else True, '未指定临时目录'
@@ -97,10 +98,10 @@ class Base():
         return pathname
     
     @log_it(LOGGER)
-    def email_report(self, pathname):    
-        recv = RSDBFacade.read_app_configuration(key_='email_address')['value'].iloc[0]
-        account = RSDBFacade.read_app_configuration(key_='email_account')['value'].iloc[0]
-        farm_name = PGFacade.read_model_factory()['factory_name'].iloc[0]
+    def email_report(self, pathname):  
+        recv = self.RSDBFC.read_app_configuration(key_='email_address')['value'].iloc[0]
+        account = self.RSDBFC.read_app_configuration(key_='email_account')['value'].iloc[0]
+        farm_name = PGFacade().read_model_factory()['factory_name'].iloc[0]
         user_name, password, host, port = account.split('_')
         if recv not in [None, '']:
             send_email(recv, f'{farm_name}数据分析报告, {Path(pathname).name}', '请查阅附件。本邮件自动发送。', 

@@ -48,7 +48,7 @@ class _FTP():
         self.password = ''
     
     def _initialize(self):
-        host = RSDBFacade.read_windfarm_configuration(
+        host = RSDBFacade().read_windfarm_configuration(
             set_id=self.set_id, 
             turbine_id=self.turbine_id, 
             columns=['ip_address', 'ftp_port', 'ftp_username', 'ftp_password']
@@ -131,7 +131,7 @@ def update_ibox_files(*args, **kwargs):
     executor = kwargs.get('executor', 'thread')
     max_worker = kwargs.get('max_worker', 1)
     import time
-    confs = RSDBFacade.read_windfarm_configuration(columns=['set_id', 'turbine_id'])
+    confs = RSDBFacade().read_windfarm_configuration(columns=['set_id', 'turbine_id'])
     confs = [(i,j) for _,(i,j) in confs.iterrows()]
     start = time.time()
     pool_executor = ThreadPoolExecutor if executor=='thread' else ProcessPoolExecutor

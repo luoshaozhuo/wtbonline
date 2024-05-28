@@ -8,25 +8,8 @@
 # """
 
 #%% import
-from typing import Union
-from datetime import date
-from pathlib import Path
-from tempfile import TemporaryDirectory
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
-import plotly.express as px
-
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS, standard, build_graph, DEVICE_DF, FAULT_TYPE_DF, FARMCONF_DF, build_tables
-from wtbonline._common.utils import make_sure_datetime, make_sure_dataframe, make_sure_list
-from wtbonline._db.rsdb_facade import RSDBFacade
-from wtbonline._db.postgres_facade import PGFacade
-from wtbonline._common.utils import send_email
-from wtbonline._logging import log_it
+from wtbonline._report.common import LOGGER, DEVICE_DF
 from wtbonline._report.base import Base
-from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._plot.classes.powercurve import PowerCurve as PCurve
 from wtbonline._plot import graph_factory
 
 #%% constant
@@ -50,14 +33,14 @@ class Outlier(Base):
         graphs = {}
         LOGGER.info(heading)
         
-        anormaly_df = RSDBFacade.read_model_anormaly(
+        anormaly_df = self.RSDBFC.read_model_anormaly(
             set_id=set_id, start_time=start_date, end_time=end_date
             ).drop_duplicates('sample_id')
         if len(anormaly_df)<1:
             conclusion = '通过对转矩、转速、叶片角度、偏航误差、机组振动等进行分析，本期报告时段内无离群值识别记录。'
             return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir) 
         
-        label_df = RSDBFacade.read_model_label(set_id=set_id).drop_duplicates('sample_id')
+        label_df = self.RSDBFC.read_model_label(set_id=set_id).drop_duplicates('sample_id')
         total = anormaly_df.shape[0]
         left = total - label_df.shape[0]
 
@@ -74,7 +57,7 @@ class Outlier(Base):
             graphs.update({f'图{index}.{i+1} {DEVICE_DF["device_name"].loc[device_id]}':fig})
         
         # 总结
-        label_df = RSDBFacade.read_model_label(set_id=set_id).drop_duplicates('sample_id')
+        label_df = self.RSDBFC.read_model_label(set_id=set_id).drop_duplicates('sample_id')
         total = anormaly_df.shape[0]
         left = total - label_df.shape[0]
         conclusion = f'通过对转矩、转速、叶片角度、偏航误差、机组振动等进行分析，本期报告时段内共有离群数据：{total}条, 待鉴别{left}条，具体如下所示。'

@@ -19,7 +19,7 @@ TYPE_ = {
     'power_spectrum':power_spectrum, 
     'amplitude_spectrum':amplitude_spectrum
     }
-DEVICE_DF = PGFacade.read_model_device().set_index('device_id')
+DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class Spectrum(Base):

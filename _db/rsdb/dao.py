@@ -42,8 +42,8 @@ def query_timeout(session, timeout):
 class RSDBDAO():
     def __init__(self, engine=None):
         self.factory = ORMFactory()
-        self.engine = create_engine_() if engine is None else engine
-        self.session = sessionmaker(self.engine, expire_on_commit=True)
+        # self.engine = create_engine_() if engine is None else engine
+        # self.session = sessionmaker(self.engine, expire_on_commit=True)
 
     # def get_session(self):
     #     '''
@@ -160,7 +160,7 @@ class RSDBDAO():
         return self.read_sql(stmt, timeout)
     
     def execute(self, stmt, timeout=SESSION_TIMEOUT):
-        with self.session() as session:
+        with sessionmaker(create_engine_(), expire_on_commit=True)() as session:
             with query_timeout(session, timeout=timeout):
                 session.execute(stmt)
                 session.commit()
@@ -254,7 +254,6 @@ class RSDBDAO():
         stmt = delete(model_)
         stmt = Where()(model_=model_, params={'eq':eq_clause,'lge':lge_clause,'lt':lt_clause,'in':in_clause}, stmt=stmt) 
         self.execute(stmt, timeout=timeout)
-
 
 RSDB = RSDBDAO()
 

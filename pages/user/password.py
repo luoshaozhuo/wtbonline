@@ -17,7 +17,7 @@ from flask_login import current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.security import check_password_hash
 
-from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._db.rsdb_facade import RSDBFC
 import wtbonline.configure as cfg
 import wtbonline._common.dash_component as dcmpt
 from wtbonline._common.dash_component import notification
@@ -96,14 +96,14 @@ def callback_on_btn_submit_pasword(n, oldPassword, newPassword):
             error_newPassword = '输入新密码' if oldPassword in (None, '') else ''
             break
         # 旧密码错误
-        this_user = RSDBFacade.read_user(username=username).squeeze()
+        this_user = RSDBFC.read_user(username=username).squeeze()
         if not check_password_hash(this_user.password, oldPassword):
             error_oldPassword = '旧密码错误'
             break
         # 更新密码
         newPassword = generate_password_hash(newPassword)
         _, note = dcmpt.dash_dbquery(
-                RSDBFacade.update,
+                RSDBFC.update,
                 tbname='user',
                 new_values={'password':newPassword}, 
                 eq_clause={'username':this_user.username}

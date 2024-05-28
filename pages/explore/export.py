@@ -6,7 +6,7 @@
 #%% import
 import dash
 import dash_mantine_components as dmc
-from dash import html
+
 from functools import partial
 from dash_extensions import Lottie
 

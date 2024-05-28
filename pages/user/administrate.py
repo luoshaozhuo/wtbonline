@@ -19,7 +19,7 @@ from werkzeug.security import check_password_hash
 from dash_iconify import DashIconify
 import pandas as pd
 
-from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._db.rsdb_facade import RSDBFC
 import wtbonline.configure as cfg
 import wtbonline._common.dash_component as dcmpt
 from wtbonline._common.dash_component import notification
@@ -42,7 +42,7 @@ def func_build_table_content(df):
     return table    
 
 def func_read_user_table():
-    df, note = dcmpt.dash_dbquery(RSDBFacade.read_user, columns=COLUMN_NAME)
+    df, note = dcmpt.dash_dbquery(RSDBFC.read_user, columns=COLUMN_NAME)
     if note is None:
         df['privilege'] = PRIVILEGE.set_index('int_').loc[df['privilege'], 'str_'].tolist()
         df.columns = TABLE_HEADERS
@@ -176,12 +176,12 @@ def callback_on_icon_refresh_administrate(n):
     prevent_initial_call=True,
     )
 def callback_on_icon_save_administrate(n, username, password, privilege):    
-    df, note = dcmpt.dash_dbquery(RSDBFacade.read_user)
+    df, note = dcmpt.dash_dbquery(RSDBFC.read_user)
     if note is not None:
         return note, no_update, ''
     privilege = PRIVILEGE.set_index('str_').loc[privilege, 'int_']
     hashed_password = generate_password_hash(password) if password is not None else None
-    exist_user = RSDBFacade.read_user()['username'].tolist()
+    exist_user = RSDBFC.read_user()['username'].tolist()
     # 修改用户信息
     is_updating = username in exist_user
     if is_updating:
@@ -189,7 +189,7 @@ def callback_on_icon_save_administrate(n, username, password, privilege):
         if password is not None:
             new_values.update({'password':hashed_password})
         _, note = dcmpt.dash_dbquery(
-            RSDBFacade.update,
+            RSDBFC.update,
             tbname='user',
             new_values=new_values,
             eq_clause={'username':username}
@@ -204,7 +204,7 @@ def callback_on_icon_save_administrate(n, username, password, privilege):
             'privilege':privilege},
             index=[0])
         _, note = dcmpt.dash_dbquery(
-            RSDBFacade.insert,
+            RSDBFC.insert,
             df=df,
             tbname='user',
             )        

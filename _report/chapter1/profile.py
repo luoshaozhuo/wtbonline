@@ -8,18 +8,10 @@
 # """
 
 #%% import
-from typing import Union
-from datetime import date
-from pathlib import Path
-from tempfile import TemporaryDirectory
 import pandas as pd
 
-from wtbonline._report.common import FRAME_WIDTH_LATER, Paragraph, Spacer, LOGGER, PS_BODY, PS_HEADINGS
-from wtbonline._common.utils import make_sure_datetime
-from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._report.common import LOGGER
 from wtbonline._db.postgres_facade import PGFacade
-from wtbonline._common.utils import send_email
-from wtbonline._logging import log_it
 from wtbonline._report.base import Base
 from wtbonline._db.tsdb_facade import TDFC
 
@@ -55,7 +47,7 @@ class Profile(Base):
         
         min_date = pd.to_datetime(sr['ts_first']).date()
         max_date = pd.to_datetime(sr['ts_last']).date()
-        farm_df = PGFacade.read_model_device(set_id=set_id)
+        farm_df = PGFacade().read_model_device(set_id=set_id)
         n = len(TDFC.get_deviceID(set_id=set_id, remote=True))
         conclusion = f'''机组型号：{set_id}<br/>
             机组总数：{farm_df.shape[0]} 台<br/>
