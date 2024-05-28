@@ -21,7 +21,6 @@ from wtbonline._db.rsdb_facade import RSDBFC
 import wtbonline.configure as cfg
 from wtbonline._common import dash_component as dcmpt
 
-
 #%% constant
 SECTION = '任务调度'
 SECTION_ORDER = 4
@@ -73,10 +72,11 @@ def func_render_table():
         data = data.to_dict('records')
     return data, note
 
-def make_task_id(func, kwargs):
-    data = f'{func}{kwargs}'
-    id_ = crc32(data.encode(encoding='UTF-8'))
-    return str(id_)
+def get_task_id(func, kwargs):
+    # data = f'{func}{kwargs}'
+    # id_ = crc32(data.encode(encoding='UTF-8'))
+    # return str(id_)
+    return(f'{np.random.randint(0, 10000000000):010d}')
 
 
 #%% component
@@ -382,14 +382,14 @@ def callback_on_btn_add_job(
         minimum = minimum_sample,
         nsample = num_output,
         )
-    task_id = make_task_id(func, function_parameter)
+    task_id = get_task_id(func, function_parameter)
     function_parameter.update({'task_id':task_id})
-    # 检查是否有重复任务
-    df, note = dcmpt.dash_dbquery(func=RSDBFC.read_apscheduler_jobs, not_empty=False)
-    if note is not None:
-        return note, no_update, ''
-    if (df['id']==task_id).any():
-       return dcmpt(title='重复任务', msg=f'请先删除重复任务, task_id={task_id}', _type='error'), no_update, ''
+    # # 检查是否有重复任务
+    # df, note = dcmpt.dash_dbquery(func=RSDBFC.read_timed_task, not_empty=False)
+    # if note is not None:
+    #     return note, no_update, ''
+    # if (df['id']==task_id).any():
+    #    return dcmpt(title='重复任务', msg=f'请先删除重复任务, task_id={task_id}', _type='error'), no_update, ''
     # 构造timed_job记录
     dct = dict(
         task_id=task_id,

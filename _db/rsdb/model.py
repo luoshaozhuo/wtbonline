@@ -342,7 +342,7 @@ class TimedTask(db.Model):
     __tablename__ = 'timed_task'
 
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.String(20, 'utf8mb4_general_ci'), nullable=False)
+    task_id = db.Column(db.String(50, 'utf8mb4_general_ci'), nullable=False)
     status = db.Column(db.String(30, 'utf8mb4_general_ci'), nullable=False, info='状态，如create，added，summit，fail')
     func = db.Column(db.String(100, 'utf8mb4_general_ci'), nullable=False)
     type = db.Column(db.String(10, 'utf8mb4_general_ci'), nullable=False, info='任务类型')

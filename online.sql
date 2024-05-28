@@ -11,7 +11,7 @@
  Target Server Version : 80400 (8.4.0)
  File Encoding         : 65001
 
- Date: 28/05/2024 11:27:52
+ Date: 28/05/2024 16:13:57
 */
 
 SET NAMES utf8mb4;
@@ -414,7 +414,7 @@ CREATE TABLE `statistics_sample`  (
 DROP TABLE IF EXISTS `timed_task`;
 CREATE TABLE `timed_task`  (
   `id` int NOT NULL AUTO_INCREMENT,
-  `task_id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `task_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `status` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '状态，如create，added，summit，fail',
   `func` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `type` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '任务类型',
