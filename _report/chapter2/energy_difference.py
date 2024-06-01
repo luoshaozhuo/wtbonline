@@ -11,14 +11,11 @@
 import pandas as pd
 
 from wtbonline._report.common import LOGGER, standard
-from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._report.base import Base
 from wtbonline._db.tsdb_facade import TDFC
 from wtbonline._plot.classes.power_compare import PowerCompare
 
 #%% constant
-DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
-
 #%% class
 class EnergyDifference(Base):
     '''
@@ -34,7 +31,7 @@ class EnergyDifference(Base):
         title = '发电量差异'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = {}
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -57,7 +54,7 @@ class EnergyDifference(Base):
 
         fault_df = []
         for i in tbl_df['device_id'].unique():
-            temp = PGFacade.read_data_fault(device_id=i, start_time=start_date, end_time=end_date)
+            temp = self.PGFC.read_data_fault(device_id=i, start_time=start_date, end_time=end_date)
             if len(temp)>0:
                 fault_df.append(temp)
         fault_df = pd.concat(fault_df)
@@ -70,20 +67,20 @@ class EnergyDifference(Base):
         tbl_df = pd.merge(tbl_df, fault_df, how='left').fillna(0)
         tbl_df['故障次数'] = tbl_df['故障次数'].astype(int)
         tbl_df = standard(set_id, tbl_df)
+        cols = ['device_name', '发电量（kWh）', '10%/90%分位数', '故障次数', '故障持续时间(小时)']
+        tables.update({f'表 {index}.1 发电量低于10%或高于90%机组故障统计结果':tbl_df[cols]})
         
         # 图形
         pc = PowerCompare()
         graphs = {}
         for i in range(len(tbl_df['device_id'])):
             device_id = tbl_df['device_id'].iloc[i]
-            title = f'图 {index}.{i+1} {DEVICE_DF["device_name"].loc[device_id]}'
+            title = f'图 {index}.{i+1} {self.devide_df["device_name"].loc[device_id]}'
             graphs.update({title:pc.plot(set_id, device_id, start_date, end_date)}) 
 
         # 总结
         conclusion = f'{len(top_10)}台机组超过90%分位数，{len(last_10)}台机组低于10%分位数，如下表所示。'  
-        
-        cols = ['device_name', '发电量（kWh）', '10%/90%分位数', '故障次数', '故障持续时间(小时)']
-        return self._compose(index, heading, conclusion, {f'表 {index}.1 发电量低于10%或高于90%机组故障统计结果':tbl_df[cols]}, graphs, temp_dir)
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir)
         
 #%% main
 if __name__ == "__main__":

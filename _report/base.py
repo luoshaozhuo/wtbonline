@@ -39,6 +39,8 @@ class Base():
         self.successors = make_sure_list(successors)
         self.title = title
         self.RSDBFC = RSDBFacade()
+        self.PGFC = PGFacade()
+        self.devide_df = self.PGFC.read_model_device().set_index('device_id')
     
     def _compose(self, index:str, heading:str, conclusion:str='', tables={}, graphs={}, temp_dir:str=None, width=1000, height=None):
         assert temp_dir is not None if (len(tables)>0 or len(graphs)>0) else True, '未指定临时目录'

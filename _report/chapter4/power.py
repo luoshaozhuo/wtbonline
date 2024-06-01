@@ -32,7 +32,7 @@ class Power(Base):
         heading = f'{index} {title}'
         conclusion = ''
         df = None
-        tbl_df = {}
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -71,7 +71,7 @@ class Power(Base):
             
         # 总结
         conclusion = f'各风速区间功率如下表所示，其中超出3倍四分位距的值标红显示。'
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir) 
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir) 
         
 #%% main
 if __name__ == "__main__":

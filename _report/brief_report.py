@@ -62,4 +62,4 @@ def build_brief_report_all(*args, **kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    build_brief_report_all(end_time='2024-04-01', delta=30)
+    build_brief_report_all(end_time='2023-10-01', delta=30)

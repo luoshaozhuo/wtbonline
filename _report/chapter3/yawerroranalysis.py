@@ -29,7 +29,7 @@ class YawErrorAnalysis(Base):
         title = '偏航误差分析'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = {}
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -45,7 +45,7 @@ class YawErrorAnalysis(Base):
             i += 1
 
         conclusion = '无足够数据进行分析。' if len(graphs)<1 else '不同机组在各风速区间偏航误差如下所示，请结合实际修正误差。'
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir, height=1000)
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir, height=1000)
         
 #%% main
 if __name__ == "__main__":

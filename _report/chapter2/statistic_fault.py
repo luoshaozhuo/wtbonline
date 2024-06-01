@@ -12,7 +12,6 @@ import pandas as pd
 import plotly.express as px
 
 from wtbonline._report.common import LOGGER, standard, FAULT_TYPE_DF, FARMCONF_DF
-from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._report.base import Base
 
 
@@ -31,14 +30,14 @@ class StatisticFault(Base):
         title = '故障统计'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = {}
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
         # 原始数据
         is_offshore = FARMCONF_DF['is_offshore'].loc[set_id]
         sub_df = FAULT_TYPE_DF[(FAULT_TYPE_DF['is_offshore']==is_offshore) & (FAULT_TYPE_DF['type']=='fault')]
-        df = RSDBFacade.read_statistics_fault(
+        df = self.RSDBFC.read_statistics_fault(
             set_id=set_id,
             fault_id=sub_df['id'],
             start_time=start_date,
@@ -49,12 +48,13 @@ class StatisticFault(Base):
         df = standard(set_id, df)
         if len(df)==0:
             conclusion = '统计时间段内没发生指定故障。'
-            return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir) 
+            return self._compose(index, heading, conclusion, tables, graphs, temp_dir) 
         
         # 表格
         tbl_df = df.groupby(['name', 'device_name']).agg({'device_id':len}).reset_index()
         tbl_df.sort_values(['name', 'device_id'], inplace=True, ascending=False)
         tbl_df.columns = ['故障名称', '设备名称', '故障次数']
+        tables.update({f'表 {index}.1 故障统计结果':tbl_df})
         
         # 图形
         plot_df = df.groupby(['date', 'name']).agg({'device_id':len}).reset_index().rename(columns={'device_id':'count'})
@@ -78,7 +78,7 @@ class StatisticFault(Base):
         stat_df = df.groupby(['name'])
         descr = '，'.join([f'{name}发生{len(grp)}次' for name,grp in df.groupby('name')])
         conclusion = f'总共发生故障{len(df)}次，其中{descr}。'
-        return self._compose(index, heading, conclusion, {f'表 {index}.1 故障统计结果':tbl_df}, graphs, temp_dir) 
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir) 
         
 #%% main
 if __name__ == "__main__":

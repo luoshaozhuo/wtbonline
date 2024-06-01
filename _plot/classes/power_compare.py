@@ -8,7 +8,6 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import numpy as np
 
-from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._process.tools.filter import normal_production
@@ -18,7 +17,6 @@ COL_AUG = [
     'device_id', 'totalfaultbool_mode','totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'workmode_mode',
     'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'pv_c'
     ]
-DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class PowerCompare(Base):
@@ -56,7 +54,7 @@ class PowerCompare(Base):
 
     def get_title(self, set_id, device_ids, ytitles):
         if len(device_ids)==1:
-            return DEVICE_DF['device_name'].loc[device_ids[0]]
+            return self.devie_df['device_name'].loc[device_ids[0]]
         return '机组功率控制效果'
 
     def build(self, data, ytitles):

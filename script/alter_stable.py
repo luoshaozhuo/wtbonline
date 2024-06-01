@@ -8,13 +8,15 @@ luosz
 import pandas as pd
 from wtbonline._db.tsdb_facade import TDFC
 
-SRC_PATHNAME = '/mnt/d/BaiduNetdiskDownload/luo/home/luo/s10003/2023-10-09.csv'
+SRC_PATHNAME = '/mnt/d/BaiduNetdiskDownload/home/luo/s10007/2023-10-09.csv'
 
 def main(pathname=SRC_PATHNAME):
     df = pd.read_csv(pathname)
     fields = TDFC.get_filed(set_id='20835', remote=True)
-    columns = fields[~fields.isin(df.columns)]
+    columns = fields[~fields.isin(df.columns.tolist())]
     for i in columns:
+        if i=='device':
+            continue
         rs = TDFC.query(f'ALTER TABLE scada.s_20835 DROP COLUMN {i};', remote=True)
         print(i, rs)
     print(len(fields), len(TDFC.get_filed(set_id='20835', remote=True)))

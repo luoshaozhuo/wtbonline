@@ -250,6 +250,13 @@ layout = [
 
 #%% callback
 @callback(
+    Output(get_component_id('datepicker_start_date'), 'minDate'),
+    Output(get_component_id('datepicker_start_date'), 'click'),
+)
+def callback_update_datepicker_start_date(n):
+    return pd.Timestamp.now().date()
+
+@callback(
     Output(get_component_id('acticon_start'), 'disabled'), 
     Output(get_component_id('acticon_pause'), 'disabled'), 
     Output(get_component_id('acticon_delete'), 'disabled'), 

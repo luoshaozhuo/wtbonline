@@ -22,11 +22,11 @@ from wtbonline._db.tsdb_facade import TDFC
 #%% class
 class Anomaly(Base):
     '''
-    >>> obj = Base(successors=[Anomaly(om_id=1)])
+    >>> obj = Base(successors=[Anomaly(om_id=3)])
     >>> outpath = '/mnt/d/'
     >>> set_id = '20835'
-    >>> start_date = '2024-03-01'
-    >>> end_date = '2024-04-01'
+    >>> start_date = '2023-08-01'
+    >>> end_date = '2023-10-01'
     >>> pathanme = obj.build_report(set_id=set_id, start_date=start_date, end_date=end_date, outpath=outpath)
     '''
     def __init__(self, successors=[], title='', om_id:str=None):
@@ -43,7 +43,7 @@ class Anomaly(Base):
         heading = f'{index} {title}'
         conclusion = ''
         df = None
-        tbl_df = {}
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -52,7 +52,7 @@ class Anomaly(Base):
         cols = var_names[var_names.isin(TDFC.get_filed(set_id, remote=True))]
         if len(cols)==0:
             raise ValueError(f'tdengine里没有以下字段中任何一个:{var_names}')
-        var_names = cols
+        var_names = cols.tolist()
         
         # 原始数据
         # 使用tdengine对莱州的d_s10005机组var_15041字段进行PERCENTILE计算时会报InvalidChunkLength错误
@@ -151,7 +151,7 @@ class Anomaly(Base):
             
         # 总结
         conclusion = f'以每一台机组的{system}的关键参数的中值的±3倍四分位距为边界，识别离群数据，结果如下面的表格所示。'
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir) 
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir) 
         
 #%% main
 if __name__ == "__main__":

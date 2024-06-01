@@ -31,7 +31,7 @@ class EnergyRating(Base):
         title = '发电量排名'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = {}
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -70,7 +70,7 @@ class EnergyRating(Base):
             fig.layout.update({'title': f'{start_date}至{end_date}累积发电量'})
             graphs.update({f'排名{i*10+1}至{i*10+10}':fig})
 
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir)
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir)
         
 #%% main
 if __name__ == "__main__":

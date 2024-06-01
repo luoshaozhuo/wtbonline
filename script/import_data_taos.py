@@ -9,9 +9,9 @@ from pathlib import Path
 import pandas as pd
 
 #%% constant
-SRC_PATH = Path('/mnt/d/BaiduNetdiskDownload/luo/home/luo') # csv文件路径
-OUT_PATH = Path('/mnt/d/BaiduNetdiskDownload/luo/home/luo') # insert_data.sql文件输出路径
-SQL_PATH = Path('/home/d/BaiduNetdiskDownload/luo/home/luo') # sql 语句里的csv路径
+SRC_PATH = Path('/mnt/d/BaiduNetdiskDownload/home/luo') # csv文件路径
+OUT_PATH = Path('/mnt/d/BaiduNetdiskDownload/home/luo') # insert_data.sql文件输出路径
+SQL_PATH = Path('/home/d/BaiduNetdiskDownload/home/luo') # sql 语句里的csv路径
 DBNAME = 'scada'
 TB_PREFIX = 'd_'
 

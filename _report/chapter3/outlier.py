@@ -29,7 +29,7 @@ class Outlier(Base):
         title = '离群识别'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = {}
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -38,7 +38,7 @@ class Outlier(Base):
             ).drop_duplicates('sample_id')
         if len(anormaly_df)<1:
             conclusion = '通过对转矩、转速、叶片角度、偏航误差、机组振动等进行分析，本期报告时段内无离群值识别记录。'
-            return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir) 
+            return self._compose(index, heading, conclusion, tables, graphs, temp_dir) 
         
         label_df = self.RSDBFC.read_model_label(set_id=set_id).drop_duplicates('sample_id')
         total = anormaly_df.shape[0]
@@ -61,7 +61,7 @@ class Outlier(Base):
         total = anormaly_df.shape[0]
         left = total - label_df.shape[0]
         conclusion = f'通过对转矩、转速、叶片角度、偏航误差、机组振动等进行分析，本期报告时段内共有离群数据：{total}条, 待鉴别{left}条，具体如下所示。'
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir) 
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir) 
         
 #%% main
 if __name__ == "__main__":

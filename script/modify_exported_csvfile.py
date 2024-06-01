@@ -10,7 +10,7 @@ import pandas as pd
 from wtbonline._db.tsdb_facade import TDFC
 
 #%% constant
-SRC_PATH = Path('/mnt/d/BaiduNetdiskDownload/luo/home/luo/s10009') # csv文件路径
+SRC_PATH = Path('/mnt/d/BaiduNetdiskDownload/home/luo/s10003') # csv文件路径
 
 #%% fcuntion
 def remove_header(pathname):
@@ -33,9 +33,9 @@ def main(src_path=SRC_PATH):
             print(f'skip {pathname}')
             continue 
         print(pathname)
-        df = pd.read_csv(pathname, dtype='str').fillna('NULL')
+        df = pd.read_csv(pathname, dtype=object).fillna('NULL')
         if columns is None:
-            columns = get_reserved_columns(df)
+            columns = TDFC.get_filed(set_id='20835', remote=True).iloc[:-1]
         df[columns].to_csv(pathname, index=False, header=False)
 
 #%% main

@@ -11,13 +11,12 @@ from sklearn.linear_model import LinearRegression
 
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
-from wtbonline._db.postgres_facade import PGFacade
+
 from wtbonline._process.tools.filter import normal_production
 
 #%% constant
 COL_AUG = ['totalfaultbool_mode', 'totalfaultbool_nunique', 'ongrid_mode', 'ongrid_nunique', 'pv_c',
            'workmode_mode', 'workmode_nunique', 'limitpowbool_mode', 'limitpowbool_nunique', 'evntemp_mean', 'bin']
-DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class YawError(Base):
@@ -34,7 +33,7 @@ class YawError(Base):
     
     def get_title(self, set_id, device_ids, ytitles):
         sr = pd.Series(device_ids).sort_values()
-        return DEVICE_DF['device_name'].loc[sr[0]]
+        return self.devie_df['device_name'].loc[sr[0]]
     
     def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]]):
         sr = pd.Series(device_ids).sort_values()

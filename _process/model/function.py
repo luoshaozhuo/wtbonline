@@ -6,13 +6,15 @@ from typing import Union, List, Optional
 from pathlib import Path
 import pickle
  
-from wtbonline._db.rsdb.dao import RSDB
+from wtbonline._db.rsdb.dao import RSDBDAO
 from wtbonline._db.rsdb_facade import RSDBFacade
 from wtbonline._common.utils import make_sure_datetime, make_sure_list
 from wtbonline._process.model import _LOGGER, model_factory
 from wtbonline._db.postgres_facade import PGFacade
 
 #%% constant
+RSDB = RSDBDAO()
+RSDBFC = RSDBFacade()
 PATH = Path(RSDBFacade().read_app_configuration(key_='model_path')['value'].iloc[0])
 PATH.mkdir(exist_ok=True)
 
@@ -39,7 +41,7 @@ def train_all(end_time, delta:int, type_:str='anomaly', **kwargs):
     err_msg = []
     for _, row in device_df.iterrows():
         clf = model_factory(type_, minimum=minimum, test_size=test_size)  
-        df = RSDBFacade.read_statistics_sample(
+        df = RSDBFC.read_statistics_sample(
             set_id=row['set_id'], 
             device_id=row['device_id'], 
             start_time=start_time, 
@@ -62,7 +64,7 @@ def load_latest_model(set_id, device_id, type_='anomaly'):
     '''
     >>> load_latest_model('20625', 'd10001', type_='anomaly')
     '''
-    df = RSDBFacade.read_model(set_id=set_id, device_id=device_id, type_=type_)
+    df = RSDBFC.read_model(set_id=set_id, device_id=device_id, type_=type_)
     if len(df)>0:
         uuid = df['uuid'].iloc[-1]
     else:
@@ -86,13 +88,13 @@ def predict_all(end_time, delta:int, type_:str='anomaly', **kwargs):
     nsample = kwargs.get('nsample', 30)
     end_time = make_sure_datetime(end_time)
     start_time = end_time - pd.Timedelta(f"{delta}d") 
-    device_df = PGFacade.read_model_device()[['set_id', 'device_id']]
+    device_df = PGFacade().read_model_device()[['set_id', 'device_id']]
     clf = model_factory(type_)
     columns = clf.columns + ['bin', 'id']
     err_msg = []
     for _, row in device_df.iterrows():
         _LOGGER.info(f"predict {row['set_id']} {row['device_id']}")
-        df = RSDBFacade.read_statistics_sample(
+        df = RSDBFC.read_statistics_sample(
             set_id=row['set_id'], 
             device_id=row['device_id'], 
             start_time=start_time, 
@@ -118,5 +120,5 @@ def predict_all(end_time, delta:int, type_:str='anomaly', **kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    train_all(end_time='2024-01-01', delta=300, minimum=200)
-    predict_all(end_time='2024-04-01', delta=120, nsample=30)
+    train_all(end_time='2023-08-01', delta=365, minimum=2000)
+    predict_all(end_time='2023-10-01', delta=60, nsample=30)

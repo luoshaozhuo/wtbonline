@@ -9,7 +9,6 @@ import pandas as pd
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
 from wtbonline._process.tools.filter import normal_production
-from wtbonline._db.postgres_facade import PGFacade
 
 #%% constant
 ANOMALY_MATRIX_PLOT_COLOR = {
@@ -23,8 +22,6 @@ COLUMNS_AUG = [
     'set_id', 'device_id', 'pv_c', 'limitpowbool_mode', 'limitpowbool_nunique', 'workmode_mode', 
     'workmode_nunique', 'ongrid_mode', 'ongrid_nunique', 'totalfaultbool_mode', 'totalfaultbool_nunique', 'id', 'bin'
     ]
-
-DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class Anomaly(Base):
@@ -54,7 +51,7 @@ class Anomaly(Base):
         self.showlegend = False
     
     def get_title(self, set_id, device_ids, ytitles):
-        return DEVICE_DF.loc[device_ids[0], 'device_name']
+        return self.devie_df.loc[device_ids[0], 'device_name']
     
     def read_data(self, set_id:str, device_ids:List[str], start_time:str, end_time:str, var_names:Union[str, List[str]]):
         # 仅绘制单台机组

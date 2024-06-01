@@ -8,6 +8,8 @@
 # """
 
 #%% import
+import pandas as pd
+
 from wtbonline._report.common import FAULT_TYPE_DF, FARMCONF_DF, plot_stat, plot_sample_ts, standard, LOGGER
 from wtbonline._report.base import Base
 
@@ -18,9 +20,9 @@ class Degrading(Base):
     '''
     >>> obj = Base(successors=[Degrading()])
     >>> outpath = '/mnt/d/'
-    >>> set_id = '20080'
-    >>> start_date = '2023-10-01'
-    >>> end_date = '2024-04-01'
+    >>> set_id = '20835'
+    >>> start_date = '2023-08-01'
+    >>> end_date = '2023-10-01'
     >>> pathanme = obj.build_report(set_id=set_id, start_date=start_date, end_date=end_date, outpath=outpath)
     '''
     
@@ -28,12 +30,11 @@ class Degrading(Base):
         title = '机组降容分析'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = None
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
-        is_offshore = FARMCONF_DF['is_offshore'].loc[set_id]
-        sub_df = FAULT_TYPE_DF[(FAULT_TYPE_DF['is_offshore']==is_offshore) & (FAULT_TYPE_DF['name']=='机组降容')]
+        sub_df = FAULT_TYPE_DF[FAULT_TYPE_DF['name']=='机组降容']
         record_df = self.RSDBFC.read_statistics_fault(
             fault_id=sub_df['id'],
             start_time=start_date,
@@ -42,13 +43,14 @@ class Degrading(Base):
         record_df = standard(set_id, record_df)
         if len(record_df)<1:
             conclusion = '报告期内没有发生机组降容。'
-            return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir)
+            return self._compose(index, heading, conclusion, tables, graphs, temp_dir)
         ext_df = pd.merge(record_df, sub_df, left_on='fault_id', right_on='id', how='left')
         
         # 表
         tbl_df = ext_df.groupby(['cause', 'device_name'])['device_id'].count().reset_index()
         tbl_df.sort_values(['cause', 'device_id'], inplace=True, ascending=False)
         tbl_df.columns = ['降容原因', '机组名', '发生次数']
+        tables.update({f'表 {index}.1 降容原因统计结果':tbl_df})
         
         # 图
         rs = plot_stat(ext_df)
@@ -67,7 +69,7 @@ class Degrading(Base):
         group = ext_df.groupby('cause')
         stmt = '，'.join([f'{cause}发生{len(grp)}次' for cause,grp in group])
         conclusion = f'报告期内发生降容{len(ext_df)}次。其中{stmt}。'
-        return self._compose(index, heading, conclusion, {f'表 {index}.1 降容原因统计结果':tbl_df}, graphs, temp_dir)
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir)
         
 #%% main
 if __name__ == "__main__":

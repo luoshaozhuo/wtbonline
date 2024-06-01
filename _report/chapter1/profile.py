@@ -11,7 +11,6 @@
 import pandas as pd
 
 from wtbonline._report.common import LOGGER
-from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._report.base import Base
 from wtbonline._db.tsdb_facade import TDFC
 
@@ -30,7 +29,7 @@ class Profile(Base):
         title = '概况'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = {}
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
@@ -47,7 +46,7 @@ class Profile(Base):
         
         min_date = pd.to_datetime(sr['ts_first']).date()
         max_date = pd.to_datetime(sr['ts_last']).date()
-        farm_df = PGFacade().read_model_device(set_id=set_id)
+        farm_df = self.PGFC.read_model_device(set_id=set_id)
         n = len(TDFC.get_deviceID(set_id=set_id, remote=True))
         conclusion = f'''机组型号：{set_id}<br/>
             机组总数：{farm_df.shape[0]} 台<br/>
@@ -58,7 +57,7 @@ class Profile(Base):
             可统计结束时间：{max_date}<br/>
             '''
 
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir)
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir)
     
 #%% main
 if __name__ == "__main__":

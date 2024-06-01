@@ -11,13 +11,10 @@
 import numpy as np
 
 from wtbonline._report.common import LOGGER, standard
-from wtbonline._db.rsdb_facade import RSDBFacade
-from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._report.base import Base
 from wtbonline._plot.classes.powercurve import PowerCurve as PCurve
 
 #%% constant
-DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class PowerCurve(Base):
@@ -34,11 +31,11 @@ class PowerCurve(Base):
         title = '功率曲线'
         heading = f'{index} {title}'
         conclusion = ''
-        tbl_df = {}
+        tables = {}
         graphs = {}
         LOGGER.info(heading)
         
-        df = RSDBFacade.read_statistics_sample(set_id=set_id, columns={'bin':['count']}, start_time=start_date, end_time=end_date, groupby='device_id')
+        df = self.RSDBFC.read_statistics_sample(set_id=set_id, columns={'bin':['count']}, start_time=start_date, end_time=end_date, groupby='device_id')
         df = df[df['bin_count']>100]
         df = standard(set_id, df).sort_values('device_id')
         pc = PCurve()
@@ -48,7 +45,7 @@ class PowerCurve(Base):
             title = f'图 {index}.{i+1}'
             graphs.update({title:pc.plot(set_id, device_ids, start_date, end_date)}) 
         
-        return self._compose(index, heading, conclusion, tbl_df, graphs, temp_dir)
+        return self._compose(index, heading, conclusion, tables, graphs, temp_dir)
         
 #%% main
 if __name__ == "__main__":

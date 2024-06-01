@@ -111,14 +111,16 @@ def update_tsdb(*args, **kwargs):
             except  Exception as e:
                 _LOGGER.warn(f'failed to update_tsdb: {set_id}, {device_id}. \nmsg: {e}')
                 continue
-            dts = dtrm[~dtrm.isin(dtlc)]
-        for date in dts:
+            dates = dtrm[~dtrm.isin(dtlc)]
+        else:
+            dates = dts
+        for dt in dates:
             # 不更新当天数据
-            if date>=pd.Timestamp.now().date():
+            if dt>=pd.Timestamp.now().date():
                 continue
-            _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {device_id}, {date}')
+            _LOGGER.info(f'task_id={task_id} update_tsdb: {set_id}, {device_id}, {dt}')
             try:
-                load_tsdb(set_id, device_id, date)
+                load_tsdb(set_id, device_id, dt)
             except ValueError as e:
                 if '"code":866' in str(e):
                     continue
@@ -128,4 +130,4 @@ def update_tsdb(*args, **kwargs):
 if __name__ == "__main__":
     # import doctest
     # doctest.testmod()
-    update_tsdb(end_dt='2024-03-01')
+    update_tsdb()

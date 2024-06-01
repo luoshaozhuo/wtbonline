@@ -14,7 +14,6 @@ from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb_facade import RSDBFacade
 
 #%%
-DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class Base():
@@ -30,6 +29,8 @@ class Base():
         samples -- 最大绘图点数
         '''
         self.RSDBFC = RSDBFacade()
+        self.PGFC = PGFacade()
+        self.devie_df = self.PGFC.read_model_device().set_index('device_id')
         self.nsamples = nsamples
         self.samplling_rate = samplling_rate
         self.row_height = row_height
@@ -102,7 +103,7 @@ class Base():
                         mode=self.mode,           
                         marker={'opacity':0.5, 'size':4, 'color':colors[j%len(colors)]},
                         line={'color':colors[j%len(colors)]},
-                        name=DEVICE_DF.loc[device_id, 'device_name'],
+                        name=self.devie_df.loc[device_id, 'device_name'],
                         showlegend=(i==0)
                         ),
                     row=i+1, 

@@ -12,14 +12,12 @@ import pandas as pd
 from wtbonline._process.tools.frequency import power_spectrum, amplitude_spectrum
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
-from wtbonline._db.postgres_facade import PGFacade
 
 #%% constants
 TYPE_ = {
     'power_spectrum':power_spectrum, 
     'amplitude_spectrum':amplitude_spectrum
     }
-DEVICE_DF = PGFacade().read_model_device().set_index('device_id')
 
 #%% class
 class Spectrum(Base):
@@ -54,7 +52,7 @@ class Spectrum(Base):
         return df
     
     def get_title(self, set_id, device_ids, ytitles):
-        return DEVICE_DF.loc[device_ids[0], 'device_name']
+        return self.devie_df.loc[device_ids[0], 'device_name']
         
     def build(self, data, ytitles, **kwargs):
         # type_ 支持类型power_spectrum及amplitude_spectrum
@@ -83,7 +81,7 @@ class Spectrum(Base):
                         x=fft_df['freq'], 
                         y=fft_df['amp'], 
                         mode='lines+markers',
-                        name=DEVICE_DF.loc[device_id, 'device_name'],
+                        name=self.devie_df.loc[device_id, 'device_name'],
                         marker=dict(size=3,opacity=0.5,color=colors[i]), 
                         line=dict(color=colors[i]), 
                         showlegend=False

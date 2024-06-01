@@ -98,6 +98,8 @@ def rms(x):
     >>> rms(-1)
     1.0
     '''
+    if x.shape[0]<1:
+        return np.nan
     ms = x.pow(2).sum()/x.shape[0]
     return np.sqrt(ms)
 
@@ -134,7 +136,6 @@ def cv(x)->float:
     '''
     denom = x.median()
     denom = denom if abs(denom)>0 else EPS
-    nom = iqr(x)
     return iqr(x)/denom
 
 @_dec
@@ -163,6 +164,8 @@ def zc(x, thd=0)->float:
     if len(x)<2:
         return 0.0
     n = len(x) - 1
+    if n==0:
+        return np.nan
     x = x - x.mean()
     x = x.where(~x.between(-1*thd, thd), np.nan).dropna()
     count = np.sign(x).diff().abs().sum()

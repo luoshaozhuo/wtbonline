@@ -9,7 +9,6 @@ import plotly.express as px
 
 from wtbonline._plot.classes.base import Base
 from wtbonline._common.utils import make_sure_list
-from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._process.tools.filter import normal_production
 
 #%% constant
@@ -60,7 +59,7 @@ class PowerCurve(Base):
             sample_df.append(grp.sample(self.nsamples) if grp.shape[0]>self.nsamples else grp)
         sample_df = pd.concat(sample_df, ignore_index=True)
         # 读取保证功率曲线
-        power_curve_ref = PGFacade.read_model_powercurve_current(set_id=set_id)
+        power_curve_ref = self.PGFC.read_model_powercurve_current(set_id=set_id)
         return sample_df, power_curve, power_curve_ref
     
     def build(self, data, ytitles):
