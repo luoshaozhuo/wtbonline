@@ -116,6 +116,15 @@ layout = [
 
 #%% callback
 @callback(
+    Output(get_component_id('multiselect_device_id'), 'maxSelectedValues'),
+    Output(get_component_id('multiselect_device_id'), 'value', allow_duplicate=True),
+    Input(get_component_id('select_type'), 'value'),
+    prevent_initial_call=True,
+    )
+def callback_on_select_type_performance(type_):
+    return (1, []) if type_=='YawError' else (5, no_update)
+
+@callback(
     Output(get_component_id('multiselect_device_id'), 'data'),
     Output(get_component_id('multiselect_device_id'), 'value'),
     Input(get_component_id('select_setid'), 'value'),

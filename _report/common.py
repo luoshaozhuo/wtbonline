@@ -13,7 +13,6 @@ import numpy as np
 from platform import platform
 from typing import Union
 from datetime import date
-import plotly.express as px
 
 from reportlab.lib import utils, colors
 from reportlab.lib.pagesizes import A4
@@ -30,6 +29,7 @@ import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import matplotlib.pyplot as plt
 import plotly.express as px
+from plotly.subplots import make_subplots
 
 plt.rcParams['font.family']='sans-serif'        
 plt.rcParams['font.sans-serif']=['SimHei']
@@ -272,6 +272,35 @@ def plot_sample_ts(df):
             )
         graphs.append(fig)
     return graphs
+
+def plot_ts(df, var_names, set_id, x='ts', title=None, ncol=3):
+    var_names = make_sure_list(var_names)
+    point_sub = POINT_DF[POINT_DF['set_id']==set_id].set_index('var_name')
+    n = len(var_names) 
+    fig = make_subplots(int(n/ncol)+1, min(ncol,n), horizontal_spacing=0.1)
+    for i in range(n):
+        title_text = '_'.join(point_sub.loc[var_names[i], ['point_name', 'unit']])
+        row=int(i/ncol)+1
+        col=i%ncol+1
+        fig.add_trace(
+            go.Scatter(
+                x=df['ts'], 
+                y=df[var_names[i]],
+                mode='lines+markers',           
+                marker={'opacity':0.5, 'size':2},
+                ),
+            row=row,
+            col=col
+            )
+        fig.update_yaxes(title_text=title_text, row=row, col=col)
+    fig.update_xaxes(title_text='时间', row=1, col=1)
+    fig.update_layout(
+        showlegend=False,
+        width=1000, 
+        height=200*(int(n/3)+1),
+        margin=dict(l=20, r=20, t=20 if title in ('', None) else 70, b=20)
+        )
+    return fig
 
 def mail_report(pathname):
     farm = PGFacade().read_model_factory()['factory_name'].iloc[0]

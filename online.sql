@@ -11,7 +11,7 @@
  Target Server Version : 80400 (8.4.0)
  File Encoding         : 65001
 
- Date: 28/05/2024 16:13:57
+ Date: 04/06/2024 13:30:52
 */
 
 SET NAMES utf8mb4;
@@ -39,7 +39,7 @@ INSERT INTO `app_configuration` VALUES (4, 'log_path', '/var/local/wtbonline/log
 INSERT INTO `app_configuration` VALUES (5, 'cache_lifetime', '7', '数据缓存生存时间，天');
 INSERT INTO `app_configuration` VALUES (6, 'session_lifetime', '1', '登录超时时长，天');
 INSERT INTO `app_configuration` VALUES (7, 'email_address', 'luoshaozhuo@163.com', '接受报告的邮箱地址，多个地址用\';\'隔开');
-INSERT INTO `app_configuration` VALUES (8, 'send_email', '1', '0-不发送，非0-发送');
+INSERT INTO `app_configuration` VALUES (8, 'send_email', '0', '0-不发送，非0-发送');
 INSERT INTO `app_configuration` VALUES (9, 'email_account', 'hzfdtest@126.com_YHWERYTJAMTBCLBE_smtp.126.com_25', '用户名_授权码_host_port');
 
 -- ----------------------------
@@ -100,7 +100,7 @@ CREATE TABLE `model`  (
   UNIQUE INDEX `uuid`(`uuid` ASC) USING BTREE,
   UNIQUE INDEX `compoud`(`set_id` ASC, `device_id` ASC, `create_time` ASC) USING BTREE,
   INDEX `turbine_id`(`device_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 11 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '异常识别模型记录表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '异常识别模型记录表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of model
@@ -123,7 +123,7 @@ CREATE TABLE `model_anomaly`  (
   INDEX `turbine_id`(`device_id` ASC) USING BTREE,
   INDEX `sample_id`(`sample_id` ASC) USING BTREE,
   INDEX `set_id_2`(`set_id` ASC, `device_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 80 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '异常识别结果' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '异常识别结果' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of model_anomaly
@@ -168,7 +168,7 @@ CREATE TABLE `statistics_fault`  (
   `create_time` datetime NOT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `set_id`(`set_id` ASC, `device_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 44286 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of statistics_fault
@@ -402,7 +402,7 @@ CREATE TABLE `statistics_sample`  (
   INDEX `a`(`set_id` ASC, `device_id` ASC, `bin` ASC, `create_time` ASC) USING BTREE,
   INDEX `ix_statistics_sample_bin`(`bin` ASC) USING BTREE,
   INDEX `ix_statistics_sample_turbine_id`(`device_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 258974 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '10分钟样本统计量' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 442288 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '10分钟样本统计量' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of statistics_sample
@@ -425,7 +425,7 @@ CREATE TABLE `timed_task`  (
   `update_time` datetime NOT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `ix_timed_task_username`(`username` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '定期任务列表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 7 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '定期任务列表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of timed_task
@@ -442,7 +442,7 @@ CREATE TABLE `timed_task_log`  (
   `update_time` datetime NOT NULL COMMENT '运行开始时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `ix_timed_task_log_task_id`(`task_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 8 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '定期任务执行记录' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 20 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '定期任务执行记录' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of timed_task_log
@@ -826,12 +826,13 @@ CREATE TABLE `user`  (
   `privilege` int NOT NULL COMMENT '权限，1-具备账号管理功能，2-普通账户',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `username`(`username` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '系统用户' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '系统用户' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of user
 -- ----------------------------
-INSERT INTO `user` VALUES (1, 'admin', 'pbkdf2:sha256:260000$OBcshGdRulbnvt65$db230312eee30c161807a67f25cb6b2dbcb83b5f36d654b6379c54fc8336bfd9', 1);
+INSERT INTO `user` VALUES (1, 'admin', 'scrypt:32768:8:1$xg5qwM50E4KRjvdf$0df03f06083d1716a7da68a4547c6fedd7a98684c0520d66489260da87ea306548f140c9233fb112d411772072052b44c3efad063cf0a04175edbc45b1f19118', 1);
+INSERT INTO `user` VALUES (2, 'test', 'scrypt:32768:8:1$Mi4hM3qmTUo2gCPh$03006e23aa8bd87ad5d4dd4e2be904b1d02d7fe65590e4d56fa7797d3ac58d1e0670fd73979672309f74a899cf3f17ad39f666eb4ecd80fd9fffcb80924e7daa', 2);
 
 -- ----------------------------
 -- Table structure for windfarm_configuration

@@ -26,7 +26,7 @@ SECTION = '任务调度'
 SECTION_ORDER = 4
 ITEM = '后台任务'
 ITEM_ORDER = 1
-PREFIX = 'scheduler_job2'
+PREFIX = 'scheduler_job'
 
 TABLE_COLUMNS = ['图例号', 'map_id', 'start_time', 'end_time', 'set_id']
 TABLE_FONT_SIZE = '2px'
@@ -251,7 +251,7 @@ layout = [
 #%% callback
 @callback(
     Output(get_component_id('datepicker_start_date'), 'minDate'),
-    Output(get_component_id('datepicker_start_date'), 'click'),
+    Input(get_component_id('datepicker_start_date'), 'click'),
 )
 def callback_update_datepicker_start_date(n):
     return pd.Timestamp.now().date()

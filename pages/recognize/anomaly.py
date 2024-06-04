@@ -330,7 +330,7 @@ def callback_on_select_data_anomaly(selectedData, fig, ycols):
     sample_id = fig['data'][0]['customdata'][selected_points[0]]
     # 查询数据样本
     df, note = dcmpt.dash_dbquery(
-        func=RSDBFacade.read_statistics_sample,
+        func=RSDBFC.read_statistics_sample,
         id_=sample_id,
         columns=columns
         )

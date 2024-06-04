@@ -3,10 +3,10 @@ import numpy as np
 from typing import List, Union
 
 from wtbonline._db.tsdb_facade import TDFC
-from wtbonline._db.rsdb_facade import RSDBFacade
+from wtbonline._db.rsdb_facade import RSDBFC
 from wtbonline._db.config import get_td_local_connector, get_td_remote_restapi
 from wtbonline._common.utils import make_sure_list
-from wtbonline._db.postgres_facade import PGFacade
+from wtbonline._db.postgres_facade import PGFC
 from wtbonline._db.rsdb.dao import RSDB
 
 EPS = np.finfo(np.float32).eps
@@ -19,12 +19,12 @@ def concise(sql):
 
 def get_all_table_tags(set_id=None, remote=False):
     if set_id is None:
-        set_ids = RSDBFacade.read_windfarm_configuration()['set_id'].unique()
+        set_ids = RSDBFC.read_windfarm_configuration()['set_id'].unique()
     else:
         set_ids = make_sure_list(set_id)
     rev = []
     for i in set_ids:
-        temp = TDFC.get_table_tags(i, remote).to_frame()
+        temp = TDFC.get_deviceID(i, remote).to_frame()
         temp.insert(0, 'set_id', i)
         rev.append(temp)
     rev = pd.concat(rev, ignore_index=True)
@@ -34,9 +34,9 @@ def get_all_table_tags(set_id=None, remote=False):
 def standard(set_id, df):
     ''' 按需增加turbine_id、测点名称、设备编号 '''
     df = df.copy()
-    conf_df = RSDBFacade.read_windfarm_configuration(set_id=set_id)
+    conf_df = RSDBFC.read_windfarm_configuration(set_id=set_id)
     if 'var_name' in df.columns and ('测点名称' not in df.columns) :
-        point_df = RSDBFacade.read_turbine_model_point(set_id=set_id)
+        point_df = RSDBFC.read_turbine_model_point(set_id=set_id)
         dct = {row['var_name']:row['point_name'] for _,row in point_df.iterrows()}
         df.insert(0, 'point_name', df['var_name'].replace(dct))
     df = pd.merge(df, conf_df[['set_id', 'turbine_id', 'map_id']], how='inner')
@@ -71,7 +71,7 @@ def get_date_range_tsdb(device_id=None, remote=True):
     0  20835    s10003         A03  2022-12-18  2023-10-10
     '''
     columns = {'ts':['first', 'last']}
-    device_df = PGFacade.read_model_device(device_id=device_id)
+    device_df = PGFC.read_model_device(device_id=device_id)
     rev = []
     for _,row  in device_df.iterrows():
         df = TDFC.read(
@@ -90,7 +90,7 @@ def get_date_range_tsdb(device_id=None, remote=True):
     rev = rev.rename(columns={'ts_first':'start_date', 'ts_last':'end_date'})
     rev['start_date'] = pd.to_datetime(rev['start_date']).dt.date
     rev['end_date'] = pd.to_datetime(rev['end_date']).dt.date 
-    device_df = PGFacade.read_model_device()[['device_id', 'device_name']]
+    device_df = PGFC.read_model_device()[['device_id', 'device_name']]
     rev = pd.merge(rev, device_df, how='left')
     rev = rev.sort_values('device_id')    
     columns = ['set_id','device_id','device_name', 'start_date','end_date'] 
@@ -106,7 +106,7 @@ def get_date_range_statistics_sample(device_id:Union[str, List[str]]=None):
       set_id device_id device_name  start_date    end_date
     0  20835    s10003         A03  2022-12-18  2023-10-10
     '''
-    rev = RSDBFacade.read_statistics_sample(
+    rev = RSDBFC.read_statistics_sample(
         device_id=device_id, 
         columns={'bin':['min', 'max']},
         groupby=['set_id', 'device_id']
@@ -114,7 +114,7 @@ def get_date_range_statistics_sample(device_id:Union[str, List[str]]=None):
     rev = rev.rename(columns={'bin_min':'start_date', 'bin_max':'end_date'})
     rev['start_date'] = pd.to_datetime(rev['start_date']).dt.date
     rev['end_date'] = pd.to_datetime(rev['end_date']).dt.date    
-    device_df = PGFacade.read_model_device()[['device_id', 'device_name']]
+    device_df = PGFC.read_model_device()[['device_id', 'device_name']]
     rev = pd.merge(rev, device_df, how='left')   
     rev = rev.sort_values('device_id')
     columns = ['set_id','device_id','device_name', 'start_date','end_date'] 

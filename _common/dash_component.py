@@ -6,7 +6,6 @@ from dash import html
 import traceback
 
 import wtbonline.configure as cfg
-from wtbonline._db.rsdb_facade import RSDBFacade
 
 #%% constant
 GENERAL_GRAPH = [

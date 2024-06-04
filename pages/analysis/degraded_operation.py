@@ -48,7 +48,7 @@ def load_figure(sample_id, var_names):
     sample_sr = df.iloc[0]
     fault_type_sr = cfg.WINDFARM_FAULT_TYPE.loc[sample_sr['fault_id']]
     grapp_name = fault_type_sr['graph']
-    graph_obj = graph_factory.get(grapp_name)(row_height=200)
+    graph_obj = graph_factory.get(grapp_name)(row_height=300)
     if grapp_name=='ordinary':
         graph_obj.init(var_names=var_names)
     delta = pd.Timedelta(f"{max(int(fault_type_sr['time_span']), 1)}m")
@@ -281,7 +281,7 @@ def callback_on_select_itemid_dg(id_, set_id):
     if id_ in (None, ''):
         return no_update, disabled, data, value
     df, note = dcmpt.dash_dbquery(
-        func=RSDBFacade.read_statistics_fault,
+        func=RSDBFC.read_statistics_fault,
         id_=id_
         )
     if note is None:
@@ -289,6 +289,7 @@ def callback_on_select_itemid_dg(id_, set_id):
         type_sr = FAULT_TYPE.loc[sr['fault_id'], :]
         if type_sr['graph']=='ordinary':
             df = cfg.WINDFARM_VAR_NAME[cfg.WINDFARM_VAR_NAME['set_id']==set_id]
+            df = df[df['var_name'].isin(TDFC.get_filed(set_id=set_id, remote=True))]
             data = [{'label':row['point_name'], 'value':row['var_name']} for _,row in df.iterrows()]
             value = pd.Series(type_sr['var_names'].split(','))
             value = value[value.isin(df['var_name'])].head(MAX_VALUES).tolist()
@@ -304,10 +305,11 @@ def callback_on_select_itemid_dg(id_, set_id):
     Output(get_component_id('btn_download_tdengine'), 'disabled'),
     Output(get_component_id('btn_download_plc'), 'disabled'),
     Input(get_component_id('select_itemid'), 'value'), 
+    Input(get_component_id('select_var_name'), 'value'),
     prevent_initial_call=True
     )
-def callback_disable_btns_dg(value):
-    disabled = value in [None, '']
+def callback_disable_btns_dg(v1, v2):
+    disabled = pd.Series([v1, v2]).isin([None, '', []]).any()
     return [disabled]*3
 
 @callback(
@@ -335,7 +337,7 @@ def callback_on_btn_refresh_dg(n, sample_id, var_names):
     )
 def callback_on_btn_download_tdengine_dg(n, set_id, device_id, sample_id):
     df, note = dcmpt.dash_dbquery(
-        func=RSDBFacade.read_statistics_fault,
+        func=RSDBFC.read_statistics_fault,
         id_=sample_id
         )
     if note is not None:
@@ -369,11 +371,11 @@ def callback_on_btn_download_tdengine_dg(n, set_id, device_id, sample_id):
     prevent_initial_call=True
     )
 def callback_on_btn_download_plc_dg(n, set_id, device_id, sample_id):
-    pass
+    return None, []
 
 
 #%% main
 if __name__ == '__main__':     
     layout =  dmc.NotificationsProvider(children=layout)
     app.layout = layout
-    app.run_server(debug=True)
+    app.run_server(debug=False)

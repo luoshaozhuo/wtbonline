@@ -115,7 +115,7 @@ def create_toolbar_content():
                         leftIcon=DashIconify(icon="mdi:arrow-collapse-down", width=cfg.TOOLBAR_ICON_WIDTH),
                         size=cfg.TOOLBAR_COMPONENT_SIZE,
                         children="下载plc数据",
-                        color='green'
+                        color='green',
                         ),
                     ],
                 loaderProps={"size": "sm"},
@@ -281,7 +281,7 @@ def callback_on_select_itemid_fault(id_, set_id):
     if id_ in (None, ''):
         return no_update, disabled, data, value
     df, note = dcmpt.dash_dbquery(
-        func=RSDBFacade.read_statistics_fault,
+        func=RSDBFC.read_statistics_fault,
         id_=id_
         )
     if note is None:
@@ -335,7 +335,7 @@ def callback_on_btn_refresh_fault(n, sample_id, var_names):
     )
 def callback_on_btn_download_tdengine_fault(n, set_id, device_id, sample_id):
     df, note = dcmpt.dash_dbquery(
-        func=RSDBFacade.read_statistics_fault,
+        func=RSDBFC.read_statistics_fault,
         id_=sample_id
         )
     if note is not None:
@@ -369,11 +369,11 @@ def callback_on_btn_download_tdengine_fault(n, set_id, device_id, sample_id):
     prevent_initial_call=True
     )
 def callback_on_btn_download_plc_fault(n, set_id, device_id, sample_id):
-    pass
+    return None, []
 
 
 #%% main
 if __name__ == '__main__':     
     layout =  dmc.NotificationsProvider(children=layout)
     app.layout = layout
-    app.run_server(debug=True)
+    app.run_server(debug=False)
