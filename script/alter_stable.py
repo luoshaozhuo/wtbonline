@@ -8,7 +8,7 @@ luosz
 import pandas as pd
 from wtbonline._db.tsdb_facade import TDFC
 
-SRC_PATHNAME = '/mnt/d/BaiduNetdiskDownload/home/luo/s10007/2023-10-09.csv'
+SRC_PATHNAME = '/home/d/download/home/luo/s10001/2024-01-15.csv'
 
 def main(pathname=SRC_PATHNAME):
     df = pd.read_csv(pathname)

@@ -94,7 +94,7 @@ def update_statistic_sample(*args, **kwargs):
         _LOGGER.info(f'task_id={task_id} update_statistic_sample: {set_id}, {device_id}')
         tsdb_dates = get_dates_tsdb(device_id, remote=False)
         statistics_dates = dates_in_statistic_sample(set_id, device_id)
-        candidates = tsdb_dates[~tsdb_dates.isin(statistics_dates)]
+        candidates = tsdb_dates[~tsdb_dates.isin(statistics_dates)].drop_duplicates()
         for dt in candidates:
             _LOGGER.info(f'task_id={task_id} update_statistic_sample: {set_id}, {device_id}, {dt}')
             dt = make_sure_datetime(dt)

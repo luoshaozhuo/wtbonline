@@ -369,8 +369,37 @@ def callback_on_btn_download_tdengine_fault(n, set_id, device_id, sample_id):
     prevent_initial_call=True
     )
 def callback_on_btn_download_plc_fault(n, set_id, device_id, sample_id):
-    return None, []
+    df, note = dcmpt.dash_dbquery(
+        func=RSDBFC.read_statistics_fault,
+        id_=sample_id
+        )
+    if note is not None:
+        return note, no_update
+    sample_sr = df.iloc[0]
+    pathname, note = find_ibox_file(set_id, device_id, sample_sr['start_time'].strftime('%Y%m%d%H%M%S'))
+    if note is not None:
+        return note, no_update
+    data = dcc.send_file(str(pathname))
+    return None, data
 
+def find_ibox_file(set_id, device_id, date_:str):
+    n1 = len(cfg.IBOX_PREFIX)
+    n2 = len(date_)
+    srcpath = cfg.IBOX_OUTPATH/set_id/device_id/f'{date_[0:4]}/{date_[4:6]}/{date_[6:8]}'
+    pathnames = pd.Series([i for i in srcpath.rglob(cfg.IBOX_FILE_REGX)])
+    filenames = pathnames.apply(lambda x:str(x.name)[n1:(n1+n2)])
+    filenames = filenames[filenames<=date_]
+    if len(filenames)<1:
+        pathn = None
+        note = dcmpt.notification(
+            title=cfg.NOTIFICATION_TITLE_DBQUERY_NODATA,
+            msg=f'没有相应的ibox文件, 当前数据时间戳：{date_}',
+            _type='error'
+            )
+    else:
+        pathn = pathnames.loc[filenames.idxmax()]
+        note = None
+    return pathn, note
 
 #%% main
 if __name__ == '__main__':     

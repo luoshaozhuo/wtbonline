@@ -1,5 +1,6 @@
 import pandas as pd
 import dash_mantine_components as dmc
+from pathlib import Path
 
 from wtbonline._db.postgres_facade import PGFacade
 from wtbonline._db.rsdb_facade import RSDBFacade
@@ -93,5 +94,10 @@ SCHEDULER_TIMEOUT = 10
 
 _sess_lifttime = int(_RSDBFC.read_app_configuration(key_='session_lifetime')['value'].iloc[0])
 SESSION_LIFETIME = max(_sess_lifttime, 1)   #最少1天
+
+IBOX_OUTPATH = Path(_RSDBFC.read_app_configuration(key_='ibox_outpath').squeeze()['value'])
+IBOX_EXT = _RSDBFC.read_app_configuration(key_='ibox_extension').squeeze()['value']
+IBOX_PREFIX = _RSDBFC.read_app_configuration(key_='ibox_prefix').squeeze()['value']
+IBOX_FILE_REGX = f'{IBOX_PREFIX}*.{IBOX_EXT}'
 
 del _PGFC, _RSDBFC

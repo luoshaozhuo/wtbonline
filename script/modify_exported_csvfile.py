@@ -10,7 +10,7 @@ import pandas as pd
 from wtbonline._db.tsdb_facade import TDFC
 
 #%% constant
-SRC_PATH = Path('/mnt/d/BaiduNetdiskDownload/home/luo/s10003') # csv文件路径
+SRC_PATH = Path('/home/d/download/home/luo/s10001') # csv文件路径
 
 #%% fcuntion
 def remove_header(pathname):
