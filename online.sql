@@ -3,15 +3,15 @@
 
  Source Server         : mysql
  Source Server Type    : MySQL
- Source Server Version : 80400 (8.4.0)
- Source Host           : 172.24.164.57:40004
+ Source Server Version : 80100 (8.1.0)
+ Source Host           : 172.30.6.195:40004
  Source Schema         : online
 
  Target Server Type    : MySQL
- Target Server Version : 80400 (8.4.0)
+ Target Server Version : 80100 (8.1.0)
  File Encoding         : 65001
 
- Date: 04/06/2024 13:30:52
+ Date: 29/08/2024 11:20:44
 */
 
 SET NAMES utf8mb4;
@@ -27,7 +27,7 @@ CREATE TABLE `app_configuration`  (
   `value` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '实际值',
   `comment` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '说明',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 10 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '参数设置' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 17 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '参数设置' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of app_configuration
@@ -41,6 +41,13 @@ INSERT INTO `app_configuration` VALUES (6, 'session_lifetime', '1', '登录超�
 INSERT INTO `app_configuration` VALUES (7, 'email_address', 'luoshaozhuo@163.com', '接受报告的邮箱地址，多个地址用\';\'隔开');
 INSERT INTO `app_configuration` VALUES (8, 'send_email', '0', '0-不发送，非0-发送');
 INSERT INTO `app_configuration` VALUES (9, 'email_account', 'hzfdtest@126.com_YHWERYTJAMTBCLBE_smtp.126.com_25', '用户名_授权码_host_port');
+INSERT INTO `app_configuration` VALUES (10, 'ibox_outpath', '/var/local/wtbonline/ibox', '高频文件存放路径');
+INSERT INTO `app_configuration` VALUES (11, 'ibox_srcpath', '/ram0', 'plc里高频文件路径');
+INSERT INTO `app_configuration` VALUES (12, 'ibox_extension', 'zip', '高频文件扩展名');
+INSERT INTO `app_configuration` VALUES (13, 'ibox_prefix', 'ibox', '高频文件名前缀');
+INSERT INTO `app_configuration` VALUES (14, 'ibox_port', '49021', 'ftp端口');
+INSERT INTO `app_configuration` VALUES (15, 'ibox_user', 'root', NULL);
+INSERT INTO `app_configuration` VALUES (16, 'ibox_passwd', NULL, '');
 
 -- ----------------------------
 -- Table structure for app_server
@@ -65,7 +72,7 @@ CREATE TABLE `app_server`  (
 -- ----------------------------
 INSERT INTO `app_server` VALUES (1, 'tdengine', '192.168.0.12', '2.2.2.10', 1, 'restapi', 6041, 'root', 'gAAAAABk1OpyQl28ffKF6SosFzNjiyF6fKHO-Yy0D8UEEbK8Z9oKcsfsfabTTjWcIz_A2ZbjK6XmoQVNEsS71ThLriL0NF6m8A==', 'scada');
 INSERT INTO `app_server` VALUES (2, 'tdengine', '192.168.0.2', '3.1.0.0', 0, 'native', 6030, 'root', 'gAAAAABk1OpyQl28ffKF6SosFzNjiyF6fKHO-Yy0D8UEEbK8Z9oKcsfsfabTTjWcIz_A2ZbjK6XmoQVNEsS71ThLriL0NF6m8A==', 'windfarm');
-INSERT INTO `app_server` VALUES (3, 'postgres', '192.168.0.32', '13.14', 1, 'native', 5432, 'postgres', 'gAAAAABl6wDvdSK3zSU24o8pYtVAjauInz-H7paKA5GDmoR8qc4zuKHHG3KUhOiMCVowB1H1ang7xiBQ7uP5qz99dV7uCejPTA==', 'scada');
+INSERT INTO `app_server` VALUES (3, 'postgres', '192.168.0.13', '13.14', 1, 'native', 5432, 'postgres', 'gAAAAABl6wDvdSK3zSU24o8pYtVAjauInz-H7paKA5GDmoR8qc4zuKHHG3KUhOiMCVowB1H1ang7xiBQ7uP5qz99dV7uCejPTA==', 'scada');
 
 -- ----------------------------
 -- Table structure for apscheduler_jobs
@@ -736,7 +743,7 @@ CREATE TABLE `turbine_outlier_monitor`  (
   `type` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '温度 or 载荷',
   `var_names` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '要监控的变量名；逗号分割',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of turbine_outlier_monitor

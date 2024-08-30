@@ -20,7 +20,8 @@ PGFC = PGFacade()
 OUTPATH = Path(RSDBFC.read_app_configuration(key_='ibox_outpath').squeeze()['value'])
 EXT = RSDBFC.read_app_configuration(key_='ibox_extension').squeeze()['value']
 PREFIX = RSDBFC.read_app_configuration(key_='ibox_prefix').squeeze()['value']
-FILE_REGX = f'{PREFIX}*.{EXT}'
+FILE_REGX_LOCAL = f'{PREFIX}*.{EXT}'
+FILE_REGX_REMOTE = f'^{PREFIX}.*\.{EXT}$'
 REMOTE_DIR = Path(RSDBFC.read_app_configuration(key_='ibox_srcpath').squeeze()['value'])
 
 PORT = int(RSDBFC.read_app_configuration(key_='ibox_port').squeeze()['value'])
@@ -49,7 +50,7 @@ def list_local_file(set_id:str, turbine_id:str)->List[str]:
     month = now.month
     day = now.day
     p = OUTPATH/set_id/turbine_id/f'{year}/{month:02d}/{day:02d}'
-    return [f for f in p.rglob(FILE_REGX)]
+    return [f.name for f in p.rglob(FILE_REGX_LOCAL)]
 
 class _FTP():
     def __init__(self, set_id:str, turbine_id:str, host=None, username=USER, password=PASSWD, port=PORT):
@@ -88,7 +89,7 @@ class _FTP():
     def list_remote_files(self)->List[str]:
         self.ftp.cwd(str(REMOTE_DIR))
         file_sr = pd.Series(self.ftp.nlst())
-        is_ibox_file = file_sr.str.match(FILE_REGX)   
+        is_ibox_file = file_sr.str.match(FILE_REGX_REMOTE)   
         return file_sr[is_ibox_file]
 
     def download_files(self, file_names:Union[str, List[str]], local_root):
@@ -123,7 +124,9 @@ def _update_ibox_files(args):
     with _FTP(set_id, turbine_id) as ftp:
         remote_files = ftp.list_remote_files()
         local_files = list_local_file(set_id, turbine_id)
+        _LOGGER.info(f'{set_id}, {turbine_id}:local files {local_files}')
         candidates = list_candidates(remote_files, local_files)
+        _LOGGER.info(f'{set_id}, {turbine_id}: {len(candidates)} of {len(remote_files)} files need to be downloaded.')
         ftp.download_files(candidates, OUTPATH)
     return rev
 
