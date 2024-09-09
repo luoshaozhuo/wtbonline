@@ -124,7 +124,6 @@ def _update_ibox_files(args):
     with _FTP(set_id, turbine_id) as ftp:
         remote_files = ftp.list_remote_files()
         local_files = list_local_file(set_id, turbine_id)
-        _LOGGER.info(f'{set_id}, {turbine_id}:local files {local_files}')
         candidates = list_candidates(remote_files, local_files)
         _LOGGER.info(f'{set_id}, {turbine_id}: {len(candidates)} of {len(remote_files)} files need to be downloaded.')
         ftp.download_files(candidates, OUTPATH)

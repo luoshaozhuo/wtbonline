@@ -126,7 +126,7 @@ class TDEngine_FACADE():
         '''
         device_ids = PGFacade().read_model_device(set_id=set_id)['device_id']
         sql_lst=[]
-        for tid in device_ids.squeeze():
+        for tid in device_ids.tolist():
             temp = (f'''
                     CREATE TABLE IF NOT EXISTS {database}.d_{tid}
                     USING {database}.s_{set_id} TAGS ("{tid}");
