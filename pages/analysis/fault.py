@@ -76,8 +76,6 @@ def create_toolbar_content():
                 id=get_component_id('datepicker_end'), 
                 label="结束日期", 
                 disabled=False, 
-                maxDate=pd.Timestamp.now().date(), 
-                value=pd.Timestamp.now().date(), 
                 description="日期范围是闭区间"
                 ),
             dcmpt.number_input(id=get_component_id('input_span'), label='时长', value=30, min=1, description='单位，天'),
@@ -405,4 +403,4 @@ def find_ibox_file(set_id, device_id, date_:str):
 if __name__ == '__main__':     
     layout =  dmc.NotificationsProvider(children=layout)
     app.layout = layout
-    app.run_server(debug=False)
+    app.run_server(debug=False, )
