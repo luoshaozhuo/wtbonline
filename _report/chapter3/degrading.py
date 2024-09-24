@@ -41,10 +41,10 @@ class Degrading(Base):
             start_time=start_date,
             end_time=end_date,
             ).sort_values('start_time', ascending=False)
-        record_df = standard(set_id, record_df)
         if len(record_df)<1:
             conclusion = '报告期内没有发生机组降容。'
             return self._compose(index, heading, conclusion, tables, graphs, temp_dir)
+        record_df = standard(set_id, record_df)
         ext_df = pd.merge(record_df, sub_df, left_on='fault_id', right_on='id', how='left')
         
         # 表

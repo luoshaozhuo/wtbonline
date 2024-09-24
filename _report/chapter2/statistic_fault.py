@@ -43,12 +43,15 @@ class StatisticFault(Base):
             start_time=start_date,
             end_time=end_date
             ).sort_values(['start_time'], ascending=False)
-        df = pd.merge(df, sub_df, how='left', left_on='fault_id', right_on='id')
-        df['date'] = df['start_time'].dt.date
-        df = standard(set_id, df)
         if len(df)==0:
             conclusion = '统计时间段内没发生指定故障。'
             return self._compose(index, heading, conclusion, tables, graphs, temp_dir) 
+        df = pd.merge(df, sub_df, how='left', left_on='fault_id', right_on='id')
+        df['date'] = df['start_time'].dt.date
+        df = standard(set_id, df)
+        # if len(df)==0:
+        #     conclusion = '统计时间段内没发生指定故障。'
+        #     return self._compose(index, heading, conclusion, tables, graphs, temp_dir) 
         
         # 表格
         tbl_df = df.groupby(['name', 'device_name']).agg({'device_id':len}).reset_index()
